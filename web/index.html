@@ -3,32 +3,383 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f5f3f">
   <title>BCS · Evaluar</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 480px; }
-    label, input, button { display: block; width: 100%; margin-top: 8px; font-size: 1rem; }
-    pre { white-space: pre-wrap; background: #f3f3f3; padding: 8px; }
+    :root {
+      --bg: #f4f6f3; --card: #fff; --ink: #18211c; --muted: #5b6760; --line: #dde3de;
+      --brand: #1f5f3f; --brand-ink: #fff; --ok: #1f7a4a; --warn: #a86400; --warn-bg: #fff4dd;
+      --bad: #b3261e; --bad-bg: #fde8e6; --band: #e3f0e8;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink);
+      font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    header { background: var(--brand); color: var(--brand-ink); padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    header h1 { font-size: 1.1rem; margin: 0; }
+    header a { color: var(--brand-ink); font-weight: 600; text-decoration: none;
+      border: 1px solid rgba(255,255,255,.5); border-radius: 999px; padding: 4px 12px; white-space: nowrap; }
+    main { max-width: 480px; margin: 0 auto; padding: 12px 16px 24px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+    label.field { display: block; font-weight: 700; margin-bottom: 6px; }
+    input[type=text] { width: 100%; font-size: 1.4rem; padding: 10px 12px; border: 2px solid var(--line);
+      border-radius: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: .02em; }
+    input[type=text]:focus { outline: none; border-color: var(--brand); }
+    input[type=text][aria-invalid=true] { border-color: var(--bad); }
+    .hint { color: var(--muted); font-size: .85rem; margin: 6px 0 0; }
+    .err { color: var(--bad); font-size: .9rem; margin: 6px 0 0; font-weight: 600; }
+    .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+      min-height: 52px; border: 0; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer;
+      background: var(--brand); color: var(--brand-ink); text-decoration: none; }
+    .btn.secondary { background: #fff; color: var(--brand); border: 2px solid var(--brand); }
+    .btn.small { min-height: 40px; font-size: .95rem; }
+    .btn[disabled] { opacity: .5; cursor: default; }
+    .row { display: flex; gap: 8px; margin-top: 10px; }
+    .row > * { flex: 1; }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    details { margin-top: 10px; }
+    summary { font-weight: 600; color: var(--brand); cursor: pointer; }
+    details ul { margin: 8px 0 0; padding-left: 20px; color: var(--ink); font-size: .92rem; }
+    details li { margin-bottom: 4px; }
+    #confirm .cow { font-size: 1.5rem; font-weight: 800; margin: 0 0 8px; }
+    .preview { width: 100%; max-height: 260px; object-fit: contain; background: #e9ece9; border-radius: 8px; display: block; }
+    .banner { border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-weight: 600; }
+    .banner.warn { background: var(--warn-bg); color: var(--warn); }
+    .banner.bad { background: var(--bad-bg); color: var(--bad); }
+    .banner ul { margin: 6px 0 0; padding-left: 20px; font-weight: 500; }
+    .res-head { display: flex; gap: 12px; align-items: center; }
+    .res-head img { width: 96px; height: 96px; object-fit: cover; border-radius: 8px; background: #e9ece9; flex: none; }
+    .res-id { font-size: 1.25rem; font-weight: 800; }
+    .res-meta { color: var(--muted); font-size: .85rem; }
+    .bcs { display: flex; align-items: baseline; gap: 10px; margin: 14px 0 4px; }
+    .bcs .value { font-size: 3.6rem; font-weight: 800; line-height: 1; }
+    .bcs .label { color: var(--muted); font-weight: 600; }
+    .chip { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: .8rem; font-weight: 700; }
+    .chip.ok { background: var(--band); color: var(--ok); }
+    .chip.low_confidence { background: var(--warn-bg); color: var(--warn); }
+    .chip.rejected { background: var(--bad-bg); color: var(--bad); }
+    .metric { margin-top: 12px; }
+    .metric .top { display: flex; justify-content: space-between; font-weight: 600; }
+    .bar { height: 12px; background: #e6e9e6; border-radius: 999px; overflow: hidden; margin-top: 4px; }
+    .bar > span { display: block; height: 100%; background: var(--ok); }
+    .bar.low > span { background: var(--warn); }
+    .dist { width: 100%; height: 84px; display: block; margin-top: 6px; }
+    .note { color: var(--muted); font-size: .85rem; margin-top: 8px; }
+    footer { color: var(--muted); font-size: .85rem; text-align: center; padding: 0 16px 24px; max-width: 480px; margin: 0 auto; }
+    footer strong { color: var(--ink); }
+    .spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.4); border-top-color: #fff;
+      border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
-  <!-- Placeholder de T00: T07 hace la UI real. -->
-  <h1>Evaluar condición corporal</h1>
-  <p>Foto de la vaca desde atrás, cámara por encima de la cadera. No reemplaza al técnico.</p>
-  <form id="f">
-    <label>ID de la vaca <input name="cow_id" required pattern="[A-Za-z0-9][A-Za-z0-9._\-]{0,63}"></label>
-    <label>Foto <input name="image" type="file" accept="image/*" capture="environment" required></label>
-    <button>Evaluar</button>
-  </form>
-  <pre id="out"></pre>
-  <p><a id="rodeo" href="rodeo.html">Ver rodeo</a></p>
+  <header>
+    <h1>Condición corporal (BCS)</h1>
+    <a id="to-rodeo" href="rodeo.html">Rodeo →</a>
+  </header>
+  <main>
+    <section class="card" id="step-id">
+      <label class="field" for="cow-id">ID de la vaca *</label>
+      <input id="cow-id" type="text" list="cow-list" autocomplete="off" autocapitalize="characters"
+             spellcheck="false" inputmode="text" maxlength="64" placeholder="Ej.: caravana 0042" required>
+      <datalist id="cow-list"></datalist>
+      <p class="hint">Número de caravana o ID interno. Letras, números, punto, guion o guion bajo.</p>
+      <p class="err" id="id-error" hidden></p>
+    </section>
+
+    <section class="card" id="step-photo">
+      <label class="btn" for="photo-camera">📷 Sacar foto de atrás</label>
+      <input class="visually-hidden" id="photo-camera" type="file" accept="image/*" capture="environment">
+      <div class="row">
+        <label class="btn secondary small" for="photo-file">Subir desde la galería</label>
+      </div>
+      <input class="visually-hidden" id="photo-file" type="file" accept="image/*">
+      <details id="protocol">
+        <summary>Cómo sacar la foto</summary>
+        <ul>
+          <li>Vaca <strong>de atrás</strong>, cámara <strong>por encima de la cadera</strong> (brazo en alto o desde arriba del tubo/brete), apuntando hacia abajo unos 30–60°.</li>
+          <li>Que se vean la base de la cola, los isquiones, los ilíacos y, si se puede, la línea del lomo.</li>
+          <li>Una sola vaca centrada, sin la cola tapando la zona y con buena luz.</li>
+        </ul>
+      </details>
+    </section>
+
+    <section class="card" id="confirm" hidden>
+      <p class="cow" id="confirm-cow">Vaca: —</p>
+      <img class="preview" id="confirm-preview" alt="Foto elegida">
+      <div class="row">
+        <button class="btn secondary small" id="change" type="button">Cambiar</button>
+        <button class="btn small" id="send" type="button">Evaluar</button>
+      </div>
+      <p class="err" id="send-error" hidden></p>
+    </section>
+
+    <section id="result" hidden>
+      <div class="banner bad" id="res-rejected" hidden>
+        Foto rechazada: no se puede estimar el BCS.
+        <ul id="res-issues"></ul>
+      </div>
+      <div class="banner warn" id="res-low" hidden></div>
+      <div class="card">
+        <div class="res-head">
+          <img id="res-thumb" alt="Miniatura de la foto evaluada">
+          <div>
+            <div class="res-id" id="res-cow"></div>
+            <div class="res-meta" id="res-date"></div>
+            <span class="chip" id="res-status"></span>
+          </div>
+        </div>
+        <div id="res-score">
+          <div class="bcs"><span class="value" id="res-bcs">—</span><span class="label">BCS estimado</span></div>
+          <div class="metric">
+            <div class="top"><span>Confianza</span><span id="res-conf">—</span></div>
+            <div class="bar" id="res-conf-bar"><span></span></div>
+          </div>
+          <div class="metric">
+            <div class="top"><span>Intervalo (90%)</span><span id="res-interval">—</span></div>
+          </div>
+          <div class="metric">
+            <div class="top"><span>Distribución</span><span class="res-meta">verde = rango validado</span></div>
+            <svg class="dist" id="res-dist" role="img" aria-label="Distribución de probabilidad por BCS"></svg>
+          </div>
+          <p class="note" id="res-range-note"></p>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn secondary" id="retry" type="button">Otra foto</button>
+        <button class="btn" id="next" type="button">Siguiente vaca</button>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <p><strong>Estimación de apoyo; no reemplaza la evaluación de un técnico.</strong></p>
+    <p>Rango validado: BCS 3.25–4.25 (escala 1–5, vacas lecheras). Fuera de ese rango el valor es orientativo.</p>
+  </footer>
+
   <script>
+    "use strict";
+    // Rango validado por G0: el modelo solo vio BCS 3.25–4.25 (sdb_bcs).
+    const VALID_MIN = 3.25, VALID_MAX = 4.25;
+    const COW_RE = /^[A-Z0-9][A-Z0-9._-]{0,63}$/;
+    const LAST_KEY = "bcs.lastCowId";
+
+    // El token viene en el link (?token=); nunca va escrito en el HTML.
     const token = new URLSearchParams(location.search).get("token") || "";
-    document.getElementById("rodeo").search = token ? "?token=" + encodeURIComponent(token) : "";
-    document.getElementById("f").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const r = await fetch("/predict", { method: "POST", body: new FormData(e.target), headers: { "X-App-Token": token } });
-      document.getElementById("out").textContent = JSON.stringify(await r.json(), null, 2);
+    const withToken = (url) => token ? url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(token) : url;
+    const api = (path, opts = {}) =>
+      fetch(path, { ...opts, headers: { ...(opts.headers || {}), "X-App-Token": token } });
+    const store = {
+      get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+      set(k, v) { try { localStorage.setItem(k, v); } catch { /* sin storage: no se recuerda */ } },
+    };
+    const $ = (id) => document.getElementById(id);
+
+    $("to-rodeo").href = withToken("rodeo.html");
+
+    const idInput = $("cow-id");
+    let photo = null;
+    let previewUrl = null;
+
+    const normalize = (raw) => raw.trim().toUpperCase();
+    function idError(cowId) {
+      if (!cowId) return "Ingresá el ID de la vaca antes de la foto.";
+      if (!COW_RE.test(cowId)) return "ID inválido: usá letras, números, punto, guion o guion bajo, sin espacios (máx. 64).";
+      return "";
+    }
+    function showIdError(msg) {
+      $("id-error").textContent = msg;
+      $("id-error").hidden = !msg;
+      idInput.setAttribute("aria-invalid", msg ? "true" : "false");
+    }
+
+    async function loadCows() {
+      try {
+        const r = await api("/cows");
+        if (!r.ok) return;
+        const list = $("cow-list");
+        list.replaceChildren();
+        for (const c of await r.json()) {
+          const opt = document.createElement("option");
+          opt.value = c.cow_id;
+          if (c.bcs != null) opt.label = `${c.cow_id} · último BCS ${c.bcs.toFixed(2)}`;
+          list.appendChild(opt);
+        }
+      } catch { /* sin red: el autocompletado es opcional */ }
+    }
+
+    function updateConfirm() {
+      const cowId = normalize(idInput.value);
+      $("confirm-cow").textContent = "Vaca: " + (cowId || "—");
+      $("send").disabled = !!idError(cowId) || !photo;
+    }
+
+    function onPhoto(e) {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (!file) return;
+      photo = file;
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(file);
+      $("confirm-preview").src = previewUrl;
+      $("send-error").hidden = true;
+      $("result").hidden = true;
+      $("confirm").hidden = false;
+      const msg = idError(normalize(idInput.value));
+      showIdError(msg);
+      updateConfirm();
+      (msg ? idInput : $("send")).focus();
+      $("confirm").scrollIntoView({ block: "nearest" });
+    }
+    $("photo-camera").addEventListener("change", onPhoto);
+    $("photo-file").addEventListener("change", onPhoto);
+
+    idInput.addEventListener("input", () => {
+      if (!$("id-error").hidden) showIdError(idError(normalize(idInput.value)));
+      updateConfirm();
     });
+    idInput.addEventListener("blur", () => {
+      if (idInput.value) idInput.value = normalize(idInput.value);
+    });
+
+    $("change").addEventListener("click", () => {
+      $("confirm").hidden = true;
+      photo = null;
+      idInput.focus();
+    });
+
+    $("send").addEventListener("click", async () => {
+      const cowId = normalize(idInput.value);
+      const msg = idError(cowId);
+      showIdError(msg);
+      if (msg || !photo) return;
+      const btn = $("send");
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Evaluando…';
+      $("send-error").hidden = true;
+      try {
+        const body = new FormData();
+        body.append("cow_id", cowId);
+        body.append("image", photo, photo.name || "foto.jpg");
+        const r = await api("/predict", { method: "POST", body });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          const detail = typeof data.detail === "string" ? data.detail : "error " + r.status;
+          throw new Error(r.status === 401 ? "Token inválido o ausente: abrí la app con el link que incluye ?token=." : detail);
+        }
+        store.set(LAST_KEY, data.cow_id);
+        idInput.value = data.cow_id;
+        showResult(data);
+        loadCows();
+      } catch (err) {
+        $("send-error").textContent = err instanceof TypeError ? "Sin conexión con el servidor. Probá de nuevo." : err.message;
+        $("send-error").hidden = false;
+      } finally {
+        btn.textContent = "Evaluar";
+        updateConfirm();
+      }
+    });
+
+    const fmt = (x) => Number(x).toFixed(2);
+    const STATUS_TEXT = { ok: "OK", low_confidence: "Confianza baja", rejected: "Rechazada" };
+
+    function drawDistribution(svg, distribution, bcs) {
+      const keys = Object.keys(distribution).sort((a, b) => parseFloat(a) - parseFloat(b));
+      const W = 340, H = 84, top = 4, base = 64, n = keys.length, slot = W / n;
+      const maxP = Math.max(0.01, ...keys.map((k) => distribution[k]));
+      const ns = "http://www.w3.org/2000/svg";
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      svg.replaceChildren();
+      const el = (tag, attrs, text) => {
+        const node = document.createElementNS(ns, tag);
+        for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+        if (text != null) node.textContent = text;
+        svg.appendChild(node);
+        return node;
+      };
+      const i0 = keys.findIndex((k) => parseFloat(k) >= VALID_MIN - 1e-9);
+      const i1 = keys.findIndex((k) => parseFloat(k) > VALID_MAX + 1e-9);
+      if (i0 >= 0) el("rect", { x: i0 * slot, y: 0, width: ((i1 < 0 ? n : i1) - i0) * slot, height: base, fill: "#e3f0e8" });
+      keys.forEach((k, i) => {
+        const p = distribution[k];
+        const h = (p / maxP) * (base - top);
+        const isTop = bcs != null && Math.abs(parseFloat(k) - bcs) < 1e-9;
+        el("rect", { x: i * slot + slot * 0.15, y: base - h, width: slot * 0.7, height: Math.max(h, p > 0 ? 1 : 0),
+                     fill: isTop ? "#1f5f3f" : "#7fa58f", rx: 1 }).appendChild(
+          Object.assign(document.createElementNS(ns, "title"), { textContent: `BCS ${k}: ${Math.round(p * 100)}%` }));
+        const v = parseFloat(k);
+        if (Math.abs(v - Math.round(v)) < 1e-9 || isTop) {
+          el("text", { x: i * slot + slot / 2, y: H - 4, "text-anchor": "middle", "font-size": 11,
+                       fill: isTop ? "#1f5f3f" : "#5b6760", "font-weight": isTop ? 700 : 400 }, isTop ? fmt(v) : v.toFixed(0));
+        }
+      });
+      el("line", { x1: 0, x2: W, y1: base, y2: base, stroke: "#b9c2bc" });
+    }
+
+    function showResult(p) {
+      $("confirm").hidden = true;
+      $("result").hidden = false;
+      $("result").dataset.predictionId = p.prediction_id;
+      $("result").dataset.status = p.status;
+      $("res-cow").textContent = "Vaca: " + p.cow_id;
+      $("res-date").textContent = new Date(p.created_at).toLocaleString("es-UY", { dateStyle: "short", timeStyle: "short" });
+      const chip = $("res-status");
+      chip.className = "chip " + p.status;
+      chip.textContent = STATUS_TEXT[p.status] || p.status;
+      $("res-thumb").src = withToken(`/media/${encodeURIComponent(p.prediction_id)}.jpg`);
+
+      const rejected = p.status === "rejected";
+      $("res-rejected").hidden = !rejected;
+      $("res-score").hidden = rejected;
+      const issues = $("res-issues");
+      issues.replaceChildren();
+      for (const msg of (p.quality && p.quality.issues) || []) {
+        issues.appendChild(document.createElement("li")).textContent = msg;
+      }
+      if (rejected && !issues.childElementCount) issues.appendChild(document.createElement("li")).textContent = "no parece una vaca de atrás";
+
+      const low = $("res-low");
+      low.hidden = p.status !== "low_confidence";
+      if (!low.hidden) {
+        low.textContent = p.bcs != null && p.bcs <= VALID_MIN + 1e-9
+          ? "Confianza baja: posible condición baja, verificar a mano."
+          : "Confianza baja: el resultado es dudoso, verificalo a mano o sacá otra foto.";
+      }
+      $("retry").textContent = rejected ? "Sacar otra foto" : "Otra foto";
+      if (rejected) { $("result").scrollIntoView({ block: "start" }); return; }
+
+      $("res-bcs").textContent = p.bcs != null ? fmt(p.bcs) : "—";
+      const conf = p.confidence;
+      $("res-conf").textContent = conf != null ? Math.round(conf * 100) + "%" : "—";
+      $("res-conf-bar").classList.toggle("low", conf != null && conf < 0.5);
+      $("res-conf-bar").firstElementChild.style.width = conf != null ? (conf * 100).toFixed(1) + "%" : "0";
+      $("res-interval").textContent = p.interval ? `${fmt(p.interval[0])} – ${fmt(p.interval[1])}` : "—";
+      drawDistribution($("res-dist"), p.distribution || {}, p.bcs);
+      const out = p.bcs != null && (p.bcs < VALID_MIN - 1e-9 || p.bcs > VALID_MAX + 1e-9);
+      $("res-range-note").textContent = out
+        ? `Fuera del rango validado (${fmt(VALID_MIN)}–${fmt(VALID_MAX)}): tomalo como orientativo.`
+        : "Confianza: probabilidad de que el BCS real esté a ±0.25 del valor estimado.";
+      $("result").scrollIntoView({ block: "start" });
+    }
+
+    function resetPhoto() {
+      photo = null;
+      $("confirm").hidden = true;
+      $("result").hidden = true;
+      $("send-error").hidden = true;
+    }
+    $("retry").addEventListener("click", () => { resetPhoto(); $("photo-camera").click(); });
+    $("next").addEventListener("click", () => {
+      resetPhoto();
+      idInput.value = "";
+      showIdError("");
+      window.scrollTo(0, 0);
+      idInput.focus();
+    });
+
+    idInput.value = store.get(LAST_KEY) || "";
+    updateConfirm();
+    loadCows();
   </script>
 </body>
 </html>

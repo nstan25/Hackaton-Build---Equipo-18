@@ -3,32 +3,329 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f5f3f">
   <title>BCS · Rodeo</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 720px; }
-    table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; border-bottom: 1px solid #ddd; text-align: left; }
-    img { width: 64px; }
+    :root {
+      --bg: #f4f6f3; --card: #fff; --ink: #18211c; --muted: #5b6760; --line: #dde3de;
+      --brand: #1f5f3f; --brand-ink: #fff; --ok: #1f7a4a; --warn: #a86400; --warn-bg: #fff4dd;
+      --bad: #b3261e; --bad-bg: #fde8e6; --band: #e3f0e8;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink);
+      font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    header { background: var(--brand); color: var(--brand-ink); padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    header h1 { font-size: 1.1rem; margin: 0; }
+    header a { color: var(--brand-ink); font-weight: 600; text-decoration: none;
+      border: 1px solid rgba(255,255,255,.5); border-radius: 999px; padding: 4px 12px; white-space: nowrap; }
+    main { max-width: 720px; margin: 0 auto; padding: 12px 16px 24px; }
+    .filters { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+    .filters input[type=search] { width: 100%; font-size: 1.05rem; padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px; }
+    .filters input[type=search]:focus, .filters input[type=number]:focus { outline: none; border-color: var(--brand); }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px;
+      padding: 6px 12px; font-size: .9rem; background: #fff; cursor: pointer; user-select: none; }
+    .toggle:has(input:checked) { background: var(--band); border-color: var(--ok); color: var(--ok); font-weight: 600; }
+    .toggle input[type=number] { width: 4.2em; font-size: .9rem; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px; }
+    .count { color: var(--muted); font-size: .85rem; margin: 0 0 8px; }
+    .cows { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .cow { display: flex; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line);
+      border-radius: 12px; padding: 10px; cursor: pointer; text-decoration: none; color: inherit; }
+    .cow:focus-visible { outline: 3px solid var(--brand); }
+    .cow img, .hist-item img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; background: #e9ece9; flex: none; }
+    .cow .info { flex: 1; min-width: 0; }
+    .cow .id { font-weight: 800; font-size: 1.1rem; overflow-wrap: anywhere; }
+    .cow .meta, .hist-item .meta { color: var(--muted); font-size: .82rem; }
+    .cow .score { text-align: right; flex: none; }
+    .cow .score .v { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+    .cow .score .iv { color: var(--muted); font-size: .78rem; }
+    .chip { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: .75rem; font-weight: 700; margin-top: 2px; }
+    .chip.ok { background: var(--band); color: var(--ok); }
+    .chip.low_confidence { background: var(--warn-bg); color: var(--warn); }
+    .chip.rejected { background: var(--bad-bg); color: var(--bad); }
+    .empty { text-align: center; color: var(--muted); padding: 24px 8px; }
+    .err { color: var(--bad); font-weight: 600; }
+    .back { background: none; border: 0; color: var(--brand); font-weight: 700; font-size: 1rem; padding: 4px 0; cursor: pointer; }
+    .hist-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 4px 0 8px; }
+    .hist-head h2 { margin: 0; font-size: 1.4rem; overflow-wrap: anywhere; }
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 12px; }
+    .chart { width: 100%; height: auto; display: block; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: .78rem; margin-top: 4px; }
+    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+    .hist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+    .hist-item { display: flex; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+    .hist-item .v { font-weight: 800; font-size: 1.2rem; }
+    .hist-item ul { margin: 2px 0 0; padding-left: 18px; color: var(--bad); font-size: .82rem; }
+    footer { color: var(--muted); font-size: .85rem; text-align: center; padding: 0 16px 24px; max-width: 720px; margin: 0 auto; }
+    footer strong { color: var(--ink); }
+    [hidden] { display: none !important; }
+    @media (min-width: 640px) { .cows { grid-template-columns: 1fr 1fr; } }
   </style>
 </head>
 <body>
-  <!-- Placeholder de T00: T07 hace el dashboard real. -->
-  <h1>Rodeo</h1>
-  <table><thead><tr><th>Foto</th><th>Vaca</th><th>BCS</th><th>Confianza</th><th>Evaluaciones</th></tr></thead><tbody id="rows"></tbody></table>
+  <header>
+    <h1>Rodeo</h1>
+    <a id="to-eval" href="index.html">+ Evaluar</a>
+  </header>
+  <main>
+    <section id="list-view">
+      <div class="filters">
+        <input id="q" type="search" placeholder="Buscar por ID de vaca" autocomplete="off" aria-label="Buscar por ID de vaca">
+        <div class="filter-row">
+          <label class="toggle"><input id="f-bcs" type="checkbox"> BCS ≤
+            <input id="f-bcs-max" type="number" min="1" max="9" step="0.25" value="3.25" aria-label="BCS máximo"></label>
+          <label class="toggle"><input id="f-low" type="checkbox"> Baja confianza</label>
+          <label class="toggle"><input id="f-rej" type="checkbox"> Última foto rechazada</label>
+        </div>
+      </div>
+      <p class="count" id="count"></p>
+      <ul class="cows" id="cows"></ul>
+      <p class="empty" id="empty" hidden></p>
+    </section>
+
+    <section id="hist-view" hidden>
+      <button class="back" id="back" type="button">← Rodeo</button>
+      <div class="hist-head"><h2 id="hist-cow"></h2><span class="meta" id="hist-count"></span></div>
+      <div class="panel">
+        <svg class="chart" id="chart" role="img" aria-label="Evolución del BCS"></svg>
+        <div class="legend">
+          <span><i style="background:#1f7a4a"></i>OK</span>
+          <span><i style="background:#a86400"></i>Confianza baja</span>
+          <span><i style="background:#b3261e"></i>Rechazada</span>
+          <span><i style="background:#e3f0e8;border-radius:2px"></i>Rango validado</span>
+        </div>
+      </div>
+      <ul class="hist" id="hist"></ul>
+    </section>
+  </main>
+  <footer>
+    <p><strong>Estimación de apoyo; no reemplaza la evaluación de un técnico.</strong></p>
+    <p>Rango validado: BCS 3.25–4.25. Fuera de ese rango el valor es orientativo.</p>
+  </footer>
+
   <script>
+    "use strict";
+    // Rango validado por G0: el modelo solo vio BCS 3.25–4.25 (sdb_bcs).
+    const VALID_MIN = 3.25, VALID_MAX = 4.25;
+    const STATUS_TEXT = { ok: "OK", low_confidence: "Confianza baja", rejected: "Rechazada" };
+    const STATUS_COLOR = { ok: "#1f7a4a", low_confidence: "#a86400", rejected: "#b3261e" };
+
+    // El token viene en el link (?token=); nunca va escrito en el HTML.
     const token = new URLSearchParams(location.search).get("token") || "";
-    const q = "?token=" + encodeURIComponent(token);
-    fetch("/cows" + q).then((r) => r.json()).then((cows) => {
-      const tbody = document.getElementById("rows");
-      for (const c of cows) {
-        const tr = document.createElement("tr");
-        const cells = [c.cow_id, c.bcs ?? "—", c.confidence != null ? Math.round(c.confidence * 100) + "%" : "—", c.n_evaluations];
-        const img = document.createElement("img");
-        img.src = "/media/" + c.last_prediction_id + ".jpg" + q;
-        tr.appendChild(document.createElement("td")).appendChild(img);
-        for (const v of cells) tr.appendChild(document.createElement("td")).textContent = v;
-        tbody.appendChild(tr);
+    const withToken = (url) => token ? url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(token) : url;
+    const api = (path) => fetch(path, { headers: { "X-App-Token": token } });
+    const $ = (id) => document.getElementById(id);
+    const fmt = (x) => Number(x).toFixed(2);
+    const fmtDate = (iso) => iso ? new Date(iso).toLocaleString("es-UY", { dateStyle: "short", timeStyle: "short" }) : "—";
+    const fmtShort = (iso) => iso ? new Date(iso).toLocaleString("es-UY",
+      { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
+    const thumb = (id) => withToken(`/media/${encodeURIComponent(id)}.jpg`);
+    const h = (tag, cls, text) => {
+      const node = document.createElement(tag);
+      if (cls) node.className = cls;
+      if (text != null) node.textContent = text;
+      return node;
+    };
+    const chip = (status) => h("span", "chip " + status, STATUS_TEXT[status] || status);
+
+    $("to-eval").href = withToken("index.html");
+
+    let cows = [];
+
+    function errorText(r) {
+      return r.status === 401 ? "Token inválido o ausente: abrí el rodeo con el link que incluye ?token=." : "Error " + r.status;
+    }
+
+    async function loadCows() {
+      try {
+        const r = await api("/cows");
+        if (!r.ok) throw new Error(errorText(r));
+        cows = await r.json();
+      } catch (err) {
+        cows = [];
+        $("empty").textContent = err instanceof TypeError ? "Sin conexión con el servidor." : err.message;
+        $("empty").className = "empty err";
       }
-    });
+      renderList();
+    }
+
+    // Mismas reglas que `low_confidence` (SPEC §2.2) sobre el último BCS válido: conf. < 0.5 o
+    // intervalo de más de 4 pasos (paso 0.25 de la escala 1–5 validada en G0).
+    const STEP = 0.25;
+    function isLowConfidence(c) {
+      if (c.last_status === "low_confidence") return true;
+      if (c.bcs == null) return false;
+      return (c.confidence != null && c.confidence < 0.5)
+        || (c.interval != null && Math.round((c.interval[1] - c.interval[0]) / STEP) > 4);
+    }
+
+    function renderList() {
+      const q = $("q").value.trim().toUpperCase();
+      const bcsMax = $("f-bcs").checked ? parseFloat($("f-bcs-max").value) : NaN;
+      const rows = cows
+        .filter((c) => !q || c.cow_id.includes(q))
+        .filter((c) => Number.isNaN(bcsMax) || (c.bcs != null && c.bcs <= bcsMax + 1e-9))
+        .filter((c) => !$("f-low").checked || isLowConfidence(c))
+        .filter((c) => !$("f-rej").checked || c.last_rejected)
+        // BCS ascendente: las más flacas primero; sin BCS válido al final.
+        .sort((a, b) => (a.bcs ?? Infinity) - (b.bcs ?? Infinity) || a.cow_id.localeCompare(b.cow_id));
+
+      const ul = $("cows");
+      ul.replaceChildren();
+      for (const c of rows) {
+        const li = h("li");
+        const a = h("a", "cow");
+        a.href = "#vaca=" + encodeURIComponent(c.cow_id);
+        a.dataset.cowId = c.cow_id;
+        const img = h("img");
+        img.src = thumb(c.last_prediction_id);
+        img.alt = "Última foto de " + c.cow_id;
+        img.loading = "lazy";
+        const info = h("div", "info");
+        info.append(h("div", "id", c.cow_id));
+        info.append(h("div", "meta", `${fmtShort(c.last_at)} · ${c.n_evaluations} ${c.n_evaluations === 1 ? "evaluación" : "evaluaciones"}`));
+        info.append(chip(c.last_status));  // estado de la última foto (rechazada se ve acá)
+        const score = h("div", "score");
+        score.append(h("div", "v", c.bcs != null ? fmt(c.bcs) : "—"));
+        if (c.bcs != null) {
+          const parts = [];
+          if (c.interval) parts.push(`${fmt(c.interval[0])}–${fmt(c.interval[1])}`);
+          if (c.confidence != null) parts.push(Math.round(c.confidence * 100) + "% conf.");
+          score.append(h("div", "iv", parts.join(" · ")));
+        } else {
+          score.append(h("div", "iv", "sin BCS válido"));
+        }
+        a.append(img, info, score);
+        li.append(a);
+        ul.append(li);
+      }
+      $("count").textContent = cows.length ? `${rows.length} de ${cows.length} vacas · ordenadas por BCS (más bajo primero)` : "";
+      if (!$("empty").classList.contains("err")) {
+        $("empty").textContent = cows.length ? "Ninguna vaca cumple los filtros." : "Todavía no hay evaluaciones. Empezá desde “+ Evaluar”.";
+      }
+      $("empty").hidden = rows.length > 0;
+    }
+
+    for (const id of ["q", "f-bcs", "f-low", "f-rej"]) $(id).addEventListener("input", renderList);
+    $("f-bcs-max").addEventListener("input", () => { $("f-bcs").checked = true; renderList(); });
+
+    function drawChart(svg, items) {
+      const ns = "http://www.w3.org/2000/svg";
+      const W = 340, H = 180, L = 34, R = 10, T = 10, B = 26, PAD = 12;
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      svg.replaceChildren();
+      const el = (tag, attrs, text) => {
+        const node = document.createElementNS(ns, tag);
+        for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+        if (text != null) node.textContent = text;
+        svg.appendChild(node);
+        return node;
+      };
+      const pts = items.slice().sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+      const valid = pts.filter((p) => p.bcs != null);
+      const vals = valid.flatMap((p) => [p.bcs, ...(p.interval || [])]);
+      const yMin = Math.floor(Math.min(3, VALID_MIN, ...vals) * 2) / 2;
+      const yMax = Math.ceil(Math.max(4.5, VALID_MAX, ...vals) * 2) / 2;
+      const t0 = Date.parse(pts[0].created_at), t1 = Date.parse(pts[pts.length - 1].created_at);
+      // Eje x temporal; si todas tienen la misma hora, equiespaciadas.
+      const x0 = L + PAD, x1 = W - R - PAD;
+      const x = (p) => pts.length === 1 ? (x0 + x1) / 2
+        : t1 === t0 ? x0 + (x1 - x0) * pts.indexOf(p) / (pts.length - 1)
+        : x0 + (x1 - x0) * (Date.parse(p.created_at) - t0) / (t1 - t0);
+      const y = (v) => T + (H - T - B) * (yMax - v) / (yMax - yMin);
+
+      el("rect", { x: L, y: y(VALID_MAX), width: W - L - R, height: y(VALID_MIN) - y(VALID_MAX), fill: "#e3f0e8" });
+      for (let v = yMin; v <= yMax + 1e-9; v += 0.5) {
+        el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "#e6e9e6" });
+        el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", "font-size": 11, fill: "#5b6760" }, v.toFixed(1));
+      }
+      el("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: "#b9c2bc" });
+      const sameDay = new Date(t0).toDateString() === new Date(t1).toDateString();
+      const tickFmt = (t) => sameDay
+        ? new Date(t).toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit", hour12: false })
+        : new Date(t).toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit" });
+      el("text", { x: L, y: H - 8, "font-size": 11, fill: "#5b6760" }, tickFmt(t0));
+      if (t1 !== t0) el("text", { x: W - R, y: H - 8, "text-anchor": "end", "font-size": 11, fill: "#5b6760" }, tickFmt(t1));
+
+      if (valid.length > 1) {
+        el("polyline", { points: valid.map((p) => `${x(p)},${y(p.bcs)}`).join(" "), fill: "none", stroke: "#7fa58f", "stroke-width": 2 });
+      }
+      for (const p of pts) {
+        const tip = `${fmtDate(p.created_at)} · ${STATUS_TEXT[p.status]}` + (p.bcs != null ? ` · BCS ${fmt(p.bcs)}` : "");
+        let mark;
+        if (p.bcs == null) {
+          const cx = x(p), cy = H - B - 8;
+          mark = el("path", { d: `M${cx - 5},${cy - 5}L${cx + 5},${cy + 5}M${cx + 5},${cy - 5}L${cx - 5},${cy + 5}`,
+                              stroke: STATUS_COLOR.rejected, "stroke-width": 2.5 });
+        } else {
+          if (p.interval) {
+            el("line", { x1: x(p), x2: x(p), y1: y(p.interval[0]), y2: y(p.interval[1]), stroke: STATUS_COLOR[p.status], "stroke-width": 2, opacity: .35 });
+          }
+          mark = el("circle", { cx: x(p), cy: y(p.bcs), r: 5, fill: STATUS_COLOR[p.status] || "#1f7a4a", stroke: "#fff", "stroke-width": 1.5 });
+        }
+        mark.dataset.predictionId = p.prediction_id;
+        mark.appendChild(document.createElementNS(ns, "title")).textContent = tip;
+      }
+    }
+
+    async function showHistory(cowId) {
+      $("list-view").hidden = true;
+      $("hist-view").hidden = false;
+      $("hist-cow").textContent = "Vaca " + cowId;
+      $("hist-count").textContent = "";
+      const ul = $("hist");
+      ul.replaceChildren();
+      $("chart").replaceChildren();
+      window.scrollTo(0, 0);
+      let items;
+      try {
+        const r = await api("/cows/" + encodeURIComponent(cowId));
+        if (!r.ok) throw new Error(r.status === 404 ? "Esta vaca no tiene evaluaciones." : errorText(r));
+        items = await r.json();
+      } catch (err) {
+        ul.append(h("li", "empty err", err instanceof TypeError ? "Sin conexión con el servidor." : err.message));
+        return;
+      }
+      if (decodeURIComponent(location.hash.slice(6)) !== cowId) return;  // el usuario ya navegó a otra vista
+      $("hist-count").textContent = `${items.length} ${items.length === 1 ? "evaluación" : "evaluaciones"}`;
+      drawChart($("chart"), items);
+      for (const p of items) {
+        const li = h("li", "hist-item");
+        li.dataset.predictionId = p.prediction_id;
+        const img = h("img");
+        img.src = thumb(p.prediction_id);
+        img.alt = "Foto del " + fmtDate(p.created_at);
+        img.loading = "lazy";
+        const info = h("div");
+        info.append(h("div", "v", p.bcs != null ? `BCS ${fmt(p.bcs)}` : "Sin BCS"));
+        const meta = [fmtDate(p.created_at)];
+        if (p.interval) meta.push(`intervalo ${fmt(p.interval[0])}–${fmt(p.interval[1])}`);
+        if (p.confidence != null) meta.push(Math.round(p.confidence * 100) + "% conf.");
+        info.append(h("div", "meta", meta.join(" · ")), chip(p.status));
+        if (p.status === "rejected") {
+          const issues = h("ul");
+          for (const msg of (p.quality && p.quality.issues) || []) issues.append(h("li", "", msg));
+          info.append(issues);
+        }
+        li.append(img, info);
+        ul.append(li);
+      }
+    }
+
+    function route() {
+      const m = location.hash.match(/^#vaca=(.+)$/);
+      if (m) {
+        showHistory(decodeURIComponent(m[1]));
+      } else {
+        $("hist-view").hidden = true;
+        $("list-view").hidden = false;
+        loadCows();
+      }
+    }
+    $("back").addEventListener("click", () => { location.hash = ""; });
+    window.addEventListener("hashchange", route);
+    route();
   </script>
 </body>
 </html>
