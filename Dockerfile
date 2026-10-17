@@ -21,14 +21,14 @@ RUN apt-get update \
 
 # Capa de dependencias (cambia poco): torch CPU desde el lock.
 COPY pyproject.toml uv.lock .python-version README.md ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project --no-cache
 
 # Código y recursos. `bcs.paths` resuelve config/ y tests/fixtures/ relativos a /app.
 COPY src/ src/
 COPY config/ config/
 COPY web/ web/
 COPY tests/fixtures/prediction_example.json tests/fixtures/prediction_example.json
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --no-cache
 
 # /data es el volumen de Railway (base SQLite + miniaturas). BCS_APP_TOKEN va en sus variables.
 EXPOSE 8000
