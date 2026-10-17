@@ -1,0 +1,29 @@
+# Config base de entrenamiento. Cada candidato crea su propio config/<modelo>.yaml (SPEC §5.6).
+seed: 42
+scale: dairy_1_5
+data:
+  labels: labels.csv          # relativo a $BCS_DATA_DIR
+  sources: [sdb_bcs]          # solo fuentes de escala 1–5 se mezclan (SPEC §1.2)
+  image_size: 224
+cv:
+  n_folds: 5
+  group_col: group_id
+  stratify_col: bcs
+model:
+  name: stub_uniform
+  backbone: null
+train:
+  epochs: 15
+  batch_size: 32
+  lr: 3.0e-4
+  weight_decay: 0.05
+augment:
+  hflip: true
+  vflip: false                # nunca (SPEC §2.3)
+  max_rotation_deg: 5
+  color_jitter: 0.2
+  blur: 0.1
+smoke:
+  folds: 1
+  epochs: 1
+  max_images: 500

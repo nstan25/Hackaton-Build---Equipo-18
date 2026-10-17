@@ -6,3 +6,11 @@ runs/
 *.pt
 __pycache__/
 dataset.rar
+
+# Entorno
+.venv/
+.env
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+data/
