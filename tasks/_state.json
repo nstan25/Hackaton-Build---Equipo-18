@@ -226,13 +226,16 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t06-labels",
-      "terminal": "term_a44da7bc-f7fe-4f8d-a28f-f24156637156",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_0004c15e24ec",
       "rounds": 1,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t06-labels",
-      "branch": "mithrandir7/t06-labels"
+      "branch": "Mithrandir7/t06-labels",
+      "notes": [
+        "verificada + review aprobada (labels 45.523, holdout 545 grupos, pintura reproducida); mergeada e3569b6"
+      ]
     },
     "G1": {
       "task_id": "task_a53816bb69b9",
@@ -242,7 +245,7 @@
       ],
       "gate": true,
       "agent": null,
-      "status": "pending",
+      "status": "ready",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
