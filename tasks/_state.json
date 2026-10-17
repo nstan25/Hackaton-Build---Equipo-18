@@ -253,15 +253,16 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t07-web",
-      "terminal": "term_2c902e52-98c5-42ad-955c-fef80abe0f06",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_354520328551",
       "rounds": 1,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t07-web",
       "branch": "mithrandir7/t07-web",
       "notes": [
-        "Re-despachado tras reinicio de la máquina (18:43); dispatch anterior abandonado"
+        "Re-despachado tras reinicio de la máquina (18:43); dispatch anterior abandonado",
+        "verificada: check OK, make browser 59/59 a 390px (Firefox headless via WebDriver, iframe 390x844); capturas revisadas; mergeada"
       ]
     },
     "T08": {
