@@ -1,9 +1,18 @@
-# Datos y artefactos generados
+# Datasets y datos derivados (se regeneran con los scripts)
+Imagenes_intel/
 dataset_split/
 crops/
 yolo_data/
-runs/
+results/*.npy
+
+# Pesos de entrenamiento intermedios y preentrenados (el detector final está en models/cow_det.pt)
+/runs/*
+!/runs/cow/
+/runs/cow/weights/
+yolo11n.pt
 *.pt
+!models/*.pt
+
 __pycache__/
 dataset.rar
 

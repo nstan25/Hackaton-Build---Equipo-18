@@ -57,7 +57,11 @@ torchvision = { index = "pytorch-cpu" }
 line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
-extend-exclude = ["preprocesamiento", "SPEC.md", "README.md", "tasks"]
+extend-exclude = [
+    "preprocesamiento", "SPEC.md", "README.md", "tasks",
+    # código del equipo (commit 7cac8ae): fuera del lint
+    "make_split.py", "apply_split.py", "prep_crops.py", "prep_yolo.py", "app.py", "baseline_embed.py", "bcs_pipeline.py", "calibrate.py", "metrics.py", "monitor_server.py", "train_cnn.py",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]

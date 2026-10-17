@@ -1,4 +1,4 @@
-"""Split train / val / test de `sdb_bcs` (G0 punto 3): `preprocesamiento/split.csv` tal cual.
+"""Split train / val / test de `sdb_bcs` (G0 punto 3): `split.csv` del equipo tal cual.
 
 No hay K-Fold ni `make holdout`: test es el holdout. De acá salen
 
@@ -18,7 +18,7 @@ import pandas as pd
 from bcs.data.sources.sdb_bcs import SOURCE_ID, image_id
 from bcs.paths import REPO_ROOT
 
-README_SPLIT = REPO_ROOT / "preprocesamiento" / "split.csv"
+README_SPLIT = REPO_ROOT / "split.csv"
 TRAIN_SPLITS = ("train", "val")
 HOLDOUT_SPLIT = "test"
 

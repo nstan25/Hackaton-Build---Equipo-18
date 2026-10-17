@@ -158,7 +158,7 @@ def _load_prep_crops(scripts_dir: Path) -> ModuleType:
     spec = importlib.util.spec_from_file_location("prep_crops", scripts_dir / "prep_crops.py")
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
-    # preprocesamiento/ es de solo lectura: que el import no deje __pycache__ ahí.
+    # Los scripts del equipo son de solo lectura: que el import no deje __pycache__ al lado.
     prev, sys.dont_write_bytecode = sys.dont_write_bytecode, True
     try:
         spec.loader.exec_module(mod)
@@ -230,7 +230,7 @@ class SdbBcsSource:
         workers: int = 8,
     ) -> None:
         self.root = root or data_dir()
-        self.scripts_dir = scripts_dir or REPO_ROOT / "preprocesamiento"
+        self.scripts_dir = scripts_dir or REPO_ROOT
         self.workers = workers
 
     @property

@@ -15,7 +15,7 @@ from PIL import Image
 from bcs.data.preprocess_sdb import MANIFEST, Config, PreprocessError, run, sha256_file
 
 FIX = Path(__file__).parents[1] / "fixtures" / "sdb_mini"
-SCRIPTS = Path(__file__).parents[2] / "preprocesamiento"
+SCRIPTS = Path(__file__).parents[2]  # scripts del equipo en la raíz (7cac8ae)
 CLASSES = {"3.25": 13, "3.75": 13, "4.25": 13}
 
 

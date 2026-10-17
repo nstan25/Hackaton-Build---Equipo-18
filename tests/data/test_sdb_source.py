@@ -24,7 +24,7 @@ from bcs.data.sources.sdb_bcs import (
 )
 
 FIX = Path(__file__).parents[1] / "fixtures" / "sdb_mini"
-SCRIPTS = Path(__file__).parents[2] / "preprocesamiento"
+SCRIPTS = Path(__file__).parents[2]  # scripts del equipo en la raíz (7cac8ae)
 
 
 @pytest.fixture(scope="module")
