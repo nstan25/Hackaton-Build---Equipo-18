@@ -141,13 +141,16 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t01-api-deploy",
-      "terminal": "term_40a80f80-05de-49f3-b79c-8aa8573e7426",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_8032c88ff6bc",
       "rounds": 1,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t01-api-deploy",
-      "branch": "mithrandir7/t01-api-deploy"
+      "branch": "mithrandir7/t01-api-deploy",
+      "notes": [
+        "v1 verificada: check 75 tests, smoke OK, curl local 422/401/200; docker build OK según worker; imagen 6,2 GB (Railway trial ~4 GB)"
+      ]
     },
     "T16": {
       "task_id": "task_e180ff220e7f",
@@ -402,6 +405,17 @@
       "terminal": null,
       "dispatch_id": null,
       "rounds": 0
+    },
+    "T01-deploy": {
+      "task_id": "task_fe3cc35eac5f",
+      "title": "Deploy Railway",
+      "deps": [
+        "T01"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "blocked",
+      "note": "esperando credenciales Railway"
     }
   }
 }
