@@ -280,14 +280,17 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t08-quality",
-      "terminal": "term_68a74225-c399-42ba-bf8a-7c7815f689cb",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_9cd97768a1b6",
       "rounds": 1,
       "replaced": "task_b0e84c86d818 (cancelada; dependía de T05)",
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t08-quality",
-      "branch": "mithrandir7/t08-quality"
+      "branch": "Mithrandir7/t08-quality",
+      "notes": [
+        "verificada: check OK, 14 tests; reject_negatives 0.975, reject_val 0.0076, accept_rear null; umbrales elegidos con val + set de rechazo (optimista); CLIP 578 MB → considerar en deploy"
+      ]
     },
     "T09": {
       "task_id": "task_508228ebee66",
