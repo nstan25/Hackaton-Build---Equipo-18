@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -13,7 +14,7 @@ def evaluate(
     grid: Sequence[float],
     groups: Sequence[str],
     sources: Sequence[str],
-) -> dict[str, float | int]:
+) -> dict[str, Any]:
     """`probs` [n, K] sobre `grid`; `y` [n] BCS reales (valores de la grilla)."""
     g = np.asarray(grid, dtype=float)
     pred = g[np.argmax(probs, axis=1)]
