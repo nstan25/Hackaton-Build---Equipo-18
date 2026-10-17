@@ -121,13 +121,17 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t02-eval",
-      "terminal": "term_277ea8ea-8f30-4c60-859a-0ea0420efdf6",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_43fa90b8104f",
       "rounds": 1,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t02-eval",
-      "branch": "mithrandir7/t02-eval"
+      "branch": "mithrandir7/t02-eval",
+      "merged": "ver git log (Merge T02)",
+      "notes": [
+        "v1 verificada: check 74 tests, 23 test_eval; formato predictions_val.csv y report.json schema_version 1 en el reporte"
+      ]
     },
     "T01": {
       "task_id": "task_84093ad68167",
@@ -169,11 +173,13 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t15-store",
+      "terminal": "term_f2ddb276-0019-4e22-bfc9-098b7c9943fb",
+      "dispatch_id": "ctx_b79c9719794f",
+      "rounds": 1,
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t15-store",
+      "branch": "mithrandir7/t15-store"
     },
     "GH": {
       "task_id": "task_ed426e47db58",
