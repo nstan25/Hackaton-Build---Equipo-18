@@ -1,4 +1,4 @@
-"""Preprocesamiento de `sdb_bcs` según `preprocesamiento/README.md` (SPEC §2.5).
+"""Preprocesamiento de `sdb_bcs` según el README del equipo (SPEC §2.5).
 
 Un paso del README = una función, en el mismo orden. Los scripts del equipo se llaman tal cual
 (subproceso, sin copiarlos ni reescribirlos). Sus salidas van a `$BCS_DATA_DIR/raw/sdb_bcs_pre/`:
@@ -37,6 +37,7 @@ from bcs.paths import REPO_ROOT, data_dir, runs_dir
 
 SOURCE_ID = "sdb_bcs"
 RAR_SHA256 = "b99164f4141e080b63b82d6462d0db4b61626138e20b07d02b6644b8b70d8880"
+TEAM_SCRIPTS = ("make_split.py", "apply_split.py", "prep_crops.py", "prep_yolo.py")
 SEED = 42  # la del README (split.csv) y la del muestreo de --sample
 MANIFEST = "preprocess_manifest.json"
 YOLO_EVAL_NOTE = "no ejecutado: diagnóstico del detector, requiere bajar pesos (decisión T03/ask)"
@@ -78,7 +79,7 @@ class Config:
     rar: Path
     raw_dir: Path  # donde se extrae el .rar (queda raw_dir/dataset/<clase>/...)
     out_dir: Path  # raw/sdb_bcs_pre
-    scripts_dir: Path  # preprocesamiento/ (README + scripts)
+    scripts_dir: Path  # raíz del repo: README.md + scripts del equipo (desde 7cac8ae)
     reference_split: Path  # split.csv versionado contra el que se compara el paso 1
     sample: int | None = None
 
@@ -89,7 +90,7 @@ class Config:
 
 def default_config(sample: int | None = None) -> Config:
     raw = data_dir() / "raw" / SOURCE_ID
-    scripts = REPO_ROOT / "preprocesamiento"
+    scripts = REPO_ROOT
     return Config(
         rar=raw / "dataset.rar",
         raw_dir=raw,
@@ -120,7 +121,8 @@ def _archiver() -> list[str]:
 def _run(script: str, args: list[str], cfg: Config, log: str) -> None:
     """Corre un script del equipo tal cual, con cwd = out_dir, y guarda su salida."""
     cmd = [sys.executable, str(cfg.scripts_dir / script), *args]
-    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}  # nada de __pycache__ en preprocesamiento/
+    # Nada de __pycache__ junto a los scripts del equipo.
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
     res = subprocess.run(cmd, cwd=cfg.out_dir, capture_output=True, text=True, env=env)
     (cfg.out_dir / "logs").mkdir(exist_ok=True)
     (cfg.out_dir / "logs" / log).write_text(res.stdout + res.stderr)
@@ -263,7 +265,7 @@ STEPS = (
 
 
 def _key(cfg: Config) -> dict[str, Any]:
-    scripts = sorted(p for p in cfg.scripts_dir.glob("*.py"))
+    scripts = [cfg.scripts_dir / name for name in TEAM_SCRIPTS]
     return {
         "source": SOURCE_ID,
         "rar_sha256": sha256_file(cfg.rar),

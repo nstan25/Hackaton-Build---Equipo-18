@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrenamiento en vivo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --surface-0: #f4f4f2; --surface-1: #fcfcfb; --border: #e3e2de;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #7a7974; --grid: #ecebe7;
+    --series-1: #2a78d6; --series-2: #eb6834; --good: #008300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      --surface-0: #111110; --surface-1: #1a1a19; --border: #2e2e2c;
+      --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e88; --grid: #262624;
+      --series-1: #3987e5; --series-2: #d95926; --good: #3aa53a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--surface-0); color: var(--text-primary);
+         font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 28px 0 10px; color: var(--text-secondary); font-weight: 600; }
+  .sub { color: var(--text-muted); font-size: 13px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .tile, .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; }
+  .tile { padding: 12px 14px; }
+  .tile .k { color: var(--text-muted); font-size: 12px; }
+  .tile .v { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; border-radius: 3px; background: var(--grid); margin-top: 8px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--series-1); border-radius: 3px; transition: width .4s; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
+  .card { padding: 12px 14px 8px; }
+  .card h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+  .canvas-wrap { position: relative; height: 230px; }
+  .empty { color: var(--text-muted); padding: 30px 0; text-align: center; }
+  .live { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--good);
+          margin-right: 6px; animation: p 1.6s infinite; }
+  @keyframes p { 50% { opacity: .3; } }
+  .sections { display: flex; flex-direction: column; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-left: 6px;
+           border: 1px solid var(--border); color: var(--text-muted); vertical-align: middle; }
+  .badge.on { color: var(--good); border-color: var(--good); }
+  .badge.on::before { content: "● "; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Entrenamiento en vivo</h1>
+  <div class="sub"><span class="live"></span>Se actualiza cada 5 s · <span id="stamp">—</span></div>
+
+  <div class="sections">
+  <section id="sec-yolo">
+    <h2>Detector de vaca (YOLO11n) <span class="badge" id="yolo-badge"></span></h2>
+    <div class="tiles" id="yolo-tiles"></div>
+    <div class="grid" style="margin-top:12px">
+      <div class="card"><h3>Precisión de detección (mAP)</h3><div class="canvas-wrap"><canvas id="c-map"></canvas></div></div>
+      <div class="card"><h3>Pérdida de caja (box loss)</h3><div class="canvas-wrap"><canvas id="c-box"></canvas></div></div>
+    </div>
+  </section>
+
+  <section id="sec-cnn">
+    <h2>Modelo BCS (CNN) <span class="badge" id="cnn-badge"></span></h2>
+    <div class="tiles" id="cnn-tiles"></div>
+    <div class="grid" style="margin-top:12px" id="cnn-grid">
+      <div class="card"><h3>MAE en validación (puntos BCS) · menor es mejor</h3><div class="canvas-wrap"><canvas id="c-mae"></canvas></div></div>
+      <div class="card"><h3>Exactitud en validación</h3><div class="canvas-wrap"><canvas id="c-acc"></canvas></div></div>
+    </div>
+    <div class="empty" id="cnn-empty">La CNN todavía no empezó a entrenar.</div>
+  </section>
+  </div>
+</main>
+<script>
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+Chart.defaults.font.size = 12;
+
+function lineChart(id, series, yOpts = {}) {
+  return new Chart(document.getElementById(id), {
+    type: 'line',
+    data: { labels: [], datasets: series.map((s, i) => ({
+      label: s, data: [], borderColor: css(`--series-${i + 1}`), backgroundColor: css(`--series-${i + 1}`),
+      borderWidth: 2, pointRadius: 3, pointHoverRadius: 6, tension: 0.25,
+      pointBorderColor: css('--surface-1'), pointBorderWidth: 2 })) },
+    options: {
+      animation: false, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', align: 'start', labels: { color: css('--text-secondary'), boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+        tooltip: { callbacks: { title: it => `Época ${it[0].label}`,
+                                label: it => ` ${it.dataset.label}: ${it.parsed.y.toFixed(3)}` } } },
+      scales: {
+        x: { title: { display: true, text: 'Época', color: css('--text-muted') },
+             grid: { display: false }, ticks: { color: css('--text-muted') }, border: { color: css('--border') } },
+        y: { grid: { color: css('--grid') }, border: { display: false }, ticks: { color: css('--text-muted') }, ...yOpts } } } });
+}
+
+const charts = {
+  map: lineChart('c-map', ['mAP50', 'mAP50-95'], { min: 0, max: 1 }),
+  box: lineChart('c-box', ['train', 'val']),
+  mae: lineChart('c-mae', ['val MAE']),
+  acc: lineChart('c-acc', ['exacta', '±0.25'], { min: 0, max: 1,
+        ticks: { color: css('--text-muted'), callback: v => `${Math.round(v * 100)}%` } }),
+};
+
+function set(chart, labels, arrays) {
+  chart.data.labels = labels;
+  arrays.forEach((a, i) => chart.data.datasets[i].data = a);
+  chart.update();
+}
+const tile = (k, v, pct) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div>` +
+  (pct !== undefined ? `<div class="bar"><div style="width:${pct}%"></div></div>` : '') + '</div>';
+
+async function refresh() {
+  try {
+    const d = await (await fetch('/data', { cache: 'no-store' })).json();
+    const y = d.yolo, num = (r, k) => parseFloat(r[k]);
+    // activo = su log se escribió hace menos de 10 min; el activo va primero
+    const yoloOn = d.yolo_age !== null && d.yolo_age < 600, cnnOn = d.cnn_age !== null && d.cnn_age < 600;
+    document.getElementById('sec-yolo').style.order = yoloOn ? 0 : 2;
+    document.getElementById('sec-cnn').style.order = cnnOn ? 0 : 1;
+    const badge = (id, on, done) => { const b = document.getElementById(id);
+      b.className = 'badge' + (on ? ' on' : ''); b.textContent = on ? 'entrenando' : done; };
+    if (y.length) {
+      const last = y[y.length - 1], ep = +last.epoch;
+      const secs = +last.time, eta = (secs / ep) * (d.yolo_epochs - ep);
+      const finished = ep >= d.yolo_epochs;
+      badge('yolo-badge', yoloOn, finished ? 'terminado' : `detenido en época ${ep}`);
+      document.getElementById('yolo-tiles').innerHTML =
+        tile('Época', `${ep} / ${d.yolo_epochs}`, ep / d.yolo_epochs * 100) +
+        tile('mAP50', num(last, 'metrics/mAP50(B)').toFixed(3)) +
+        tile('mAP50-95', num(last, 'metrics/mAP50-95(B)').toFixed(3)) +
+        tile('Tiempo restante', yoloOn && !finished ? `~${Math.round(eta / 60)} min` : '—');
+      const L = y.map(r => r.epoch);
+      set(charts.map, L, [y.map(r => num(r, 'metrics/mAP50(B)')), y.map(r => num(r, 'metrics/mAP50-95(B)'))]);
+      set(charts.box, L, [y.map(r => num(r, 'train/box_loss')), y.map(r => num(r, 'val/box_loss'))]);
+    } else {
+      document.getElementById('yolo-tiles').innerHTML = tile('Estado', 'esperando…');
+    }
+
+    const runs = Object.entries(d.cnn);
+    const has = runs.length && runs[0][1].length;
+    document.getElementById('cnn-empty').style.display = has ? 'none' : '';
+    document.getElementById('cnn-grid').style.display = has ? '' : 'none';
+    if (has) {
+      const [arch, log] = runs[runs.length - 1], last = log[log.length - 1];
+      const best = Math.min(...log.map(r => +r.val_MAE));
+      const total = 12, secs = log.reduce((s, r) => s + +r.sec, 0) / log.length;
+      badge('cnn-badge', cnnOn, +last.epoch >= total ? 'terminado' : 'detenido');
+      document.getElementById('cnn-tiles').innerHTML =
+        tile('Arquitectura', arch) +
+        tile('Época', `${last.epoch} / ${total}`, last.epoch / total * 100) +
+        tile('Tiempo restante', cnnOn && last.epoch < total ? `~${Math.round(secs * (total - last.epoch) / 60)} min` : '—') +
+        tile('Mejor val MAE', best.toFixed(3)) + tile('±0.25 (última)', `${(last['val_acc_pm0.25'] * 100).toFixed(1)}%`);
+      const L = log.map(r => r.epoch);
+      set(charts.mae, L, [log.map(r => +r.val_MAE)]);
+      set(charts.acc, L, [log.map(r => +r.val_acc_exact), log.map(r => +r['val_acc_pm0.25'])]);
+    }
+    document.getElementById('stamp').textContent = new Date().toLocaleTimeString();
+  } catch (e) {
+    document.getElementById('stamp').textContent = 'sin conexión con el servidor';
+  }
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

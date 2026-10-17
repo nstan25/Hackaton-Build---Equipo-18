@@ -8,7 +8,7 @@
    - Dependencias con `uv` (Python fijado en `.python-version`); no corras `uv add`: pedila.
 3. Paredes (SPEC §4):
    - Nunca leer, listar ni evaluar `$BCS_HOLDOUT_DIR` (`~/bcs-shared/holdout`).
-   - Nunca editar `eval/thresholds.yaml`, `tests/test_contract.py` ni `preprocesamiento/`.
+   - Nunca editar `eval/thresholds.yaml`, `tests/test_contract.py` ni los scripts del equipo (`make_split.py`, `apply_split.py`, `prep_crops.py`, `prep_yolo.py`, `split.csv`, en la raíz).
    - Nunca debilitar, saltear (`skip`/`xfail`) ni cambiar una métrica para que algo pase.
    - Splits siempre por `group_id`. Semillas fijas. Ningún dato ni imagen de terceros en el repo.
    - Archivos calientes (`pyproject.toml`, `uv.lock`, `Makefile`, `config/`, los `base.py`, `src/bcs/contract.py`,

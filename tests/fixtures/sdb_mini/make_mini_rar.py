@@ -197,7 +197,7 @@ def main() -> None:
         subprocess.run(
             [
                 sys.executable,
-                str(REPO / "preprocesamiento" / "make_split.py"),
+                str(REPO / "make_split.py"),
                 str(Path(tmp) / "dataset"),
                 str(HERE / "split.csv"),
             ],
