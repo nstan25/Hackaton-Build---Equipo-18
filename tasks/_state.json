@@ -77,11 +77,15 @@
       "agent": "claude",
       "status": "dispatched",
       "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t03-sdb-bcs",
-      "terminal": "term_80595712-5b76-4e2f-8fa2-9cbfa42bff04",
-      "dispatch_id": "ctx_a7d62a5e2ae2",
+      "terminal": "term_211dfe21-f320-4d6f-98ab-f37b3ee4b2ab",
+      "dispatch_id": "ctx_7e36c66abbe7",
       "rounds": 1,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t03-sdb-bcs",
-      "branch": "mithrandir7/t03-sdb-bcs"
+      "branch": "mithrandir7/t03-sdb-bcs",
+      "notes": [
+        "Re-despachado tras reinicio de la máquina (18:43); dispatch anterior abandonado",
+        "Escalación casi-duplicados entre splits → humano eligió A (G0 punto 7)"
+      ]
     },
     "T04": {
       "task_id": "task_a2b504dda583",
@@ -251,11 +255,14 @@
       "agent": "claude",
       "status": "dispatched",
       "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t07-web",
-      "terminal": "term_bef450c3-b3e3-43ad-971a-a148a5cb8092",
-      "dispatch_id": "ctx_5d7576a3978a",
+      "terminal": "term_2c902e52-98c5-42ad-955c-fef80abe0f06",
+      "dispatch_id": "ctx_354520328551",
       "rounds": 1,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t07-web",
-      "branch": "mithrandir7/t07-web"
+      "branch": "mithrandir7/t07-web",
+      "notes": [
+        "Re-despachado tras reinicio de la máquina (18:43); dispatch anterior abandonado"
+      ]
     },
     "T08": {
       "task_id": "task_f73305eb8228",
