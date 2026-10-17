@@ -16,7 +16,8 @@
   "decisions": {
     "agents": "solo Claude Code (no hay Codex instalado)",
     "max_workers": 4,
-    "sources": "solo sdb_bcs hasta G0"
+    "sources": "solo sdb_bcs (G0)",
+    "split": "split.csv del README tal cual; test=holdout (G0)"
   },
   "credentials_at_setup": {
     "gh": true,
@@ -58,12 +59,13 @@
       ],
       "gate": true,
       "agent": null,
-      "status": "ready",
+      "status": "completed",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
       "rounds": 0,
-      "gate_id": "gate_63f40512cf70"
+      "gate_id": "gate_63f40512cf70",
+      "resolution": "ver tasks/G0.md"
     },
     "T03": {
       "task_id": "task_b6ceb62336a0",
@@ -73,11 +75,13 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t03-sdb-bcs",
+      "terminal": "term_80595712-5b76-4e2f-8fa2-9cbfa42bff04",
+      "dispatch_id": "ctx_a7d62a5e2ae2",
+      "rounds": 1,
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t03-sdb-bcs",
+      "branch": "mithrandir7/t03-sdb-bcs"
     },
     "T04": {
       "task_id": "task_a2b504dda583",
@@ -87,11 +91,12 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
+      "status": "cancelled",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "result": "G0: solo sdb_bcs"
     },
     "T05": {
       "task_id": "task_a753dc2dee6b",
@@ -101,11 +106,12 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
+      "status": "cancelled",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "result": "G0: solo sdb_bcs"
     },
     "T02": {
       "task_id": "task_4f18139e3af4",
@@ -115,11 +121,13 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t02-eval",
+      "terminal": "term_277ea8ea-8f30-4c60-859a-0ea0420efdf6",
+      "dispatch_id": "ctx_43fa90b8104f",
+      "rounds": 1,
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t02-eval",
+      "branch": "mithrandir7/t02-eval"
     },
     "T01": {
       "task_id": "task_84093ad68167",
@@ -129,11 +137,13 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t01-api-deploy",
+      "terminal": "term_40a80f80-05de-49f3-b79c-8aa8573e7426",
+      "dispatch_id": "ctx_8032c88ff6bc",
+      "rounds": 1,
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t01-api-deploy",
+      "branch": "mithrandir7/t01-api-deploy"
     },
     "T16": {
       "task_id": "task_e180ff220e7f",
@@ -143,11 +153,13 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t16-compute",
+      "terminal": "term_5cfcc32a-f597-45a1-a6b2-85d2d6fa9f95",
+      "dispatch_id": "ctx_434585a92693",
+      "rounds": 1,
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t16-compute",
+      "branch": "mithrandir7/t16-compute"
     },
     "T15": {
       "task_id": "task_dfc045123d0c",
@@ -177,7 +189,8 @@
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "note": "G0: holdout = test de split.csv; no hay make holdout. Se completa cuando T03 esté mergeado."
     },
     "T06": {
       "task_id": "task_74ff5f3afd74",
@@ -223,10 +236,10 @@
       "rounds": 0
     },
     "T08": {
-      "task_id": "task_b0e84c86d818",
+      "task_id": "task_f73305eb8228",
       "title": "Filtro de calidad",
       "deps": [
-        "T05"
+        "T03"
       ],
       "gate": false,
       "agent": "claude",
@@ -234,7 +247,8 @@
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "replaced": "task_b0e84c86d818 (cancelada; dependía de T05)"
     },
     "T09": {
       "task_id": "task_508228ebee66",
