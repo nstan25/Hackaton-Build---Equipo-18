@@ -252,6 +252,15 @@ Fixture de ejemplo en `tests/fixtures/prediction_example.json` (lo crea T00 y es
 
 ### 2.3 Enfoque de modelado (guía, no dogma)
 
+> **Decisión del humano (17/10/2026): el modelo de producción es `models/bcs_efficientnet_b0.pt`**, la EfficientNet-B0 que el equipo ya fine-tuneó (commit `7cac8ae`). No se usa DINOv2 ni se entrenan candidatos nuevos por defecto (T10a/T10b quedan cancelados). Lo que sigue en esta sección queda como referencia.
+>
+> - **Qué es:** `timm` `efficientnet_b0`, regresión Huber de 1 salida, `bcs = 3.75 + 0.25 · salida`; entrada RGB 224×320 (alto × ancho) normalizada con media/desvío de ImageNet; TTA con flip horizontal (promedio). Código de referencia del equipo: `train_cnn.py` (`build_model`, `decode`, `EVAL_TF`) y `bcs_pipeline.py`.
+> - **Entrada en producción:** foto cruda → detector `models/cow_det.pt` (YOLO11n del equipo) → recorte de la caja +10% (`prep_crops.expand_bbox`), lado mayor 320 → EfficientNet-B0. Cortes de discretización calibrados del equipo en `models/cuts_efficientnet_b0.json` (se pueden reemplazar por los de T11).
+> - **Distribución, confianza e intervalo:** el modelo da un valor continuo; T11 construye la distribución sobre la grilla `dairy_sdb` a partir de los residuos en **val** (p. ej. normal discretizada con σ ajustado en val, o histograma de residuos), la calibra y arma el intervalo conformal al 90%. El contrato `Prediction` no cambia.
+> - **Riesgos que hay que medir (no se asumen resueltos):** el modelo se entrenó con los recortes del README **sin tapar el texto sobreimpreso** (trampa 1 de §1.2) y **sin la mitigación de pintura roja** de G1; además sus métricas publicadas en `results/` son sobre test. T09 mide los tres efectos en val.
+> - **Reentrenar** (con texto tapado y mitigación de pintura) solo si G2 lo decide: ahí vuelven a servir `bcs.train`, `make train` y Modal/Kaggle.
+
+
 Hay decenas de miles de frames pero muchos menos animales distintos, y un rango de BCS estrecho. El orden es:
 
 1. **Baseline tonto:** predecir siempre la moda/media. Es la vara mínima.
@@ -286,7 +295,7 @@ make train MODEL=<cand> BACKEND=<modal|kaggle|tenki|local> [FOLDS=all] [SMOKE=1]
 
 | Backend | Para qué | Por qué | Cómo lo maneja el agente | Presupuesto del finde |
 |---|---|---|---|---|
-| **Modal** (principal GPU) | T10a, T10b; los 5 folds en paralelo | Se maneja 100% desde Python/CLI, cobra por segundo y permite varias GPUs a la vez, así que los dos candidatos y sus folds corren en paralelo | `modal run scripts/compute/modal_app.py::train --model cand_a --folds all`; datos en un Volume `bcs-data` (`modal volume put`) | ≤ $25 de los $30 de crédito mensual gratis; GPU L4 por defecto |
+| **Modal** (principal GPU) | Solo si G2 decide reentrenar la EfficientNet-B0 (ver §2.3); antes era T10a/T10b | Se maneja 100% desde Python/CLI, cobra por segundo y permite varias GPUs a la vez, así que los dos candidatos y sus folds corren en paralelo | `modal run scripts/compute/modal_app.py::train --model cand_a --folds all`; datos en un Volume `bcs-data` (`modal volume put`) | ≤ $25 de los $30 de crédito mensual gratis; GPU L4 por defecto |
 | **Kaggle** (respaldo GPU, gratis) | Re-correr un candidato completo si Modal se queda sin crédito o falla | Cuota semanal gratuita de GPU, manejable por CLI | Dataset privado `bcs-pack` (`kaggle datasets create/version`); kernel en `scripts/compute/kaggle/` (`kaggle kernels push` → `status` → `output`) | ≤ 20 h de la cuota semanal |
 | **Tenki** (CPU, los $150 que ya hay) | T09 (embeddings congelados + cabezas lineales), T11 (calibración), `make eval` pesados, CI de `make check` en cada PR y re-entrenamiento programado | Son runners de GitHub Actions: CPU barata y sin GPU. Alcanza para todo lo que no es fine-tuning | Workflow `.github/workflows/cpu-job.yml` con `workflow_dispatch`; `gh workflow run` → `gh run watch` → `gh run download` | ≤ $40 |
 | **Local** | Tests, smoke y debugging | — | `make train BACKEND=local SMOKE=1` | — |
@@ -587,13 +596,13 @@ Prioridad = orden de la tabla. "Agente" es una sugerencia: si no hay Codex, usá
 | **G1** | *Humano: distribuciones, grilla, colas, fuentes a usar* | T06 | — | — | — |
 | T07 | Web UI de evaluación (con `cow_id`) + vista de rodeo, contra la API dummy | T01, T15 | claude | `web/**`, `tests/browser/**` | no |
 | T08 | Filtro de calidad | T05 | codex | `src/bcs/quality/**`, `tests/test_quality_*` | no |
-| T09 | Baseline: tonto + embeddings congelados (ridge y logística ordinal); cache de embeddings en `artifacts/T09/`. Corre en Tenki o local | G1, T02, T16 | claude | `src/bcs/models/{baseline,embeddings}.py`, `config/train_m2.yaml`* | sí |
-| **G2** | *Humano: revisar métricas del baseline y fijar umbrales de m3/m4* | T09 | — | — | — |
-| T10a | Candidato A: fine-tune ConvNeXt-Tiny con cabeza ordinal (CORAL), en Modal | G2 | claude | `src/bcs/models/cand_a.py`, `config/cand_a.yaml`* | sí |
-| T10b | Candidato B: DINOv2 + cabeza MLP con label smoothing gaussiano, en Modal | G2 | codex | `src/bcs/models/cand_b.py`, `config/cand_b.yaml`* | sí |
-| T11 | Calibración (temperature scaling) + conformal; se desarrolla sobre las salidas de T09 | T09 | claude | `src/bcs/calibration/**`, `tests/test_calib_*` | sí |
-| **G3** | *Humano: elegir modelo (tabla comparativa A vs B vs baseline, por fold y por fuente)* | T10a, T10b, T11 | — | — | — |
-| T12 | Integración: modelo elegido + calibración + filtro en `inference.py`, export ONNX, `make smoke`/`make browser` con el modelo real, deploy | G3, T07, T08, T15 | claude | `src/bcs/inference.py`, `src/bcs/export.py`, `Dockerfile` | sí |
+| T09 | Evaluar `models/bcs_efficientnet_b0.pt` del equipo con nuestro arnés: `Scorer` que lo envuelve, predicciones de val, baseline tonto, `make eval` m2/m3, atajo de pintura y efecto del texto sobreimpreso. Corre en CPU local | G1, T02, T16 | claude | `src/bcs/models/{baseline,efficientnet}.py`, `config/efficientnet_b0.yaml`*, `tests/test_efficientnet_*` | sí |
+| **G2** | *Humano: revisar métricas de la EfficientNet-B0 en val, fijar umbrales de m3/m4 y decidir si hace falta reentrenar* | T09 | — | — | — |
+| ~~T10a~~ | *Cancelado (decisión del humano): se usa la EfficientNet-B0 del equipo* | — | — | — | — |
+| ~~T10b~~ | *Cancelado (decisión del humano): no se usa DINOv2* | — | — | — | — |
+| T11 | Distribución sobre la grilla a partir de la regresión de la EfficientNet-B0 (residuos en val) + calibración + conformal; sobre las salidas de T09 | T09 | claude | `src/bcs/calibration/**`, `tests/test_calib_*` | sí |
+| **G3** | *Humano: confirmar la EfficientNet-B0 calibrada para producción (métricas m3/m4 en val)* | T11 | — | — | — |
+| T12 | Integración: detector `cow_det.pt` + EfficientNet-B0 + calibración de T11 + filtro de T08 en `inference.py`, export ONNX, `make smoke`/`make browser` con el modelo real, deploy | G3, T07, T08, T15 | claude | `src/bcs/inference.py`, `src/bcs/export.py`, `Dockerfile` | sí |
 | T13 | Review adversarial (solo lectura): fugas de datos, métricas infladas, confianza que miente, formas de romper la API → `eval/review.md` | T12 | claude | `eval/review.md` | — |
 | T13-fix-n | Un arreglo por hallazgo que lo amerite (los crea el orquestador) | T13 | cualquiera | según hallazgo | sí |
 | T14 | README (problema, uso, métricas con desvío, leave-one-source-out, acuerdo humano de `iplab`, limitaciones, atribución de datos) + guion de demo | T13-fix-* | claude | `README.md`, `docs/demo.md` | no |
@@ -601,7 +610,7 @@ Prioridad = orden de la tabla. "Agente" es una sugerencia: si no hay Codex, usá
 
 \* Excepción a la regla 9: cada tarea puede crear **su propio** archivo de config nuevo en `config/`, pero no tocar los existentes.
 
-**T10a/T10b son un fan-out a propósito:** dos enfoques en paralelo, se elige uno en G3. Si el humano lo pide, se puede lanzar el mismo brief con dos agentes distintos.
+**T10a/T10b quedaron cancelados** (17/10): el modelo es la EfficientNet-B0 ya fine-tuneada por el equipo.
 
 ### 5.6.1 Criterios por tarea (el orquestador los copia a cada brief)
 
@@ -703,11 +712,13 @@ Prioridad = orden de la tabla. "Agente" es una sugerencia: si no hay Codex, usá
   - 72 traseras de `phone_backview`: ≥ 80% aceptadas.
   - Imágenes de val de `sdb_bcs`/`zen_rgbd`: ≤ 10% rechazadas.
 
-**T09 · Baseline**
-- Restricciones: todo en CPU (Tenki o local), embeddings cacheados en `$BCS_ARTIFACTS_DIR/T09/`. Las cabezas lineales sobre embeddings cacheados tienen que entrenar en < 15 min.
-- Validaciones: `make eval MODEL=baseline STAGE=m2`. El mejor modelo mejora el MAE del baseline tonto en ≥ 25%.
+**T09 · Evaluación de la EfficientNet-B0 del equipo**
+- `Scorer` (`src/bcs/models/efficientnet.py`) que carga `models/bcs_efficientnet_b0.pt` con la misma arquitectura, transformaciones y TTA que `train_cnn.py`/`bcs_pipeline.py` (se pueden importar; no se editan), y devuelve `predict_proba` sobre la grilla `dairy_sdb` (provisorio: normal discretizada con σ de residuos en val; T11 lo refina) + el valor continuo.
+- Predicciones de **val** (nunca test) sobre `images/sdb_bcs/` → `predictions_val.csv` (formato `tasks/_contracts.md`). Baseline tonto para comparar.
+- Validaciones: `make eval MODEL=efficientnet_b0 STAGE=m2` y `STAGE=m3`. Reporte con: MAE, exacta, ±1 paso, sesgo de los extremos, por origen (GS/YM/L-R); **efecto del texto sobreimpreso** (la red se entrenó con recortes sin tapar: comparar predicciones en val con y sin el tapado de T03); **atajo de pintura** (G1 punto 2).
+- CPU local; sin reentrenar.
 
-**T10a / T10b · Candidatos**
+**T10a / T10b · Candidatos** (cancelados el 17/10; se conserva el texto por si G2 decide reentrenar)
 - Misma CV que T09. Nada de elegir hiperparámetros mirando un solo fold.
 - Se lanzan con `make train BACKEND=modal`: primero `SMOKE=1`, después `FOLDS=all`. Si el smoke proyecta más de $12 por candidato, se escala antes de lanzar la corrida completa.
 - El balanceo de clases (sampler o pesos en la loss) se aplica **solo** dentro del fold de entrenamiento.
@@ -720,6 +731,7 @@ Prioridad = orden de la tabla. "Agente" es una sugerencia: si no hay Codex, usá
 
 **T11 · Calibración y conformal**
 - La calibración se ajusta con datos de validación, nunca con los de entrenamiento del mismo fold.
+- Distribución sobre la grilla a partir del valor continuo de la EfficientNet-B0 (residuos en val), luego calibración y conformal.
 - Validaciones (`m4`) sobre las salidas de T09:
   - ECE ≤ 0.08
   - Cobertura del intervalo al 90% entre 0.87 y 0.95
@@ -753,8 +765,8 @@ En cada gate le mostrás al humano:
 | G0 | ¿Apruebo el contrato `Prediction`, las interfaces de §2.0 y el esquema de `labels.csv`? Después de esto quedan congelados. Además: ¿están las credenciales de Modal, Kaggle, Tenki y `gh` (§2.4)? ¿Qué fuentes además de `sdb_bcs` usamos? ¿Está `preprocesamiento/README.md` en el repo y `dataset.rar` en `$BCS_DATA_DIR/raw/sdb_bcs/` (o hay que bajarlo)? |
 | GH | Los datos de entrenamiento están descargados. Corré `make holdout` y avisame cuando termine (no necesito ver el resultado). |
 | G1 | Con estas distribuciones: ¿qué grilla usamos, agrupamos colas, qué fuentes entran al entrenamiento? |
-| G2 | El baseline dio X. ¿Fijo los umbrales de m3/m4 en Y? (El humano edita `eval/thresholds.yaml`.) |
-| G3 | Comparación A/B/baseline: ¿cuál va a producción? |
+| G2 | La EfficientNet-B0 dio X en val (con efecto del texto y de la pintura). ¿Fijo los umbrales de m3/m4 en Y? ¿Hace falta reentrenar? (El humano edita `eval/thresholds.yaml`.) |
+| G3 | ¿Va a producción la EfficientNet-B0 calibrada? |
 | G4 | Resultado de `make eval-final` (lo corre el humano) y deploy final. |
 
 ### 5.8 Cupos y recursos compartidos
