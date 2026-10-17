@@ -1,10 +1,11 @@
 # Config base de entrenamiento. Cada candidato crea su propio config/<modelo>.yaml (SPEC §5.6).
 seed: 42
-scale: dairy_1_5
+scale: dairy_sdb             # G1: 5 clases 3.25–4.25
 data:
   labels: labels.csv          # relativo a $BCS_DATA_DIR
   sources: [sdb_bcs]          # solo fuentes de escala 1–5 se mezclan (SPEC §1.2)
   image_size: 224
+  max_per_group_per_epoch: 30 # G1: ningún tramo de video domina una clase (solo train)
 cv:
   n_folds: 5
   group_col: group_id
@@ -23,6 +24,7 @@ augment:
   max_rotation_deg: 5
   color_jitter: 0.2
   blur: 0.1
+  red_paint_desaturate: 0.5   # G1: prob. de desaturar píxeles rojo-naranja (atajo de pintura en GS)
 smoke:
   folds: 1
   epochs: 1
