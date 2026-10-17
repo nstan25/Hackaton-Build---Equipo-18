@@ -16,8 +16,10 @@ tandas, así una extracción cortada sigue donde quedó. Los pesos se bajan una 
 
 from __future__ import annotations
 
+import os
 import sys
 import time
+import zipfile
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
@@ -125,19 +127,33 @@ class EmbeddingCache:
     def __init__(self, root: Path) -> None:
         self.root = root
 
+    def _shards(self, variant: str) -> list[Path]:
+        return sorted(p for p in (self.root / variant).glob("*.npz") if ".tmp" not in p.name)
+
     def load(self, variant: str) -> dict[str, np.ndarray]:
+        """Lo cacheado. Una tanda ilegible (extracción cortada a mitad de escritura) se aparta
+        como `.bad` y sus imágenes se vuelven a calcular."""
         out: dict[str, np.ndarray] = {}
-        for shard in sorted((self.root / variant).glob("*.npz")):
-            with np.load(shard) as z:
-                out.update(zip(z["ids"].tolist(), z["emb"], strict=True))
+        for shard in self._shards(variant):
+            try:
+                with np.load(shard) as z:
+                    out.update(zip(z["ids"].tolist(), z["emb"], strict=True))
+            except (EOFError, OSError, ValueError, zipfile.BadZipFile) as e:
+                print(f"[emb {variant}] tanda ilegible {shard.name} ({e}): se recalcula",
+                      file=sys.stderr)  # fmt: skip
+                shard.rename(shard.with_suffix(".bad"))
         return out
 
     def _write(self, variant: str, ids: list[str], emb: np.ndarray) -> None:
         d = self.root / variant
         d.mkdir(parents=True, exist_ok=True)
-        n = len(list(d.glob("*.npz")))
+        shards = self._shards(variant)
+        n = int(shards[-1].stem) + 1 if shards else 0
         tmp = d / f"{n:05d}.tmp.npz"
-        np.savez(tmp, ids=np.asarray(ids), emb=emb.astype(np.float32))
+        with tmp.open("wb") as f:
+            np.savez(f, ids=np.asarray(ids), emb=emb.astype(np.float32))
+            f.flush()
+            os.fsync(f.fileno())
         tmp.rename(d / f"{n:05d}.npz")
 
     def get(

@@ -153,6 +153,22 @@ def test_cache_reuses_original_for_images_without_red(tmp_path: Path) -> None:
     assert calls == [2, 1] and np.array_equal(again, orig)
 
 
+def test_cache_recomputes_truncated_shard(tmp_path: Path) -> None:
+    paths = []
+    for k in range(2):
+        p = tmp_path / f"i{k}.png"
+        Image.fromarray(np.full((8, 8, 3), 40 * (k + 1), dtype=np.uint8)).save(p)
+        paths.append(str(p))
+    cache = EmbeddingCache(tmp_path / "emb")
+    first = cache.get(["i0"], paths[:1], "orig", _fake_embed)
+    (tmp_path / "emb" / "orig" / "00001.npz").write_bytes(b"")  # escritura cortada
+    (tmp_path / "emb" / "orig" / "00002.tmp.npz").write_bytes(b"")
+    both = cache.get(["i0", "i1"], paths, "orig", _fake_embed)
+    assert np.array_equal(both[0], first[0]) and both.shape == (2, 6)
+    assert (tmp_path / "emb" / "orig" / "00001.bad").exists()
+    assert set(cache.load("orig")) == {"i0", "i1"}
+
+
 def test_train_m2_config_builds_embedding_scorer() -> None:
     cfg = load_config(config_dir() / "train_m2.yaml")
     scorer = build_scorer(cfg, GRID)
