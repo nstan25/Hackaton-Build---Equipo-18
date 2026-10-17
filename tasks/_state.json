@@ -33,9 +33,9 @@
       "deps": [],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t00-skeleton",
-      "terminal": "term_e5d8e453-f7e5-4128-8f33-c3e526457d79",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_8417e0e3dc38",
       "rounds": 2,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t00-skeleton",
@@ -45,8 +45,10 @@
         "task_7aa0a8a1f865"
       ],
       "notes": [
-        "v1: worker_done ok; review: .gitignore data/ tapaba src/bcs/data (ALTA), web/docs sin token (MEDIA), tests spy/token ausente (BAJA) → v2"
-      ]
+        "v1: worker_done ok; review: .gitignore data/ tapaba src/bcs/data (ALTA), web/docs sin token (MEDIA), tests spy/token ausente (BAJA) → v2",
+        "v2: verificado en checkout limpio (check 51 tests, smoke OK), mergeado a7f5e16, worker liberado, worktree borrado"
+      ],
+      "merged": "a7f5e16"
     },
     "G0": {
       "task_id": "task_116d4b752b81",
@@ -56,11 +58,12 @@
       ],
       "gate": true,
       "agent": null,
-      "status": "pending",
+      "status": "ready",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "gate_id": "gate_63f40512cf70"
     },
     "T03": {
       "task_id": "task_b6ceb62336a0",
