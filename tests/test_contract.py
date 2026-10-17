@@ -7,10 +7,11 @@ import inspect
 import json
 from dataclasses import fields
 from pathlib import Path
+from typing import Any, cast
 
-import numpy as np
 import pytest
 
+from bcs.calibration.base import Calibrator, IntervalPredictor
 from bcs.contract import (
     PREDICTION_FIELDS,
     InvalidCowId,
@@ -22,6 +23,7 @@ from bcs.contract import (
 )
 from bcs.inference import Pipeline, predict, run_pipeline, stub_pipeline
 from bcs.models.base import Scorer
+from bcs.quality.base import QualityChecker
 from bcs.scale import load_scale
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -172,26 +174,45 @@ def test_predict_rejects_invalid_cow_id() -> None:
         predict((FIXTURES / "rear_cow.jpg").read_bytes(), "no válido")
 
 
-def test_scorer_never_receives_cow_id() -> None:
-    assert "cow_id" not in inspect.signature(Scorer.predict_proba).parameters
-    assert "cow_id" not in inspect.signature(Scorer.fit).parameters
+def test_no_component_receives_cow_id() -> None:
+    """Ni el Scorer ni calibración, intervalo o filtro de calidad ven el cow_id."""
+    for proto in (Scorer, Calibrator, IntervalPredictor, QualityChecker):
+        for name, member in inspect.getmembers(proto, inspect.isfunction):
+            assert "cow_id" not in inspect.signature(member).parameters, (proto, name)
 
     seen: list[tuple] = []
+
+    class Spy:
+        """Proxy que registra cada llamada a un método del componente envuelto."""
+
+        def __init__(self, inner: object) -> None:
+            self._inner = inner
+
+        def __getattr__(self, name: str) -> Any:
+            attr = getattr(self._inner, name)
+            if not callable(attr):
+                return attr
+
+            def call(*args: Any, **kwargs: Any) -> Any:
+                seen.append((type(self._inner).__name__, name, args, kwargs))
+                return attr(*args, **kwargs)
+
+            return call
+
     base = stub_pipeline(SCALE)
-
-    class SpyScorer:
-        grid = SCALE.grid
-        model_version = "spy"
-
-        def fit(self, df) -> None: ...
-        def save(self, path) -> None: ...
-        def load(self, path) -> None: ...
-
-        def predict_proba(self, *args, **kwargs) -> np.ndarray:
-            seen.append((args, kwargs))
-            return base.scorer.predict_proba(*args, **kwargs)
-
-    pipe = Pipeline(SCALE, base.quality, SpyScorer(), base.calibrator, base.interval)
+    pipe = Pipeline(
+        SCALE,
+        cast(Any, Spy(base.quality)),
+        cast(Any, Spy(base.scorer)),
+        cast(Any, Spy(base.calibrator)),
+        cast(Any, Spy(base.interval)),
+    )
     run_pipeline(pipe, (FIXTURES / "rear_cow.jpg").read_bytes(), "secret-cow-99")
-    assert len(seen) == 1
+    called = {(owner, method) for owner, method, _, _ in seen}
+    assert {
+        ("AcceptAllChecker", "check"),
+        ("UniformScorer", "predict_proba"),
+        ("IdentityCalibrator", "transform"),
+        ("FullGridInterval", "interval"),
+    } <= called
     assert "SECRET-COW-99" not in repr(seen) and "secret-cow-99" not in repr(seen)

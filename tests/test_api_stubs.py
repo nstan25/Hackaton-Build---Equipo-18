@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from bcs.contract import validate_prediction_dict
@@ -24,13 +25,45 @@ def test_health_needs_no_token(client: TestClient) -> None:
     assert r.status_code == 200 and r.json()["status"] == "ok"
 
 
+PROTECTED_GETS = ("/cows", "/cows/X1", "/predictions/abc", "/media/abc.jpg", "/", "/rodeo.html")
+
+
+def _anon_app() -> TestClient:
+    from bcs.api import create_app
+
+    return TestClient(create_app())  # sin header de token por defecto
+
+
 def test_token_required(client: TestClient) -> None:
-    for path in ("/cows", "/cows/X1", "/predictions/abc", "/media/abc.jpg"):
-        assert client.get(path, headers={"X-App-Token": "wrong"}).status_code == 401
-    assert _post(client, "X1", headers={"X-App-Token": ""}).status_code == 401
-    assert client.get(
-        "/cows", headers={"X-App-Token": ""}, params={"token": "test-token"}
-    ).is_success
+    anon = _anon_app()  # `client` ya fijó BCS_APP_TOKEN y BCS_MEDIA_DIR
+    for path in PROTECTED_GETS:
+        assert anon.get(path).status_code == 401, path  # token ausente
+        assert anon.get(path, headers={"X-App-Token": "wrong"}).status_code == 401, path
+        assert anon.get(path, params={"token": "wrong"}).status_code == 401, path
+    assert _post(anon, "X1").status_code == 401
+    assert _post(anon, "X1", headers={"X-App-Token": "wrong"}).status_code == 401
+    assert anon.get("/cows", params={"token": "test-token"}).is_success
+    assert anon.get("/", params={"token": "test-token"}).is_success
+
+
+def test_token_unset_fails_closed(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BCS_APP_TOKEN")
+    anon = _anon_app()
+    assert anon.get("/cows").status_code == 401
+    assert anon.get("/cows", params={"token": ""}).status_code == 401
+    assert anon.get("/health").status_code == 200
+
+
+def test_docs_not_exposed(client: TestClient) -> None:
+    for path in ("/docs", "/redoc", "/openapi.json"):
+        assert client.get(path).status_code == 404, path
+        assert client.get(path, headers={"X-App-Token": ""}).status_code == 401, path
+
+
+def test_web_path_traversal(client: TestClient) -> None:
+    assert client.get("/..%2fpyproject.toml").status_code == 404
+    assert client.get("/%2e%2e/pyproject.toml").status_code == 404
+    assert client.get("/no-existe.html").status_code == 404
 
 
 def test_cow_id_validation(client: TestClient) -> None:

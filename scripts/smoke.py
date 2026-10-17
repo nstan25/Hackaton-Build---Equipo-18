@@ -81,7 +81,14 @@ def run(base: str) -> list[str]:
             check(
                 r.status_code == 200 and r.content[:2] == b"\xff\xd8", f"/media/{{id}}.jpg {cow_id}"
             )
-        check(c.get("/", params={"token": TOKEN}).status_code == 200, "web/ servido")
+        check(c.get("/", params={"token": TOKEN}).status_code == 200, "web/ servido con ?token=")
+        anon = {"X-App-Token": ""}
+        some_id = next(iter(sent.values()), ["x"])[-1]
+        for path in ("/", "/index.html", "/rodeo.html", "/cows/UY-001", f"/media/{some_id}.jpg"):
+            check(c.get(path, headers=anon).status_code == 401, f"{path} sin token → 401")
+        for path in ("/docs", "/redoc", "/openapi.json"):
+            check(c.get(path, headers=anon).status_code == 401, f"{path} sin token → 401")
+            check(c.get(path).status_code == 404, f"{path} desactivado → 404")
     return fails
 
 
