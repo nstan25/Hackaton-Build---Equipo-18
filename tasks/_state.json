@@ -176,13 +176,16 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t15-store",
-      "terminal": "term_f2ddb276-0019-4e22-bfc9-098b7c9943fb",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_b79c9719794f",
       "rounds": 1,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t15-store",
-      "branch": "mithrandir7/t15-store"
+      "branch": "mithrandir7/t15-store",
+      "notes": [
+        "v1 verificada + review aprobada; integración en main: api.py usa SqliteStore, EXIF en miniaturas, tests aislados"
+      ]
     },
     "GH": {
       "task_id": "task_ed426e47db58",
@@ -238,11 +241,13 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t07-web",
+      "terminal": "term_bef450c3-b3e3-43ad-971a-a148a5cb8092",
+      "dispatch_id": "ctx_5d7576a3978a",
+      "rounds": 1,
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t07-web",
+      "branch": "mithrandir7/t07-web"
     },
     "T08": {
       "task_id": "task_f73305eb8228",
