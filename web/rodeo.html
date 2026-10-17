@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BCS · Rodeo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 720px; }
+    table { width: 100%; border-collapse: collapse; } td, th { padding: 4px; border-bottom: 1px solid #ddd; text-align: left; }
+    img { width: 64px; }
+  </style>
+</head>
+<body>
+  <!-- Placeholder de T00: T07 hace el dashboard real. -->
+  <h1>Rodeo</h1>
+  <table><thead><tr><th>Foto</th><th>Vaca</th><th>BCS</th><th>Confianza</th><th>Evaluaciones</th></tr></thead><tbody id="rows"></tbody></table>
+  <script>
+    const token = new URLSearchParams(location.search).get("token") || "";
+    const q = "?token=" + encodeURIComponent(token);
+    fetch("/cows" + q).then((r) => r.json()).then((cows) => {
+      const tbody = document.getElementById("rows");
+      for (const c of cows) {
+        const tr = document.createElement("tr");
+        const cells = [c.cow_id, c.bcs ?? "—", c.confidence != null ? Math.round(c.confidence * 100) + "%" : "—", c.n_evaluations];
+        const img = document.createElement("img");
+        img.src = "/media/" + c.last_prediction_id + ".jpg" + q;
+        tr.appendChild(document.createElement("td")).appendChild(img);
+        for (const v of cells) tr.appendChild(document.createElement("td")).textContent = v;
+        tbody.appendChild(tr);
+      }
+    });
+  </script>
+</body>
+</html>

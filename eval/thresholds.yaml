@@ -1,0 +1,17 @@
+# Umbrales del loop de evaluación (SPEC §3.2). NO lo edita ningún agente (SPEC §4.1).
+# Valores provisorios; m3/m4 se fijan en G2.
+m2:
+  # baseline: embeddings congelados vs. baseline tonto (moda/media)
+  mae_improvement_vs_dummy_min: 0.25    # MAE ≥ 25% menor que el baseline tonto
+m3:
+  mae_max: 0.35
+  acc_within_0_25_min: 0.60
+  acc_within_0_50_min: 0.85
+m4:
+  ece_max: 0.08
+  coverage_90_min: 0.87                 # cobertura del intervalo conformal al 90% en [0.87, 0.95]
+  coverage_90_max: 0.95
+  quality_filter:
+    reject_negatives_min: 0.85          # rechazo de negativos (no vaca / no trasera)
+    accept_rear_min: 0.80               # aceptación de fotos traseras válidas
+    reject_val_max: 0.10                # rechazo sobre el set de validación

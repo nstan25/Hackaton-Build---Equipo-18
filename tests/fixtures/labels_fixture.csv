@@ -1,0 +1,12 @@
+image_id,path,source,animal_id,group_id,bcs,scale,view,scorer,date,bbox
+syn_0001,fixtures/rear_cow.jpg,synthetic,synthetic:A1,synthetic:A1,3.25,dairy_1_5,rear_dorsal,synthetic,2026-10-01,"170,90,470,470"
+syn_0002,fixtures/rear_cow.jpg,synthetic,synthetic:A1,synthetic:A1,3.25,dairy_1_5,rear_dorsal,synthetic,2026-10-02,"170,90,470,470"
+syn_0003,fixtures/rear_cow.jpg,synthetic,synthetic:A2,synthetic:A2,3.50,dairy_1_5,rear_dorsal,synthetic,2026-10-01,"170,90,470,470"
+syn_0004,fixtures/rear_cow.jpg,synthetic,synthetic:A2,synthetic:A2,3.50,dairy_1_5,rear_dorsal,synthetic,2026-10-02,"170,90,470,470"
+syn_0005,fixtures/rear_cow.jpg,synthetic,synthetic:A3,synthetic:A3,3.75,dairy_1_5,rear_dorsal,synthetic,2026-10-01,"170,90,470,470"
+syn_0006,fixtures/rear_cow.jpg,synthetic,synthetic:A3,synthetic:A3,3.75,dairy_1_5,rear_dorsal,synthetic,2026-10-02,"170,90,470,470"
+syn_0007,fixtures/rear_cow.jpg,synthetic,synthetic:A4,synthetic:A4,4.00,dairy_1_5,rear_dorsal,synthetic,2026-10-01,"170,90,470,470"
+syn_0008,fixtures/rear_cow.jpg,synthetic,synthetic:A4,synthetic:A4,4.00,dairy_1_5,rear_dorsal,synthetic,2026-10-02,"170,90,470,470"
+syn_0009,fixtures/rear_cow.jpg,synthetic,synthetic:A5,synthetic:A5,4.25,dairy_1_5,rear_dorsal,synthetic,2026-10-01,"170,90,470,470"
+syn_0010,fixtures/rear_cow.jpg,synthetic,synthetic:A5,synthetic:A5,4.25,dairy_1_5,rear_dorsal,synthetic,2026-10-02,"170,90,470,470"
+syn_0011,fixtures/side_cow.jpg,synthetic,synthetic:A6,synthetic:A6,3.50,dairy_1_5,side,synthetic,2026-10-01,

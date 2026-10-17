@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BCS · Evaluar</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 480px; }
+    label, input, button { display: block; width: 100%; margin-top: 8px; font-size: 1rem; }
+    pre { white-space: pre-wrap; background: #f3f3f3; padding: 8px; }
+  </style>
+</head>
+<body>
+  <!-- Placeholder de T00: T07 hace la UI real. -->
+  <h1>Evaluar condición corporal</h1>
+  <p>Foto de la vaca desde atrás, cámara por encima de la cadera. No reemplaza al técnico.</p>
+  <form id="f">
+    <label>ID de la vaca <input name="cow_id" required pattern="[A-Za-z0-9][A-Za-z0-9._\-]{0,63}"></label>
+    <label>Foto <input name="image" type="file" accept="image/*" capture="environment" required></label>
+    <button>Evaluar</button>
+  </form>
+  <pre id="out"></pre>
+  <p><a id="rodeo" href="rodeo.html">Ver rodeo</a></p>
+  <script>
+    const token = new URLSearchParams(location.search).get("token") || "";
+    document.getElementById("rodeo").search = token ? "?token=" + encodeURIComponent(token) : "";
+    document.getElementById("f").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const r = await fetch("/predict", { method: "POST", body: new FormData(e.target), headers: { "X-App-Token": token } });
+      document.getElementById("out").textContent = JSON.stringify(await r.json(), null, 2);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make data *)",
+      "Bash(make data-sample *)",
+      "Bash(make preprocess *)",
+      "Bash(make labels)",
+      "Bash(make check)",
+      "Bash(make eval *)",
+      "Bash(make smoke)",
+      "Bash(make browser)",
+      "Bash(make pack-data)",
+      "Bash(make train *)",
+      "Bash(modal run *)",
+      "Bash(modal volume *)",
+      "Bash(kaggle kernels *)",
+      "Bash(kaggle datasets *)",
+      "Bash(gh workflow run *)",
+      "Bash(gh run *)",
+      "Bash(uv run *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ],
+    "ask": [
+      "Bash(make deploy)",
+      "Bash(git push *)",
+      "Bash(uv add *)"
+    ],
+    "deny": [
+      "Read(~/bcs-shared/holdout/**)",
+      "Edit(~/bcs-shared/holdout/**)",
+      "Edit(./eval/thresholds.yaml)",
+      "Edit(./tests/test_contract.py)",
+      "Edit(./preprocesamiento/**)",
+      "Bash(make eval-final)",
+      "Bash(make holdout)",
+      "Read(~/.modal.toml)",
+      "Read(~/.kaggle/**)",
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [{ "type": "command", "command": "./scripts/lint_hook.sh" }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "./scripts/stop_gate.sh" }]
+      }
+    ]
+  }
+}
