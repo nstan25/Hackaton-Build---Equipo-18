@@ -114,10 +114,9 @@ def _discarded(missing: list[str], reason: str, limit: int = 50) -> dict[str, An
 # --- pasos -------------------------------------------------------------------------------
 
 
-def extract_rar(cfg: Config) -> dict[str, Any]:
+def extract_rar(cfg: Config, rar_sha: str) -> dict[str, Any]:
     """Extrae el .rar completo (también con --sample: el paso 1 necesita todo el dataset)."""
     stamp = cfg.raw_dir / ".extracted.json"
-    rar_sha = sha256_file(cfg.rar)
     if not (stamp.exists() and json.loads(stamp.read_text()).get("sha256") == rar_sha):
         cfg.raw_dir.mkdir(parents=True, exist_ok=True)
         subprocess.run([*_archiver(), str(cfg.rar), "-C", str(cfg.raw_dir)], check=True)
@@ -231,11 +230,11 @@ STEPS = (
 # --- orquestación ------------------------------------------------------------------------
 
 
-def _key(cfg: Config, rar_sha: str | None = None) -> dict[str, Any]:
+def _key(cfg: Config) -> dict[str, Any]:
     scripts = sorted(p for p in cfg.scripts_dir.glob("*.py"))
     return {
         "source": SOURCE_ID,
-        "rar_sha256": rar_sha or sha256_file(cfg.rar),
+        "rar_sha256": sha256_file(cfg.rar),
         "readme_sha256": sha256_file(cfg.scripts_dir / "README.md"),
         "scripts_sha256": {p.name: sha256_file(p) for p in scripts},
         "reference_split_sha256": sha256_file(cfg.reference_split),
@@ -255,7 +254,7 @@ def run(cfg: Config) -> dict[str, Any]:
             return old
 
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
-    ex = extract_rar(cfg)
+    ex = extract_rar(cfg, key["rar_sha256"])
     records: list[dict[str, Any]] = []
     images: list[str] = ex["images"]  # el paso 1 ve todo el dataset; los demás, lo que quedó
     for n, script, fn in STEPS:
