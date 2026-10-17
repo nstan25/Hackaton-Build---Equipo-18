@@ -75,16 +75,17 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t03-sdb-bcs",
-      "terminal": "term_211dfe21-f320-4d6f-98ab-f37b3ee4b2ab",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_7e36c66abbe7",
       "rounds": 1,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t03-sdb-bcs",
       "branch": "mithrandir7/t03-sdb-bcs",
       "notes": [
         "Re-despachado tras reinicio de la máquina (18:43); dispatch anterior abandonado",
-        "Escalación casi-duplicados entre splits → humano eligió A (G0 punto 7)"
+        "Escalación casi-duplicados entre splits → humano eligió A (G0 punto 7)",
+        "verificada + review aprobada (fuga/holdout OK, tapado OK, 784 pares documentados); integración: sin bytecode en preprocesamiento/"
       ]
     },
     "T04": {
@@ -209,12 +210,13 @@
       ],
       "gate": true,
       "agent": null,
-      "status": "pending",
+      "status": "completed",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
       "rounds": 0,
-      "note": "G0: holdout = test de split.csv; no hay make holdout. Se completa cuando T03 esté mergeado."
+      "note": "G0: holdout = test de split.csv; no hay make holdout. Se completa cuando T03 esté mergeado.",
+      "resolution": "G0: holdout = test de split.csv; sin make holdout"
     },
     "T06": {
       "task_id": "task_74ff5f3afd74",
@@ -224,11 +226,13 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t06-labels",
+      "terminal": "term_a44da7bc-f7fe-4f8d-a28f-f24156637156",
+      "dispatch_id": "ctx_0004c15e24ec",
+      "rounds": 1,
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t06-labels",
+      "branch": "mithrandir7/t06-labels"
     },
     "G1": {
       "task_id": "task_a53816bb69b9",
@@ -273,12 +277,14 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0,
-      "replaced": "task_b0e84c86d818 (cancelada; dependía de T05)"
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t08-quality",
+      "terminal": "term_68a74225-c399-42ba-bf8a-7c7815f689cb",
+      "dispatch_id": "ctx_9cd97768a1b6",
+      "rounds": 1,
+      "replaced": "task_b0e84c86d818 (cancelada; dependía de T05)",
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t08-quality",
+      "branch": "mithrandir7/t08-quality"
     },
     "T09": {
       "task_id": "task_508228ebee66",
