@@ -14,6 +14,7 @@ from types import ModuleType
 
 import pandas as pd
 import pytest
+import yaml
 from PIL import Image
 
 from bcs.data.schema import LABEL_COLUMNS
@@ -22,7 +23,8 @@ from bcs.paths import config_dir
 from bcs.scale import load_scale
 from bcs.train import TrainError, run
 
-COMPUTE = Path(__file__).resolve().parents[1] / "scripts" / "compute"
+REPO = Path(__file__).resolve().parents[1]
+COMPUTE = REPO / "scripts" / "compute"
 BASE_CONFIG = config_dir() / "train.yaml"
 REPORT_KEYS = {"schema_version", "task", "model", "scale", "mean", "pooled", "folds", "dummy"}
 TRAIN_KEYS = {
@@ -284,3 +286,109 @@ def test_collect_remote_output(shared: Path) -> None:
     assert Path(train["weights"]) == shared / "artifacts" / "T16" / "stub_uniform_val_smoke.weights"
     assert Path(train["weights"]).exists() and Path(train["predictions"]).exists()
     assert (path.parent / "reliability.png").exists()
+
+
+def test_train_requires_holdout_groups(shared: Path) -> None:
+    data = shared / "data"
+    _make_data(data)
+    (data / "holdout_groups.txt").unlink()
+    with pytest.raises(TrainError, match="holdout_groups"):
+        run(BASE_CONFIG, model="stub_uniform")
+
+
+def _all_strings(obj: object) -> list[str]:
+    if isinstance(obj, dict):
+        return [s for v in obj.values() for s in _all_strings(v)]
+    if isinstance(obj, list):
+        return [s for v in obj for s in _all_strings(v)]
+    return [obj] if isinstance(obj, str) else []
+
+
+def test_tenki_public_artifact_has_no_data(shared: Path) -> None:
+    """El repo es público: el artifact de cpu-job.yml lleva solo report/config/PNG, sin rutas."""
+    public_artifact = _compute("public_artifact")
+    out = shared / "runner_out"
+    _make_data(shared / "data")
+    run(BASE_CONFIG, model="stub_uniform", out_dir=out, weights_dir=out)
+    assert {p.name for p in out.iterdir()} >= {"predictions_val.csv", "stub_uniform_val.weights"}
+    files = public_artifact.build(out, shared / "public")
+    names = sorted(p.relative_to(shared / "public").as_posix() for p in files)
+    assert names == ["config.json", "confusion.png", "reliability.png", "report.json"]
+    assert sorted(p.name for p in (shared / "public").iterdir()) == names
+    for name in ("report.json", "config.json"):
+        text = (shared / "public" / name).read_text()
+        assert "toy_g" not in text  # ningún image_id
+        assert not [s for s in _all_strings(json.loads(text)) if s.startswith(("/", "~"))]
+    train = json.loads((shared / "public" / "report.json").read_text())["train"]
+    assert train["weights"] is None and train["predictions"] is None
+
+    wf = yaml.safe_load((REPO / ".github" / "workflows" / "cpu-job.yml").read_text())
+    steps = wf["jobs"]["train"]["steps"]
+    uploads = [s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact")]
+    assert len(uploads) == 1
+    assert uploads[0]["with"]["path"] == ".bcs/public/"
+    assert uploads[0]["with"]["retention-days"] == 1
+    assert any("public_artifact.py" in str(s.get("run", "")) for s in steps)
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        KeyError("x"),
+        OSError("disco"),
+        json.JSONDecodeError("mal", "doc", 0),
+        RuntimeError("boom"),
+        SystemExit("sin labels"),
+        KeyboardInterrupt(),
+    ],
+)
+def test_failed_run_writes_ledger(
+    exc: BaseException, shared: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    launch = _compute("launch")
+
+    def boom(*args: object) -> list[Path]:
+        raise exc
+
+    monkeypatch.setitem(launch.BACKENDS, "local", boom)
+    argv = ["--model", "stub_uniform", "--backend", "local", "--smoke"]
+    if isinstance(exc, Exception):
+        assert launch.main(argv) == 1
+    else:
+        with pytest.raises(type(exc)):
+            launch.main(argv)
+    with (shared / "runs" / "compute_ledger.csv").open() as f:
+        rows = list(csv.DictReader(f))
+    assert [r["status"] for r in rows] == ["failed"]
+
+
+def test_remote_timeout_is_noted(shared: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    launch = _compute("launch")
+
+    def timeout(*args: object) -> list[Path]:
+        raise launch.KernelTimeout("sigue corriendo")
+
+    monkeypatch.setitem(launch.BACKENDS, "kaggle", timeout)
+    assert launch.main(["--model", "stub_uniform", "--backend", "kaggle", "--smoke"]) == 1
+    with (shared / "runs" / "compute_ledger.csv").open() as f:
+        rows = list(csv.DictReader(f))
+    assert rows[0]["status"] == "failed:timeout_may_still_run"
+
+
+def test_kaggle_user_never_runs_the_cli(shared: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    launch = _compute("launch")
+    monkeypatch.setenv("HOME", str(shared))
+    monkeypatch.delenv("KAGGLE_USERNAME", raising=False)
+    monkeypatch.delenv("KAGGLE_KEY", raising=False)
+
+    def no_cli(*args: object, **kw: object) -> None:
+        raise AssertionError("no se ejecuta ninguna CLI para obtener el usuario")
+
+    monkeypatch.setattr(launch, "_run", no_cli)
+    with pytest.raises(launch.Unavailable, match="usuario"):
+        launch._kaggle_user()
+    monkeypatch.setenv("KAGGLE_USERNAME", "someone")
+    with pytest.raises(launch.Unavailable, match="credencial"):
+        launch._kaggle_user()
+    monkeypatch.setenv("KAGGLE_KEY", "x")
+    assert launch._kaggle_user() == "someone"

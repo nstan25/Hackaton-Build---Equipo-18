@@ -113,10 +113,15 @@ def build_scorer(cfg: dict[str, Any], grid: tuple[float, ...]) -> Scorer:
 
 
 def _read_holdout_groups(root: Path) -> set[str]:
+    """Grupos del holdout. Sin `holdout_groups.txt` solo se acepta un pack de `make pack-data`
+    (ya filtrado al armarse: su manifest trae el sha256 del archivo); si no, error."""
     path = root / "holdout_groups.txt"
-    if not path.exists():
+    if path.exists():
+        return {ln.strip() for ln in path.read_text().splitlines() if ln.strip()}
+    manifest = root / "manifest.json"
+    if manifest.exists() and json.loads(manifest.read_text()).get("holdout_groups_sha256"):
         return set()
-    return {ln.strip() for ln in path.read_text().splitlines() if ln.strip()}
+    raise TrainError(f"falta {path}: sin él no se puede garantizar que no entre holdout")
 
 
 def _rows(df: pd.DataFrame, mask: pd.Series) -> pd.DataFrame:

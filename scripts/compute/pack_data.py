@@ -72,15 +72,17 @@ def select_rows(root: Path) -> tuple[pd.DataFrame, pd.DataFrame, str]:
     splits = pd.read_csv(root / "splits.csv", dtype=str, keep_default_na=False)
     splits = splits[["image_id", "split"]]
     keep_ids = set(splits.loc[splits["split"].isin(["train", "val"]), "image_id"])
-    labels = labels[labels["image_id"].isin(keep_ids) & ~labels["group_id"].isin(holdout)]
+    in_holdout = labels["group_id"].isin(holdout)
+    if bool(in_holdout.any()):
+        # labels.csv no debería traer holdout (make labels lo excluye): se descarta y se avisa
+        print(f"pack-data: AVISO: {int(in_holdout.sum())} filas de holdout en labels.csv; "
+              "se descartan", file=sys.stderr)  # fmt: skip
+    labels = labels[labels["image_id"].isin(keep_ids) & ~in_holdout]
     labels = labels.sort_values("image_id").reset_index(drop=True)
     splits = splits[splits["image_id"].isin(set(labels["image_id"]))]
     splits = splits.sort_values("image_id").reset_index(drop=True)
     if labels.empty:
         raise PackError("no quedan imágenes de train/val para empaquetar")
-    leaked = set(labels["group_id"]) & holdout
-    if leaked:
-        raise PackError(f"grupos de holdout en el pack: {sorted(leaked)[:5]}")
     return labels, splits, _sha256_file(holdout_path)
 
 

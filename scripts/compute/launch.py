@@ -45,6 +45,10 @@ class Unavailable(RuntimeError):
     """El backend no está configurado (sin CLI o sin credencial)."""
 
 
+class KernelTimeout(RuntimeError):
+    """Se venció la espera de un job remoto que puede seguir corriendo (y gastando)."""
+
+
 # ---------------------------------------------------------------- comunes
 
 
@@ -177,20 +181,19 @@ def backend_modal(model: str, task: str, folds: list[str], smoke: bool) -> list[
 # ---------------------------------------------------------------- kaggle
 
 
-def _kaggle_user(cli: str) -> str:
-    if user := os.environ.get("KAGGLE_USERNAME"):
-        return user
-    has_file = any(
+def _kaggle_user() -> str:
+    """Usuario de Kaggle: `--kaggle-user` o `KAGGLE_USERNAME`. Nunca se lee la credencial; solo
+    se mira que exista (env `KAGGLE_KEY` o el archivo que puso el humano)."""
+    user = os.environ.get("KAGGLE_USERNAME")
+    if not user:
+        raise Unavailable("falta el usuario de Kaggle: --kaggle-user o KAGGLE_USERNAME")
+    has_cred = bool(os.environ.get("KAGGLE_KEY")) or any(
         p.exists()
         for p in (Path.home() / ".kaggle/kaggle.json", Path.home() / ".config/kaggle/kaggle.json")
     )
-    if not has_file:
+    if not has_cred:
         raise Unavailable("sin credencial de Kaggle (~/.kaggle/kaggle.json lo pone el humano)")
-    out = _run([cli, "config", "view"], capture_output=True)
-    m = re.search(r"username:\s*(\S+)", out.stdout)
-    if not m:
-        raise Unavailable("no pude obtener el usuario de Kaggle con `kaggle config view`")
-    return m.group(1)
+    return user
 
 
 def kaggle_push_pack(cli: str, user: str, pack: Path) -> str:
@@ -249,7 +252,7 @@ def kaggle_stage_kernel(
 
 def backend_kaggle(model: str, task: str, folds: list[str], smoke: bool) -> list[Path]:
     cli = _need_cli("kaggle")
-    user = _kaggle_user(cli)
+    user = _kaggle_user()
     pack = maybe_pack(smoke)
     dataset = kaggle_push_pack(cli, user, pack) if pack else None
     slug = re.sub(r"[^a-z0-9-]+", "-", f"bcs-train-{task}".lower())
@@ -273,10 +276,17 @@ def backend_kaggle(model: str, task: str, folds: list[str], smoke: bool) -> list
             status = _run([cli, "kernels", "status", kernel], capture_output=True).stdout.lower()
             if any(s in status for s in ("complete", "error", "cancel")):
                 break
+        if not any(s in status for s in ("complete", "error", "cancel")):
+            raise KernelTimeout(
+                f"kernel {kernel}: sin terminar a los {timeout_s} s; PUEDE SEGUIR CORRIENDO en "
+                f"Kaggle (mirá `kaggle kernels status {kernel}`)"
+            )
+        if "complete" not in status:
+            raise RuntimeError(
+                f"kernel {kernel}: {status.strip()} (log: `kaggle kernels output {kernel}`)"
+            )
         with tempfile.TemporaryDirectory(prefix="bcs-ko-") as out:
             _run([cli, "kernels", "output", kernel, "-p", out], check=True)
-            if "complete" not in status:
-                raise RuntimeError(f"kernel {kernel}: {status.strip() or 'timeout'} (log en {out})")
             paths.append(collect(Path(out), task, ts, fold))
     return paths
 
@@ -305,7 +315,7 @@ def backend_tenki(model: str, task: str, folds: list[str], smoke: bool) -> list[
     if (data_dir() / "labels.csv").exists():
         # El runner baja el pack del dataset privado de Kaggle (secrets KAGGLE_*).
         kcli = _need_cli("kaggle")
-        kaggle_push_pack(kcli, _kaggle_user(kcli), pack_data.build_pack())
+        kaggle_push_pack(kcli, _kaggle_user(), pack_data.build_pack())
         pack_source = "kaggle"
     elif not smoke:
         raise SystemExit(f"train: no existe {data_dir() / 'labels.csv'} (make labels)")
@@ -364,37 +374,52 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--folds", default=None)
     p.add_argument("--smoke", action="store_true")
     p.add_argument("--task", default=None, help="por defecto $BCS_TASK o el modelo")
+    p.add_argument("--kaggle-user", default=None, help="por defecto $KAGGLE_USERNAME")
     a = p.parse_args(argv)
     task = a.task or os.environ.get("BCS_TASK") or a.model
     folds = parse_folds(a.folds)
+    if a.kaggle_user:
+        os.environ["KAGGLE_USERNAME"] = a.kaggle_user
     t0 = time.monotonic()
-    try:
-        paths = BACKENDS[a.backend](a.model, task, folds, a.smoke)
-    except Unavailable as e:
-        print(f"train[{a.backend}]: no disponible: {e}", file=sys.stderr)
-        return EXIT_UNAVAILABLE
-    except (subprocess.CalledProcessError, RuntimeError) as e:
+
+    def fail(status: str) -> None:
         ledger.append(
             backend=a.backend, task=task, model=a.model, fold=",".join(folds), smoke=a.smoke,
-            machine=MACHINE[a.backend], seconds=time.monotonic() - t0, status="failed",
+            machine=MACHINE[a.backend], seconds=time.monotonic() - t0, status=status,
         )  # fmt: skip
+
+    try:
+        paths = BACKENDS[a.backend](a.model, task, folds, a.smoke)
+        wall = time.monotonic() - t0
+        for path in paths:
+            report = json.loads(path.read_text())["train"]
+            # local: tiempo de pared; remotos: lo que corrió el contenedor (lo que se cobra).
+            seconds = (
+                wall / len(paths) if a.backend == "local" else float(report.get("seconds", wall))
+            )
+            row = ledger.append(
+                backend=a.backend, task=task, model=a.model, fold=report["fold"], smoke=a.smoke,
+                machine=f"{MACHINE[a.backend]}:{report.get('device', '?')}",
+                seconds=seconds, status="ok", report=str(path),
+            )  # fmt: skip
+            print(
+                f"train[{a.backend}]: {path} · {row['seconds']} s · ~${row['est_cost_usd']}",
+                file=sys.stderr,
+            )
+            print(path)
+    except Unavailable as e:  # no arrancó: no va a la bitácora
+        print(f"train[{a.backend}]: no disponible: {e}", file=sys.stderr)
+        return EXIT_UNAVAILABLE
+    except KernelTimeout as e:
+        fail("failed:timeout_may_still_run")
         print(f"train[{a.backend}]: falló: {e}", file=sys.stderr)
         return 1
-    wall = time.monotonic() - t0
-    for path in paths:
-        report = json.loads(path.read_text())["train"]
-        # local: tiempo de pared; remotos: lo que corrió el contenedor (lo que se cobra).
-        seconds = wall / len(paths) if a.backend == "local" else float(report.get("seconds", wall))
-        row = ledger.append(
-            backend=a.backend, task=task, model=a.model, fold=report["fold"], smoke=a.smoke,
-            machine=f"{MACHINE[a.backend]}:{report.get('device', '?')}",
-            seconds=seconds, status="ok", report=str(path),
-        )  # fmt: skip
-        print(
-            f"train[{a.backend}]: {path} · {row['seconds']} s · ~${row['est_cost_usd']}",
-            file=sys.stderr,
-        )
-        print(path)
+    except BaseException as e:  # toda corrida que arrancó deja su línea, también Ctrl-C
+        fail("failed")
+        print(f"train[{a.backend}]: falló: {type(e).__name__}: {e}", file=sys.stderr)
+        if isinstance(e, Exception):
+            return 1
+        raise
     return 0
 
 

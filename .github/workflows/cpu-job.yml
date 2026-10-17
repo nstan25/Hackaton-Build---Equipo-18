@@ -1,6 +1,7 @@
 # Backend Tenki (SPEC §2.4): jobs de CPU en runners de Tenki vía GitHub Actions.
 # Lo lanza `make train BACKEND=tenki` (scripts/compute/launch.py): gh workflow run → gh run watch
-# → gh run download. Requiere la app de Tenki instalada en el repo; el label del runner se elige
+# → gh run download (solo report.json, config.json y PNG). Requiere la app de Tenki instalada
+# en el repo; el label del runner se elige
 # con el input `runner` (o la variable del repo TENKI_RUNNER).
 # Datos: sin pack (smoke) usa las fixtures sintéticas; con pack_source=kaggle baja el dataset
 # privado <user>/bcs-pack (secrets KAGGLE_USERNAME y KAGGLE_KEY). Nunca hay holdout en el pack.
@@ -46,7 +47,7 @@ jobs:
     env:
       BCS_DATA_DIR: ${{ github.workspace }}/.bcs/data
       BCS_RUNS_DIR: ${{ github.workspace }}/.bcs/runs
-      BCS_ARTIFACTS_DIR: ${{ github.workspace }}/.bcs/runs/artifacts
+      BCS_ARTIFACTS_DIR: ${{ github.workspace }}/.bcs/artifacts
       BCS_BACKEND: tenki
       BCS_GIT_SHA: ${{ github.sha }}
     steps:
@@ -74,18 +75,25 @@ jobs:
       - name: Entrenar
         env:
           TRAIN_ARGS: ${{ inputs.train_args }}
+        # bcs.train solo loguea agregados (n, MAE, rutas): nunca etiquetas ni image_id.
         run: |
           mkdir -p "$BCS_DATA_DIR" "$BCS_RUNS_DIR"
           # shellcheck disable=SC2086
           uv run --frozen python -m bcs.train $TRAIN_ARGS \
             --data-dir "$BCS_DATA_DIR" --out-dir "$BCS_RUNS_DIR/out" \
-            --weights-dir "$BCS_RUNS_DIR/out" --backend tenki
+            --weights-dir "$BCS_ARTIFACTS_DIR" --backend tenki
 
-      - name: Subir runs/
+      # Repo PÚBLICO: solo report.json, config.json y PNG, sin rutas (scripts/compute/
+      # public_artifact.py). Pesos y predicciones (etiquetas de terceros) no salen del runner.
+      - name: Armar artifact público
+        if: always()
+        run: uv run --frozen python scripts/compute/public_artifact.py "$BCS_RUNS_DIR/out" .bcs/public
+
+      - name: Subir report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bcs-runs-${{ github.run_id }}
-          path: .bcs/runs/
+          name: bcs-report-${{ github.run_id }}
+          path: .bcs/public/
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 1
