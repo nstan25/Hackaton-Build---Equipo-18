@@ -24,7 +24,7 @@
     "modal": false,
     "kaggle": false,
     "tenki": false,
-    "railway_cli": false
+    "railway_cli": true
   },
   "public_url": null,
   "tasks": {
@@ -435,8 +435,12 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "blocked",
-      "note": "esperando credenciales Railway"
+      "status": "dispatched",
+      "note": "Railway: proyecto hopeful-cooperation 13008ce1-3729-47f5-87a3-b6be335f75f2",
+      "dispatch_id": "ctx_92599f258c75",
+      "terminal": "term_03f88c81-dd31-4fca-a3df-4ef860cf39a2",
+      "worktree": "main (current)",
+      "rounds": 1
     }
   }
 }
