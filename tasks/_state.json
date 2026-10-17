@@ -160,9 +160,9 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t16-compute",
-      "terminal": "term_5cfcc32a-f597-45a1-a6b2-85d2d6fa9f95",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_0998e9fc128c",
       "rounds": 2,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t16-compute",
@@ -172,7 +172,8 @@
         "task_9e61dffc4512"
       ],
       "notes": [
-        "v1: check 114, train local smoke OK; remotos sin credencial (exit 3). Review: artifact público con etiquetas/pesos (MEDIA), bitácora no registra todas las fallas (MEDIA), kaggle config view, holdout_groups faltante → v2"
+        "v1: check 114, train local smoke OK; remotos sin credencial (exit 3). Review: artifact público con etiquetas/pesos (MEDIA), bitácora no registra todas las fallas (MEDIA), kaggle config view, holdout_groups faltante → v2",
+        "v2 verificada (check 146, train local OK); mergeada. Remotos sin probar: faltan credenciales"
       ]
     },
     "T15": {
