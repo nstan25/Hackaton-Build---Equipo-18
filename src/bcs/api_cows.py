@@ -1,4 +1,8 @@
-"""Endpoints de rodeo (SPEC §2.2). Stub de T00 sobre el `Store` en memoria; T15 lo completa."""
+"""Endpoints de rodeo (SPEC §2.2).
+
+`/cows`, `/cows/{cow_id}`, `/predictions/{id}` y `/media/{id}.jpg`,
+todas detrás del token. Trabajan contra el `Store` montado en `app.state.store`.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +15,7 @@ from fastapi.responses import FileResponse
 from bcs.auth import require_token
 from bcs.contract import InvalidCowId, Status, normalize_cow_id
 from bcs.store.base import CowFilters, Store
+from bcs.store.sqlite import iso_to_ts
 
 router = APIRouter(dependencies=[Depends(require_token)])
 
@@ -27,6 +32,13 @@ def list_cows(
     bcs_min: float | None = None,
     since: str | None = None,
 ) -> list[dict[str, Any]]:
+    if since is not None:
+        try:
+            iso_to_ts(since)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail="since debe ser ISO 8601") from e
+    if bcs_min is not None and bcs_max is not None and bcs_min > bcs_max:
+        raise HTTPException(status_code=422, detail="bcs_min no puede ser mayor que bcs_max")
     filters = CowFilters(status=status, bcs_min=bcs_min, bcs_max=bcs_max, since=since)
     return [asdict(row) for row in _store(request).latest_by_cow(filters)]
 
