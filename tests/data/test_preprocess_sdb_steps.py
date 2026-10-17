@@ -162,3 +162,11 @@ def test_preprocess_sample(tmp_path: Path) -> None:
     ref = pd.read_csv(FIX / "split.csv").set_index("path")
     got = pd.read_csv(cfg.out_dir / "split.csv").set_index("path")
     assert (ref.loc[got.index, "split"] == got["split"]).all()
+
+
+def test_preprocess_sample_after_full(tmp_path: Path) -> None:
+    """Un --sample sobre la carpeta de una corrida completa no cuenta restos de esa corrida."""
+    run(make_cfg(tmp_path))
+    m = run(make_cfg(tmp_path, sample=3))
+    for n in (1, 2, 3):
+        assert _step(m, n)["after"] == {c: 3 for c in CLASSES}

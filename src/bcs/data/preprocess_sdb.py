@@ -191,13 +191,15 @@ def step1_make_split(cfg: Config, images: list[str]) -> dict[str, Any]:
 
 def step2_apply_split(cfg: Config, kept: list[str]) -> dict[str, Any]:
     """README paso 2: `apply_split.py <dataset>` → dataset_split/{train,val,test}/<clase>/."""
+    root = cfg.out_dir / "dataset_split"
+    if root.exists():  # sin restos de una corrida con otro --sample
+        shutil.rmtree(root)
     _run(
         "apply_split.py",
         [str(cfg.dataset_dir), "split.csv", "dataset_split"],
         cfg,
         "step2_apply_split.log",
     )
-    root = cfg.out_dir / "dataset_split"
     got = sorted(f"{p.parent.name}/{p.name}" for p in root.glob("*/*/*.jpg"))
     return {
         "before": _by_class(kept),
