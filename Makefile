@@ -48,11 +48,11 @@ eval:
 	$(RUN) python eval/evaluate.py --model $(MODEL) --stage $(STAGE) $(if $(PREDICTIONS),--predictions $(PREDICTIONS)) $(if $(QUALITY),--quality $(QUALITY)) $(if $(TASK),--task $(TASK))
 
 pack-data:
-	$(call pending,T16)
+	$(RUN) python scripts/compute/pack_data.py
 
 train:
-	@test -n "$(MODEL)" || { echo "uso: make train MODEL=<m> BACKEND=<modal|kaggle|tenki|local> [SMOKE=1]" >&2; exit 2; }
-	$(call pending,T16)
+	@test -n "$(BACKEND)" || { echo "uso: make train [MODEL=<m>] BACKEND=<modal|kaggle|tenki|local> [SMOKE=1] [FOLDS=all] [TASK=<id>]" >&2; exit 2; }
+	$(RUN) python scripts/compute/launch.py --model $(or $(MODEL),stub_uniform) --backend $(BACKEND) $(if $(FOLDS),--folds $(FOLDS)) $(if $(SMOKE),--smoke) $(if $(TASK),--task $(TASK))
 
 browser:
 	$(call pending,T07)
