@@ -26,7 +26,7 @@
     "tenki": false,
     "railway_cli": true
   },
-  "public_url": null,
+  "public_url": "https://bcs-production.up.railway.app",
   "tasks": {
     "T00": {
       "task_id": "task_9cf7e76e1c93",
@@ -441,12 +441,15 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
+      "status": "completed",
       "note": "Railway: proyecto hopeful-cooperation 13008ce1-3729-47f5-87a3-b6be335f75f2",
       "dispatch_id": "ctx_92599f258c75",
-      "terminal": "term_03f88c81-dd31-4fca-a3df-4ef860cf39a2",
+      "terminal": null,
       "worktree": "main (current)",
-      "rounds": 1
+      "rounds": 1,
+      "notes": [
+        "Railway: servicio bcs, volumen bcs-volume en /data (500MB), deploy a0bc3ac8; verificado health 200, predict/cows/web sin token 401. Pendiente: prueba 422 con token (humano)"
+      ]
     }
   }
 }
