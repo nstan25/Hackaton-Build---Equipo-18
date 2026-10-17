@@ -21,6 +21,7 @@ import importlib.util
 import json
 import random
 import subprocess
+import sys
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
@@ -157,7 +158,12 @@ def _load_prep_crops(scripts_dir: Path) -> ModuleType:
     spec = importlib.util.spec_from_file_location("prep_crops", scripts_dir / "prep_crops.py")
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    # preprocesamiento/ es de solo lectura: que el import no deje __pycache__ ahí.
+    prev, sys.dont_write_bytecode = sys.dont_write_bytecode, True
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        sys.dont_write_bytecode = prev
     return mod
 
 

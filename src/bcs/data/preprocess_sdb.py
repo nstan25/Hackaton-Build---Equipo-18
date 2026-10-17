@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import random
 import shutil
 import subprocess
@@ -119,7 +120,8 @@ def _archiver() -> list[str]:
 def _run(script: str, args: list[str], cfg: Config, log: str) -> None:
     """Corre un script del equipo tal cual, con cwd = out_dir, y guarda su salida."""
     cmd = [sys.executable, str(cfg.scripts_dir / script), *args]
-    res = subprocess.run(cmd, cwd=cfg.out_dir, capture_output=True, text=True)
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}  # nada de __pycache__ en preprocesamiento/
+    res = subprocess.run(cmd, cwd=cfg.out_dir, capture_output=True, text=True, env=env)
     (cfg.out_dir / "logs").mkdir(exist_ok=True)
     (cfg.out_dir / "logs" / log).write_text(res.stdout + res.stderr)
     if res.returncode != 0:
