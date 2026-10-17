@@ -27,15 +27,18 @@ fixtures:
 
 preprocess:
 	@test -n "$(SOURCE)" || { echo "uso: make preprocess SOURCE=sdb_bcs" >&2; exit 2; }
-	$(call pending,T03)
+	@test "$(SOURCE)" = sdb_bcs || { echo "preprocess solo aplica a SOURCE=sdb_bcs" >&2; exit 2; }
+	$(RUN) python -m bcs.data.preprocess_sdb $(if $(SAMPLE),--sample $(SAMPLE))
 
 data:
 	@test -n "$(SOURCE)" || { echo "uso: make data SOURCE=<source_id>" >&2; exit 2; }
-	$(call pending,T03/T04/T05)
+	$(RUN) python scripts/data/fetch_$(SOURCE).py $(if $(SAMPLE),--sample $(SAMPLE))
+	if [ "$(SOURCE)" = sdb_bcs ]; then $(MAKE) preprocess SOURCE=$(SOURCE) $(if $(SAMPLE),SAMPLE=$(SAMPLE)); fi
+	$(RUN) python -m bcs.data.sources.$(SOURCE) $(if $(SAMPLE),--sample $(SAMPLE))
 
 data-sample:
 	@test -n "$(SOURCE)" || { echo "uso: make data-sample SOURCE=<source_id>" >&2; exit 2; }
-	$(call pending,T03/T04/T05)
+	$(MAKE) data SOURCE=$(SOURCE) SAMPLE=60
 
 labels:
 	$(call pending,T06)
