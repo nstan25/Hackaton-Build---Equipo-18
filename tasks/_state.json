@@ -17,7 +17,8 @@
     "agents": "solo Claude Code (no hay Codex instalado)",
     "max_workers": 4,
     "sources": "solo sdb_bcs (G0)",
-    "split": "split.csv del README tal cual; test=holdout (G0)"
+    "split": "split.csv del README tal cual; test=holdout (G0)",
+    "grid": "dairy_sdb 3.25–4.25 (G1)"
   },
   "credentials_at_setup": {
     "gh": true,
@@ -245,11 +246,13 @@
       ],
       "gate": true,
       "agent": null,
-      "status": "ready",
+      "status": "completed",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "gate_id": "gate_2b2ccd60e1c6",
+      "resolution": "ver tasks/G1.md"
     },
     "T07": {
       "task_id": "task_e6a9c9bf7f15",
@@ -302,11 +305,12 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t09-baseline",
+      "terminal": "term_d3d8586b-df6a-459e-9a44-79549cade978",
+      "dispatch_id": "ctx_c8f8870fc907",
+      "rounds": 1,
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t09-baseline"
     },
     "G2": {
       "task_id": "task_e593944fbd7e",
