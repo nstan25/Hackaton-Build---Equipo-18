@@ -1,0 +1,7 @@
+# Datos y artefactos generados
+dataset_split/
+crops/
+yolo_data/
+runs/
+*.pt
+__pycache__/
