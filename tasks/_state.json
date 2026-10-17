@@ -18,7 +18,8 @@
     "max_workers": 4,
     "sources": "solo sdb_bcs (G0)",
     "split": "split.csv del README tal cual; test=holdout (G0)",
-    "grid": "dairy_sdb 3.25–4.25 (G1)"
+    "grid": "dairy_sdb 3.25–4.25 (G1)",
+    "model": "models/bcs_efficientnet_b0.pt (EfficientNet-B0 del equipo), sin DINOv2"
   },
   "credentials_at_setup": {
     "gh": true,
@@ -312,7 +313,8 @@
       "rounds": 1,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t09-baseline",
       "notes": [
-        "Re-despachado tras segundo reinicio de la máquina (20:42); embeddings ya cacheados"
+        "Re-despachado tras segundo reinicio de la máquina (20:42); embeddings ya cacheados",
+        "17/10: alcance cambiado a evaluar models/bcs_efficientnet_b0.pt (sin DINOv2); worker redirigido"
       ]
     },
     "G2": {
@@ -337,11 +339,12 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
+      "status": "cancelled",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "result": "humano: usar EfficientNet-B0 del equipo"
     },
     "T10b": {
       "task_id": "task_e684d66e3b9c",
@@ -351,11 +354,12 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
+      "status": "cancelled",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "result": "humano: usar EfficientNet-B0 del equipo"
     },
     "T11": {
       "task_id": "task_911f000db4ac",
@@ -385,7 +389,8 @@
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "note": "deps T10a/T10b cancelados: se abre a mano cuando T11 termine"
     },
     "T12": {
       "task_id": "task_001acac2c2eb",
