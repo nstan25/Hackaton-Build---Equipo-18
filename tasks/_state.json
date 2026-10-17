@@ -33,11 +33,13 @@
       "deps": [],
       "gate": false,
       "agent": "claude",
-      "status": "ready",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t00-skeleton",
+      "terminal": "term_e5d8e453-f7e5-4128-8f33-c3e526457d79",
+      "dispatch_id": "ctx_ce1289049bad",
+      "rounds": 1,
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t00-skeleton",
+      "branch": "mithrandir7/t00-skeleton"
     },
     "G0": {
       "task_id": "task_116d4b752b81",
