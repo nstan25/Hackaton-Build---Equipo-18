@@ -41,7 +41,7 @@ data-sample:
 	$(MAKE) data SOURCE=$(SOURCE) SAMPLE=60
 
 labels:
-	$(call pending,T06)
+	$(RUN) python -m bcs.data.merge
 
 eval:
 	@test -n "$(MODEL)" -a -n "$(STAGE)" || { echo "uso: make eval MODEL=<name> STAGE=<m2|m3|m4>" >&2; exit 2; }
