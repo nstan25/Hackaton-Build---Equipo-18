@@ -1,0 +1,9 @@
+# T09 · EfficientNet-B0 del equipo (models/bcs_efficientnet_b0.pt), sin reentrenar (SPEC §2.3).
+# Se aplica encima de config/train.yaml. `bcs.train` llama a fit(), que solo estima σ de la
+# normal discretizada; `python -m bcs.models.efficientnet` corre la evaluación de T09 sobre val.
+model:
+  name: efficientnet_b0
+  target: "bcs.models.efficientnet:EfficientNetScorer"
+  weights: models/bcs_efficientnet_b0.pt
+  tta: true          # promedio con el flip horizontal, como bcs_pipeline.py
+  sigma: null        # null: fit() lo estima (RMSE de residuos en val)
