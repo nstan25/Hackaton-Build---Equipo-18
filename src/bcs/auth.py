@@ -17,5 +17,6 @@ def require_token(
 ) -> None:
     expected = os.environ.get("BCS_APP_TOKEN")
     given = x_app_token or token
-    if not expected or not given or not hmac.compare_digest(given, expected):
+    # En bytes: compare_digest con str no ASCII levanta TypeError (sería un 500, no un 401).
+    if not expected or not given or not hmac.compare_digest(given.encode(), expected.encode()):
         raise HTTPException(status_code=401, detail="token inválido o ausente")
