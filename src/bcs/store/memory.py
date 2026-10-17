@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from bcs.contract import Prediction
 from bcs.store.base import CowFilters, CowSummary
@@ -14,7 +14,7 @@ THUMBNAIL_SIZE = 512
 
 
 def make_thumbnail(image_bytes: bytes) -> bytes:
-    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    img = ImageOps.exif_transpose(Image.open(io.BytesIO(image_bytes))).convert("RGB")
     img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE))
     out = io.BytesIO()
     img.save(out, format="JPEG", quality=85)
