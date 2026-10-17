@@ -1,0 +1,375 @@
+{
+  "run_id": "run_d8f0a49c75ce",
+  "shared": {
+    "root": "~/bcs-shared",
+    "data": "~/bcs-shared/data",
+    "artifacts": "~/bcs-shared/artifacts",
+    "runs": "~/bcs-shared/runs",
+    "holdout": "~/bcs-shared/holdout (lo crea make holdout; solo humano)"
+  },
+  "dataset_rar": {
+    "path": "~/bcs-shared/data/raw/sdb_bcs/dataset.rar",
+    "size_bytes": 4407548599,
+    "sha256": "b99164f4141e080b63b82d6462d0db4b61626138e20b07d02b6644b8b70d8880",
+    "verified_at": "2026-10-17"
+  },
+  "decisions": {
+    "agents": "solo Claude Code (no hay Codex instalado)",
+    "max_workers": 4,
+    "sources": "solo sdb_bcs hasta G0"
+  },
+  "credentials_at_setup": {
+    "gh": true,
+    "modal": false,
+    "kaggle": false,
+    "tenki": false,
+    "railway_cli": false
+  },
+  "public_url": null,
+  "tasks": {
+    "T00": {
+      "task_id": "task_9cf7e76e1c93",
+      "title": "Esqueleto, arnés, contrato, interfaces y stubs",
+      "deps": [],
+      "gate": false,
+      "agent": "claude",
+      "status": "ready",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "G0": {
+      "task_id": "task_116d4b752b81",
+      "title": "GATE humano: aprobar contrato e interfaces, credenciales, fuentes",
+      "deps": [
+        "T00"
+      ],
+      "gate": true,
+      "agent": null,
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T03": {
+      "task_id": "task_b6ceb62336a0",
+      "title": "Fuente sdb_bcs: fetch + preprocesamiento + adaptador",
+      "deps": [
+        "G0"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T04": {
+      "task_id": "task_a2b504dda583",
+      "title": "Fuente zen_rgbd",
+      "deps": [
+        "G0"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T05": {
+      "task_id": "task_a753dc2dee6b",
+      "title": "Fuentes chicas + fetcher iplab",
+      "deps": [
+        "G0"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T02": {
+      "task_id": "task_4f18139e3af4",
+      "title": "Arnés de evaluación",
+      "deps": [
+        "G0"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T01": {
+      "task_id": "task_84093ad68167",
+      "title": "POST /predict + deploy Railway",
+      "deps": [
+        "G0"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T16": {
+      "task_id": "task_e180ff220e7f",
+      "title": "Backends de cómputo",
+      "deps": [
+        "G0"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T15": {
+      "task_id": "task_dfc045123d0c",
+      "title": "Store SQLite + endpoints de rodeo",
+      "deps": [
+        "G0"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "GH": {
+      "task_id": "task_ed426e47db58",
+      "title": "GATE humano: correr make holdout",
+      "deps": [
+        "T03",
+        "T04",
+        "T05"
+      ],
+      "gate": true,
+      "agent": null,
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T06": {
+      "task_id": "task_74ff5f3afd74",
+      "title": "make labels: unión, holdout, folds, data_report",
+      "deps": [
+        "GH"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "G1": {
+      "task_id": "task_a53816bb69b9",
+      "title": "GATE humano: grilla, colas, fuentes de entrenamiento",
+      "deps": [
+        "T06"
+      ],
+      "gate": true,
+      "agent": null,
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T07": {
+      "task_id": "task_e6a9c9bf7f15",
+      "title": "Web UI + rodeo",
+      "deps": [
+        "T01",
+        "T15"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T08": {
+      "task_id": "task_b0e84c86d818",
+      "title": "Filtro de calidad",
+      "deps": [
+        "T05"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T09": {
+      "task_id": "task_508228ebee66",
+      "title": "Baseline: tonto + embeddings congelados",
+      "deps": [
+        "G1",
+        "T02",
+        "T16"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "G2": {
+      "task_id": "task_e593944fbd7e",
+      "title": "GATE humano: métricas baseline, umbrales m3/m4",
+      "deps": [
+        "T09"
+      ],
+      "gate": true,
+      "agent": null,
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T10a": {
+      "task_id": "task_8dd3013fce67",
+      "title": "Candidato A: ConvNeXt-Tiny CORAL (Modal)",
+      "deps": [
+        "G2"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T10b": {
+      "task_id": "task_e684d66e3b9c",
+      "title": "Candidato B: DINOv2 + MLP label smoothing (Modal)",
+      "deps": [
+        "G2"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T11": {
+      "task_id": "task_911f000db4ac",
+      "title": "Calibración + conformal",
+      "deps": [
+        "T09"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "G3": {
+      "task_id": "task_258348408e19",
+      "title": "GATE humano: elegir modelo",
+      "deps": [
+        "T10a",
+        "T10b",
+        "T11"
+      ],
+      "gate": true,
+      "agent": null,
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T12": {
+      "task_id": "task_001acac2c2eb",
+      "title": "Integración + ONNX + deploy",
+      "deps": [
+        "G3",
+        "T07",
+        "T08",
+        "T15"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T13": {
+      "task_id": "task_6abf512267d4",
+      "title": "Review adversarial",
+      "deps": [
+        "T12"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "T14": {
+      "task_id": "task_287e66b2a7fb",
+      "title": "README + guion de demo",
+      "deps": [
+        "T13"
+      ],
+      "gate": false,
+      "agent": "claude",
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    },
+    "G4": {
+      "task_id": "task_021ed9c12709",
+      "title": "GATE humano: make eval-final y deploy final",
+      "deps": [
+        "T14"
+      ],
+      "gate": true,
+      "agent": null,
+      "status": "pending",
+      "worktree": null,
+      "terminal": null,
+      "dispatch_id": null,
+      "rounds": 0
+    }
+  }
+}
