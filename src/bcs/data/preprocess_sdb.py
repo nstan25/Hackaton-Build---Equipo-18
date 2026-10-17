@@ -32,12 +32,40 @@ from typing import Any
 
 import pandas as pd
 
-from bcs.paths import REPO_ROOT, data_dir
+from bcs.paths import REPO_ROOT, data_dir, runs_dir
 
 SOURCE_ID = "sdb_bcs"
+RAR_SHA256 = "b99164f4141e080b63b82d6462d0db4b61626138e20b07d02b6644b8b70d8880"
 SEED = 42  # la del README (split.csv) y la del muestreo de --sample
 MANIFEST = "preprocess_manifest.json"
 YOLO_EVAL_NOTE = "no ejecutado: diagnóstico del detector, requiere bajar pesos (decisión T03/ask)"
+
+
+def known_leakage(rar_sha: str) -> dict[str, Any] | None:
+    """Fuga conocida del split del README (G0 punto 7, opción A); solo para el .rar real.
+
+    `pairs_file` lista los pares dHash <= 4 entre splits como [a, b, dist, corr]; el adaptador
+    exige que los casi-duplicados que encuentra sean exactamente esos (uno nuevo → falla).
+    """
+    if rar_sha != RAR_SHA256:
+        return None
+    evidence = runs_dir() / "T03" / "leak_evidence"
+    return {
+        "decision": "G0 punto 7, opción A: split.csv del README tal cual, sin excluir imágenes",
+        "effect": "las métricas de val/test pueden estar levemente infladas (< 0,5% del total)",
+        "causes": [
+            "tramos L-i/R-i cortados en huecos de la numeración: frames contiguos del mismo"
+            " video quedan en grupos LR_seg distintos y caen en splits distintos",
+            "vacas GS con dos IDs: la misma vaca filmada con dos números queda en dos grupos",
+        ],
+        "dhash_le_4": {"pairs": 784},
+        "corr_ge_0.9": {"pairs": 109, "images": 75},
+        "corr_ge_0.8": {"pairs": 247, "images": 256},
+        "corr": "correlación de píxeles entre las dos imágenes procesadas (4.º campo)",
+        "evidence_dir": str(evidence),
+        "pairs_file": str(evidence / "dups.json"),
+        "pairs_sha256": "be146fcc0b6151be67fb3e64d2499a73e4a0ccd43c29c8670c5cdb9a418ef4d2",
+    }
 
 
 class PreprocessError(RuntimeError):
@@ -263,7 +291,12 @@ def run(cfg: Config) -> dict[str, Any]:
         if n == 1:
             images = sorted(pd.read_csv(cfg.out_dir / "split.csv")["path"])
 
-    manifest = {**key, "images_in_rar": _by_class(ex["images"]), "steps": records}
+    manifest = {
+        **key,
+        "images_in_rar": _by_class(ex["images"]),
+        "steps": records,
+        "known_leakage": known_leakage(key["rar_sha256"]),
+    }
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     return manifest
 

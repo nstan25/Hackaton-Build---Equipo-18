@@ -11,13 +11,14 @@ import pandas as pd
 import pytest
 from PIL import Image
 
-from bcs.data.preprocess_sdb import Config, run, sha256_file
+from bcs.data.preprocess_sdb import RAR_SHA256, Config, known_leakage, run, sha256_file
 from bcs.data.schema import load_labels
 from bcs.data.sources.base import Source
 from bcs.data.sources.sdb_bcs import (
     SdbBcsSource,
     _dhash,
     _load_prep_crops,
+    compare_documented,
     fetch_rar,
     near_duplicates_across_splits,
 )
@@ -150,20 +151,89 @@ def test_masked_regions_black(adapted: SdbBcsSource) -> None:
 
 
 def test_no_near_duplicates_across_splits(adapted: SdbBcsSource) -> None:
+    """Los casi-duplicados entre splits son exactamente los documentados (G0 punto 7).
+
+    Se recalculan desde las imágenes escritas y se comparan con qa_sdb_bcs.json y con
+    `known_leakage` del manifiesto; la fixture no declara fuga, así que no puede haber ninguno.
+    """
     splits = pd.read_csv(adapted.root / "splits_sdb_bcs.csv")
     by_id = dict(zip(splits["image_id"], splits["split"], strict=True))
     hashes = {}
     for i in by_id:
         with Image.open(adapted.images_dir / f"{i}.jpg") as im:
             hashes[i] = _dhash(im)
-    assert near_duplicates_across_splits(hashes, by_id) == []
+    found = near_duplicates_across_splits(hashes, by_id)
     qa = json.loads((adapted.images_dir / "qa_sdb_bcs.json").read_text())
-    assert qa["near_duplicates_across_splits"]["n"] == 0
-    # control positivo: una copia de una foto puesta en otro split se detecta
+    nd = qa["near_duplicates_across_splits"]
+    assert [tuple(p) for p in nd["pairs"]] == found and nd["n"] == len(found)
+    doc_file, documented = adapted.documented_pairs()
+    assert nd["documented_in"] == doc_file
+    assert {(a, b) for a, b, _ in found} == set(documented)
+    assert found == [] and nd["undocumented"] == nd["missing"] == []
+    # control positivo: una copia de una foto puesta en otro split se detecta y, si no está
+    # documentada, se informa como nueva
     a = sorted(by_id)[0]
     other = "test" if by_id[a] != "test" else "train"
     pairs = near_duplicates_across_splits({**hashes, "copy": hashes[a]}, {**by_id, "copy": other})
     assert (a, "copy", 0) in pairs or ("copy", a, 0) in pairs
+    present = {*by_id, "copy"}
+    new = compare_documented(pairs, documented, present)["undocumented"]
+    assert (min(a, "copy"), max(a, "copy")) in new  # (y los otros frames del video de `a`)
+    assert compare_documented(pairs, [(p, q) for p, q, _ in pairs], present) == {
+        "undocumented": [],
+        "missing": [],
+    }
+
+
+def test_known_leakage_documented(adapted: SdbBcsSource) -> None:
+    """known_leakage solo aplica al .rar real; trae conteos, causas y evidencia."""
+    manifest = json.loads((adapted.pre_dir / "preprocess_manifest.json").read_text())
+    assert manifest["known_leakage"] is None  # fixture
+    leak = known_leakage(RAR_SHA256)
+    assert leak is not None and len(leak["causes"]) == 2
+    assert leak["dhash_le_4"] == {"pairs": 784}
+    assert leak["corr_ge_0.9"] == {"pairs": 109, "images": 75}
+    assert leak["corr_ge_0.8"] == {"pairs": 247, "images": 256}
+    assert leak["pairs_file"].startswith(leak["evidence_dir"])
+
+
+def test_adapt_fails_on_undocumented_pair(adapted: SdbBcsSource, tmp_path: Path) -> None:
+    """Si lo encontrado no coincide con lo documentado, `adapt()` falla (nuevos o faltantes)."""
+    root = tmp_path / "data"
+    shutil.copytree(adapted.root, root)
+    pre = root / "raw" / "sdb_bcs_pre"
+    ids = sorted(pd.read_csv(root / "splits_sdb_bcs.csv")["image_id"])
+    pairs_file = tmp_path / "dups.json"
+    pairs_file.write_text(json.dumps([[ids[0], ids[1], 0, 1.0]]))
+    manifest = json.loads((pre / "preprocess_manifest.json").read_text())
+    manifest["known_leakage"] = {
+        "pairs_file": str(pairs_file),
+        "pairs_sha256": sha256_file(pairs_file),
+    }
+    (pre / "preprocess_manifest.json").write_text(json.dumps(manifest))
+    src = SdbBcsSource(root=root, scripts_dir=SCRIPTS, workers=2)
+    with pytest.raises(RuntimeError, match="0 nuevos, 1 faltantes"):
+        src.adapt()
+    # una copia de una foto en otro split (no documentada) también hace fallar
+    splits = pd.read_csv(root / "splits_sdb_bcs.csv")
+    by_id = dict(zip(splits["image_id"], splits["split"], strict=True))
+    a = ids[0]
+    b = next(i for i in ids if by_id[i] != by_id[a])
+    split_csv = pd.read_csv(pre / "split.csv")
+    crop_of = {f"sdb_bcs_{Path(p).stem}": f"crops/{s}/{p}"
+               for s, p in zip(split_csv["split"], split_csv["path"], strict=True)}  # fmt: skip
+    shutil.copy(pre / crop_of[a], pre / crop_of[b])
+    pairs_file.write_text("[]")
+    manifest["known_leakage"]["pairs_sha256"] = sha256_file(pairs_file)
+    (pre / "preprocess_manifest.json").write_text(json.dumps(manifest))
+    (src.images_dir / ".adapt.json").unlink()  # fuerza a reescribir las imágenes
+    with pytest.raises(RuntimeError, match="nuevos, 0 faltantes"):
+        src.adapt()
+    qa = json.loads((src.images_dir / "qa_sdb_bcs.json").read_text())
+    assert [min(a, b), max(a, b)] in qa["near_duplicates_across_splits"]["undocumented"]
+    pairs_file.write_text("[[]]")  # el archivo cambió y el sha256 ya no coincide
+    with pytest.raises(RuntimeError, match="sha256"):
+        src.adapt()
 
 
 def test_adapt_idempotent(adapted: SdbBcsSource) -> None:

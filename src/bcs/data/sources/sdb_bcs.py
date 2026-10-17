@@ -32,12 +32,11 @@ import numpy as np
 import pandas as pd
 from PIL import Image, ImageDraw
 
-from bcs.data.preprocess_sdb import SOURCE_ID, sha256_file
+from bcs.data.preprocess_sdb import MANIFEST, RAR_SHA256, SOURCE_ID, sha256_file
 from bcs.data.schema import LABEL_COLUMNS, LabelRow
 from bcs.paths import REPO_ROOT, data_dir, runs_dir
 
 RAR_SIZE = 4_407_548_599
-RAR_SHA256 = "b99164f4141e080b63b82d6462d0db4b61626138e20b07d02b6644b8b70d8880"
 URL_API = (
     "https://www.scidb.cn/api/sdb-filetree-service/getAllUrl?dataSetId="
     "16b8bdaf31ee4c8b9891fc7e9df6e41c&type=journalDataset&version=V3&global=en"
@@ -206,6 +205,15 @@ def near_duplicates_across_splits(
     return sorted((a, b, d) for (a, b), d in found.items())
 
 
+def compare_documented(
+    found: list[tuple[str, str, int]], documented: Iterable[tuple[str, str]], present: set[str]
+) -> dict[str, list[tuple[str, str]]]:
+    """Casi-duplicados encontrados vs. documentados (restringidos a las imágenes presentes)."""
+    got = {(a, b) for a, b, _ in found}
+    doc = {(min(a, b), max(a, b)) for a, b in documented if a in present and b in present}
+    return {"undocumented": sorted(got - doc), "missing": sorted(doc - got)}
+
+
 class SdbBcsSource:
     source_id = SOURCE_ID
 
@@ -244,6 +252,16 @@ class SdbBcsSource:
         df["animal_id"] = df.apply(animal_id, axis=1)
         df["group_id"] = SOURCE_ID + ":" + df["group"].astype(str)
         return df
+
+    def documented_pairs(self) -> tuple[str | None, list[tuple[str, str]]]:
+        """Pares de `known_leakage.pairs_file` del manifiesto de preprocess (ninguno si no hay)."""
+        leak = json.loads((self.pre_dir / MANIFEST).read_text()).get("known_leakage")
+        if not leak:
+            return None, []
+        path = Path(leak["pairs_file"])
+        if sha256_file(path) != leak["pairs_sha256"]:
+            raise RuntimeError(f"{path} no coincide con el sha256 de known_leakage")
+        return str(path), [(str(p[0]), str(p[1])) for p in json.loads(path.read_text())]
 
     def _process(self, row: dict[str, Any], prep: ModuleType, force: bool) -> dict[str, Any]:
         src = self.pre_dir / "dataset_split" / row["split"] / row["path"]
@@ -305,13 +323,27 @@ class SdbBcsSource:
         hashes = dict(zip(df["image_id"], [done[i]["dhash"] for i in order], strict=True))
         splits = dict(zip(df["image_id"], df["split"], strict=True))
         dups = near_duplicates_across_splits(hashes, splits)
+        doc_file, documented = self.documented_pairs()
+        diff = compare_documented(dups, documented, set(splits))
         qa = {
             "images": len(df),
             "by_split": {k: int(v) for k, v in df["split"].value_counts().sort_index().items()},
             "masked_images": sum(bool(d["masked"]) for d in done),
-            "near_duplicates_across_splits": {"max_dist": 4, "pairs": dups[:200], "n": len(dups)},
+            "near_duplicates_across_splits": {
+                "max_dist": 4,
+                "n": len(dups),
+                "documented_in": doc_file,
+                **diff,
+                "pairs": dups,
+            },
         }
         _write_text(self.images_dir / "qa_sdb_bcs.json", json.dumps(qa, indent=2) + "\n")
+        if diff["undocumented"] or diff["missing"]:
+            raise RuntimeError(
+                f"casi-duplicados entre splits distintos de los documentados ({doc_file}): "
+                f"{len(diff['undocumented'])} nuevos, {len(diff['missing'])} faltantes; "
+                f"ver {self.images_dir / 'qa_sdb_bcs.json'}"
+            )
         train_val = labels[~is_test].to_dict(orient="records")
         return [LabelRow(**{str(k): v for k, v in r.items()}) for r in train_val]
 
@@ -355,8 +387,9 @@ def main(argv: list[str] | None = None) -> None:
     qa = json.loads((src.images_dir / "qa_sdb_bcs.json").read_text())
     sheet = contact_sheet(src.root, runs_dir() / "T03" / "contact_sheets" / "sdb_bcs_pre.jpg")
     print(f"sdb_bcs (sample={args.sample}): {len(rows)} filas train+val; qa={qa['by_split']}")
-    print(f"tapadas: {qa['masked_images']}; casi-duplicados entre splits: "
-          f"{qa['near_duplicates_across_splits']['n']}")  # fmt: skip
+    nd = qa["near_duplicates_across_splits"]
+    print(f"tapadas: {qa['masked_images']}; casi-duplicados entre splits: {nd['n']}, "
+          f"todos documentados en {nd['documented_in']}")  # fmt: skip
     print(f"hoja de contactos: {sheet}")
 
 
