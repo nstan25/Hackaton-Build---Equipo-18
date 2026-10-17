@@ -55,7 +55,7 @@ train:
 	$(RUN) python scripts/compute/launch.py --model $(or $(MODEL),stub_uniform) --backend $(BACKEND) $(if $(FOLDS),--folds $(FOLDS)) $(if $(SMOKE),--smoke) $(if $(TASK),--task $(TASK))
 
 browser:
-	$(call pending,T07)
+	$(RUN) python tests/browser/run_browser.py
 
 # Solo el humano (SPEC §4.1). Los agentes tienen estos targets en deny.
 holdout:
