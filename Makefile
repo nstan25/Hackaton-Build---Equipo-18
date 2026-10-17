@@ -45,7 +45,7 @@ labels:
 
 eval:
 	@test -n "$(MODEL)" -a -n "$(STAGE)" || { echo "uso: make eval MODEL=<name> STAGE=<m2|m3|m4>" >&2; exit 2; }
-	$(RUN) python eval/evaluate.py --model $(MODEL) --stage $(STAGE)
+	$(RUN) python eval/evaluate.py --model $(MODEL) --stage $(STAGE) $(if $(PREDICTIONS),--predictions $(PREDICTIONS)) $(if $(QUALITY),--quality $(QUALITY)) $(if $(TASK),--task $(TASK))
 
 pack-data:
 	$(call pending,T16)
