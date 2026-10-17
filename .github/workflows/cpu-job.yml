@@ -1,0 +1,91 @@
+# Backend Tenki (SPEC §2.4): jobs de CPU en runners de Tenki vía GitHub Actions.
+# Lo lanza `make train BACKEND=tenki` (scripts/compute/launch.py): gh workflow run → gh run watch
+# → gh run download. Requiere la app de Tenki instalada en el repo; el label del runner se elige
+# con el input `runner` (o la variable del repo TENKI_RUNNER).
+# Datos: sin pack (smoke) usa las fixtures sintéticas; con pack_source=kaggle baja el dataset
+# privado <user>/bcs-pack (secrets KAGGLE_USERNAME y KAGGLE_KEY). Nunca hay holdout en el pack.
+name: cpu-job
+
+on:
+  workflow_dispatch:
+    inputs:
+      train_args:
+        description: "Argumentos de python -m bcs.train (los arma launch.py)"
+        required: true
+        default: "--config config/train.yaml --fold all --task stub_uniform --model stub_uniform --smoke"
+      task:
+        description: "Subcarpeta de runs/ (ID de tarea)"
+        required: true
+        default: "stub_uniform"
+      pack_source:
+        description: "De dónde sale el pack de datos"
+        required: true
+        default: "none"
+        type: choice
+        options: [none, kaggle]
+      runner:
+        description: "Label del runner de Tenki"
+        required: false
+        default: ""
+      timeout_minutes:
+        description: "Tope de minutos del job"
+        required: false
+        default: "120"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpu-job-${{ inputs.task }}
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ${{ inputs.runner || vars.TENKI_RUNNER || 'tenki-standard-autoscale' }}
+    timeout-minutes: ${{ fromJSON(inputs.timeout_minutes || '120') }}
+    env:
+      BCS_DATA_DIR: ${{ github.workspace }}/.bcs/data
+      BCS_RUNS_DIR: ${{ github.workspace }}/.bcs/runs
+      BCS_ARTIFACTS_DIR: ${{ github.workspace }}/.bcs/runs/artifacts
+      BCS_BACKEND: tenki
+      BCS_GIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Instalar dependencias
+        run: uv sync --frozen
+
+      - name: Bajar el pack (Kaggle)
+        if: inputs.pack_source == 'kaggle'
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          mkdir -p .bcs/pack "$BCS_DATA_DIR"
+          uvx kaggle datasets download -d "$KAGGLE_USERNAME/bcs-pack" -p .bcs/pack --unzip
+          tar_file=$(ls .bcs/pack/bcs_pack_*.tar 2>/dev/null | head -n1 || true)
+          if [ -n "$tar_file" ]; then tar -xf "$tar_file" -C "$BCS_DATA_DIR"; else cp -r .bcs/pack/. "$BCS_DATA_DIR"/; fi
+          test -f "$BCS_DATA_DIR/labels.csv"
+
+      - name: Entrenar
+        env:
+          TRAIN_ARGS: ${{ inputs.train_args }}
+        run: |
+          mkdir -p "$BCS_DATA_DIR" "$BCS_RUNS_DIR"
+          # shellcheck disable=SC2086
+          uv run --frozen python -m bcs.train $TRAIN_ARGS \
+            --data-dir "$BCS_DATA_DIR" --out-dir "$BCS_RUNS_DIR/out" \
+            --weights-dir "$BCS_RUNS_DIR/out" --backend tenki
+
+      - name: Subir runs/
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bcs-runs-${{ github.run_id }}
+          path: .bcs/runs/
+          if-no-files-found: warn
+          retention-days: 14
