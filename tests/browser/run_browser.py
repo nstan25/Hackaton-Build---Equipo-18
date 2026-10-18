@@ -391,9 +391,8 @@ class Run:
         self.check(r["status"] == "low_confidence", f"{extreme} → low_confidence")
         if self.model:
             self.shows_prediction(r["id"], extreme)
-        self.check(self.visible("#res-low"), "aviso de confianza baja visible")
         self.check(
-            "posible condición baja" in self.text("#res-low"), "low_confidence en 3.25 → verificar"
+            not self.visible("#res-low"), "sin aviso de texto de confianza baja (G3 punto 7)"
         )
         self.shot("03-confianza-baja")
         self.next_cow()

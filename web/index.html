@@ -369,16 +369,8 @@
       }
       if (rejected && !issues.childElementCount) issues.appendChild(document.createElement("li")).textContent = "no parece una vaca de atrás";
 
-      const low = $("res-low");
-      low.hidden = p.status !== "low_confidence";
-      if (!low.hidden) {
-        // G3: un BCS en una punta del rango validado sale low_confidence.
-        low.textContent = p.bcs != null && p.bcs <= VALID_MIN + 1e-9
-          ? "Confianza baja: posible condición baja, verificar a mano."
-          : p.bcs != null && p.bcs >= VALID_MAX - 1e-9
-            ? "Confianza baja: posible condición alta, verificar a mano."
-            : "Confianza baja: el resultado es dudoso, verificalo a mano o sacá otra foto.";
-      }
+      // G3 punto 7: sin aviso de texto para low_confidence (el estado se ve en la etiqueta).
+      $("res-low").hidden = true;
       $("retry").textContent = rejected ? "Sacar otra foto" : "Otra foto";
       if (rejected) { $("result").scrollIntoView({ block: "start" }); return; }
 
@@ -392,7 +384,7 @@
       const out = p.bcs != null && (p.bcs < VALID_MIN - 1e-9 || p.bcs > VALID_MAX + 1e-9);
       $("res-range-note").textContent = out
         ? `Fuera del rango validado (${fmt(VALID_MIN)}–${fmt(VALID_MAX)}): tomalo como orientativo.`
-        : "Confianza: probabilidad de que el BCS real esté a ±0.25 del valor estimado.";
+        : "";
       $("result").scrollIntoView({ block: "start" });
     }
 
