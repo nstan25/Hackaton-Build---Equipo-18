@@ -69,8 +69,11 @@ browser:
 holdout:
 	$(call pending,el humano en GH)
 
+# G4: solo el humano (los agentes la tienen denegada en .claude/settings.json). Evalúa el modelo de
+# producción sobre test (holdout_labels_sdb_bcs.csv): recortes y punta a punta → runs/G4/<ts>/.
+eval-final: export BCS_SCALE ?= dairy_sdb
 eval-final:
-	$(call pending,el humano en G4)
+	$(RUN) python eval/evaluate_final.py --task G4 $(if $(LIMIT),--limit $(LIMIT))
 
 deploy:
 	$(call pending,T01 con permiso del humano)
