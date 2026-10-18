@@ -124,6 +124,23 @@
         <h1 id="rodeo-title">Tus vacas</h1>
         <p>Último BCS de cada vaca, de la más baja a la más alta. Tocá una para ver su evolución.</p>
       </div>
+      <section class="card dist" id="dist" aria-labelledby="dist-title">
+        <div class="dist-head">
+          <h2 id="dist-title">Distribución de condición corporal del rodeo</h2>
+          <p class="dist-sub">Cantidad de animales según su condición corporal estimada</p>
+        </div>
+        <dl class="dist-stats">
+          <div><dt>Animales evaluados</dt><dd id="dist-animals">—</dd></div>
+          <div><dt><span class="mean-key" aria-hidden="true"></span>BCS promedio</dt><dd id="dist-mean">—</dd></div>
+        </dl>
+        <div class="dist-plot" id="dist-plot" hidden>
+          <svg class="dist-chart" id="dist-chart" role="group"></svg>
+          <div class="dist-tip" id="dist-tip" hidden></div>
+        </div>
+        <p class="dist-state" id="dist-state" aria-live="polite">Cargando distribución…</p>
+        <p class="dist-note" id="dist-note">Solo animales evaluados: cada vaca cuenta una vez, en la barra más cercana al promedio de sus
+          evaluaciones válidas (las fotos rechazadas no cuentan). Eje: valores que usa el modelo, 3.25 a 4.25 de la escala 1–5.</p>
+      </section>
       <div class="card filters">
         <div class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
@@ -221,6 +238,7 @@
     }
 
     async function loadCows() {
+      loadDistribution();  // en paralelo: se actualiza cada vez que se recarga la lista
       try {
         const r = await api("/cows");
         if (!r.ok) throw new Error(errorText(r));
@@ -294,6 +312,154 @@
 
     for (const id of ["q", "f-bcs", "f-low", "f-rej"]) $(id).addEventListener("input", renderList);
     $("f-bcs-max").addEventListener("input", () => { $("f-bcs").checked = true; renderList(); });
+
+    // ---------- Distribución de condición corporal del rodeo (T20): GET /cows/distribution ----------
+    // Cada vaca evaluada cuenta una vez, con el promedio de sus BCS válidos (lo calcula el backend).
+    // El eje x son solo los valores de la grilla del modelo (5 barras): la escala 1–5 completa
+    // agregaría 12 barras siempre en 0, que se leerían como "no hay vacas flacas".
+    let dist = null, distSeq = 0, distActive = -1;
+    const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+    async function loadDistribution() {
+      const seq = ++distSeq;
+      const state = $("dist-state");
+      if (!dist) { state.textContent = "Cargando distribución…"; state.className = "dist-state"; state.hidden = false; }
+      let data;
+      try {
+        const r = await api("/cows/distribution");
+        if (!r.ok) throw new Error(errorText(r));
+        data = await r.json();
+      } catch (err) {
+        if (seq !== distSeq) return;
+        dist = null;
+        $("dist-plot").hidden = true;
+        $("dist-animals").textContent = $("dist-mean").textContent = "—";
+        state.textContent = "No se pudo cargar la distribución. " + (err instanceof TypeError ? "Sin conexión con el servidor." : err.message);
+        state.className = "dist-state err";
+        state.hidden = false;
+        return;
+      }
+      if (seq !== distSeq) return;  // llegó una respuesta más nueva
+      const changed = JSON.stringify(data) !== JSON.stringify(dist);
+      dist = data;
+      $("dist-animals").textContent = data.animals;
+      $("dist-mean").textContent = data.mean_bcs != null ? fmt(data.mean_bcs) : "—";
+      const note = $("dist-note");
+      note.dataset.base ??= note.textContent.replace(/\s+/g, " ").trim();
+      note.textContent = note.dataset.base + (data.without_bcs
+        ? ` ${plural(data.without_bcs, "vaca con solo fotos rechazadas no se incluye", "vacas con solo fotos rechazadas no se incluyen")}.` : "");
+      if (!data.animals) {
+        $("dist-plot").hidden = true;
+        state.textContent = "Todavía no hay animales con una evaluación válida. Analizá una foto desde “+ Analizar” para ver la distribución.";
+        state.className = "dist-state";
+        state.hidden = false;
+        return;
+      }
+      state.hidden = true;
+      $("dist-plot").hidden = false;
+      if (changed) drawDistribution(true);
+    }
+
+    function drawDistribution(animate) {
+      if (!dist || !dist.animals) return;
+      const svg = $("dist-chart"), plot = $("dist-plot");
+      const ns = "http://www.w3.org/2000/svg";
+      // Dibujado al ancho real (no un viewBox fijo escalado): el texto queda legible en el celular.
+      const W = Math.max(260, Math.round(plot.clientWidth || 320)), H = W < 480 ? 230 : 260;
+      const L = 30, R = 6, T = 24, B = 46;
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      svg.setAttribute("width", W);
+      svg.setAttribute("height", H);
+      svg.classList.toggle("animate", animate);
+      distW = Math.round(plot.clientWidth);  // el ResizeObserver no redibuja (ni corta la animación)
+      svg.replaceChildren();
+      const el = (tag, attrs, parent = svg, text) => {
+        const node = document.createElementNS(ns, tag);
+        for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+        if (text != null) node.textContent = text;
+        parent.appendChild(node);
+        return node;
+      };
+      const keys = Object.keys(dist.counts);
+      const counts = keys.map((k) => dist.counts[k]);
+      const max = Math.max(...counts);
+      const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find((s) => max / s <= 4) || Math.ceil(max / 4);
+      const yMax = Math.max(step, Math.ceil(max / step) * step);
+      const base = H - B, y = (v) => base - (base - T) * v / yMax;
+      const band = (W - L - R) / keys.length, bw = Math.min(band * 0.62, 76);
+      const cx = (i) => L + band * (i + 0.5);
+
+      for (let v = 0; v <= yMax; v += step) {
+        if (v > 0) el("line", { class: "grid", x1: L, x2: W - R, y1: y(v), y2: y(v) });
+        el("text", { class: "tick", x: L - 8, y: y(v) + 4, "text-anchor": "end" }, svg, v);
+      }
+      el("text", { class: "tick", x: L + band * keys.length / 2, y: H - 6, "text-anchor": "middle" }, svg, "BCS estimado (promedio por vaca)");
+
+      // Promedio del rodeo: línea dorada en su posición sobre el eje (interpolada entre barras).
+      const g0 = dist.grid[0], gs = dist.grid.length > 1 ? dist.grid[1] - dist.grid[0] : 1;
+      const mx = cx(0) + band * (dist.mean_bcs - g0) / gs;
+      el("line", { class: "mean", x1: mx, x2: mx, y1: T - 6, y2: base });
+      el("path", { class: "mean-tri", d: `M${mx - 6},${base + 7}L${mx + 6},${base + 7}L${mx},${base}Z` });
+
+      const cats = [];
+      keys.forEach((k, i) => {
+        const n = counts[i];
+        const g = el("g", { class: "cat", tabindex: 0, role: "img",
+          "aria-label": `BCS ${k}: ${plural(n, "animal", "animales")}` });
+        el("rect", { class: "hit", x: L + band * i + 2, y: T - 8, width: band - 4, height: base - T + 30 }, g);
+        const x0 = cx(i) - bw / 2;
+        if (n > 0) {
+          const top = y(n), r = Math.min(7, bw / 2, base - top);
+          el("path", { class: "bar" + (n === max ? " top" : ""), style: `animation-delay:${i * 60}ms`,
+            d: `M${x0},${base}V${top + r}Q${x0},${top} ${x0 + r},${top}H${x0 + bw - r}Q${x0 + bw},${top} ${x0 + bw},${top + r}V${base}Z` }, g);
+        } else {
+          el("rect", { class: "zero", x: x0, y: base - 2, width: bw, height: 2 }, g);
+        }
+        el("text", { class: "val" + (n ? "" : " zero-val"), x: cx(i), y: (n ? y(n) : base) - 7, "text-anchor": "middle" }, g, n);
+        el("text", { class: "xlab", x: cx(i), y: base + 22, "text-anchor": "middle" }, g, k);
+        cats.push(g);
+      });
+      el("line", { class: "axis", x1: L, x2: W - R, y1: base, y2: base });
+
+      svg.setAttribute("aria-label", `Distribución de ${plural(dist.animals, "animal evaluado", "animales evaluados")}: ` +
+        keys.map((k, i) => `BCS ${k}, ${counts[i]}`).join("; ") + `. BCS promedio ${fmt(dist.mean_bcs)}.`);
+
+      const tip = $("dist-tip");
+      const show = (i) => {
+        distActive = i;
+        cats.forEach((c, j) => c.classList.toggle("active", j === i));
+        const n = counts[i];
+        tip.replaceChildren(h("strong", "", `BCS ${keys[i]}`), ` · ${plural(n, "animal", "animales")}`,
+          h("span", "", `${Math.round(100 * n / dist.animals)}% de los evaluados`),
+          h("span", "", "BCS promedio de las evaluaciones de cada vaca"));
+        tip.style.left = Math.min(Math.max(cx(i), 110), W - 110) + "px";
+        tip.style.top = (n ? y(n) : base) - 22 + "px";
+        tip.hidden = false;
+      };
+      const hide = hideDistTip;
+      cats.forEach((g, i) => {
+        g.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") show(i); });
+        g.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
+        g.addEventListener("click", (e) => { e.stopPropagation(); distActive === i && e.pointerType !== "mouse" ? hide() : show(i); });
+        // Con teclado; un tap también enfoca, pero ahí manda el click (si no, el toggle lo cerraría).
+        g.addEventListener("focus", () => { if (g.matches(":focus-visible")) show(i); });
+        g.addEventListener("blur", hide);
+        g.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+      });
+      if (!animate && distActive >= 0 && distActive < cats.length) show(distActive); else hide();
+    }
+
+    function hideDistTip() {
+      distActive = -1;
+      for (const c of $("dist-chart").querySelectorAll(".cat.active")) c.classList.remove("active");
+      $("dist-tip").hidden = true;
+    }
+    document.addEventListener("click", () => { if (distActive >= 0) hideDistTip(); });  // tap afuera
+    let distW = 0;
+    new ResizeObserver(() => {
+      const w = Math.round($("dist-plot").clientWidth);
+      if (w && w !== distW) { distW = w; drawDistribution(false); }
+    }).observe($("dist-plot"));
 
     function drawChart(svg, items) {
       const ns = "http://www.w3.org/2000/svg";
@@ -470,6 +636,10 @@
     }
     $("back").addEventListener("click", () => { location.hash = ""; });
     window.addEventListener("hashchange", route);
+    // Al volver a la pestaña (p. ej. después de analizar una foto en otra), lista y distribución al día.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && !$("list-view").hidden) loadCows();
+    });
     route();
   </script>
 </body>

@@ -18,7 +18,7 @@ from typing import Any
 
 from bcs.contract import Prediction, QualityReport
 from bcs.store.base import CowFilters, CowSummary
-from bcs.store.memory import make_thumbnail
+from bcs.store.memory import CowMean, make_thumbnail
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS predictions (
@@ -272,3 +272,19 @@ class SqliteStore:
             )
             for r in rows
         ]
+
+    def mean_bcs_by_cow(self, since: str | None = None) -> list[CowMean]:
+        """Una fila por vaca con evaluaciones en o después de `since` (ISO 8601; todas si None),
+        con el promedio de sus BCS válidos (ok o low_confidence; rejected no cuenta)."""
+        where, params = ("WHERE created_ts >= ?", [iso_to_ts(since)]) if since else ("", [])
+        sql = f"""
+            SELECT cow_id,
+                   AVG(CASE WHEN status != 'rejected' THEN bcs END) AS mean_bcs,
+                   COUNT(CASE WHEN status != 'rejected' THEN bcs END) AS n_valid
+            FROM predictions {where}
+            GROUP BY cow_id
+            ORDER BY cow_id
+        """
+        with self._connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [CowMean(r["cow_id"], r["mean_bcs"], r["n_valid"]) for r in rows]
