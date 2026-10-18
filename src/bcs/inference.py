@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 from bcs.calibration.base import Calibrator, IntervalPredictor
 from bcs.calibration.stub import FullGridInterval, IdentityCalibrator
@@ -75,11 +75,12 @@ def stub_pipeline(scale: Scale | None = None) -> Pipeline:
 
 
 def _to_image(image: ImageInput) -> tuple[Image.Image, bytes]:
+    """La foto derecha (orientación EXIF aplicada, como la ve el celular) en RGB y sus bytes."""
     if isinstance(image, Image.Image):
         buf = io.BytesIO()
         image.save(buf, format="PNG")
-        return image.convert("RGB"), buf.getvalue()
-    return Image.open(io.BytesIO(image)).convert("RGB"), image
+        return ImageOps.exif_transpose(image).convert("RGB"), buf.getvalue()
+    return ImageOps.exif_transpose(Image.open(io.BytesIO(image))).convert("RGB"), image
 
 
 def _now() -> str:

@@ -153,32 +153,34 @@ DUMMY_PHOTOS = {
 }
 
 
-def pick_val_photos() -> dict[str, Path]:
-    """Dos fotos de val (`splits.csv`) para `--model`, con el pipeline de producción en este
-    proceso: la primera de clase 3.75 que da `ok` y la primera de clase 3.25 que da
-    `low_confidence` con BCS 3.25, en un orden barajado con semilla fija."""
+def pick_val_photos(base: str) -> dict[str, Path]:
+    """Dos fotos de val (`splits.csv`) para `--model`, por clase real de `labels.csv` y en un orden
+    barajado con semilla fija: la primera de clase 3.75 que da `ok` y la primera de clase 3.25 que
+    da `low_confidence` con BCS 3.25 (G3). Se verifican con `/__probe` del servidor: este proceso
+    no carga ningún modelo (ni importa `bcs.inference`)."""
     import pandas as pd
 
-    from bcs import inference
     from bcs.paths import data_dir
 
     d = data_dir()
     labels = pd.read_csv(d / "labels.csv", usecols=["image_id", "path", "bcs"])
     splits = pd.read_csv(d / "splits.csv")
     val = labels.merge(splits.loc[splits["split"] == "val"], on="image_id")
-    pipe = inference.model_pipeline()
 
     def first(cls: float, want: Any) -> Path:
         rows = val.loc[np.isclose(val["bcs"], cls)].sample(frac=1.0, random_state=SEED)
         for rel in rows["path"].head(PICK_TRIES):
             path = d / rel
-            if want(inference.run_pipeline(pipe, path.read_bytes(), "PICK")):
+            r = httpx.post(f"{base}/__probe", content=path.read_bytes(), timeout=180)
+            r.raise_for_status()
+            if want(r.json()):
                 return path
+            print(f"  descarto {path.name} (clase {cls}): {r.json()}")
         raise RuntimeError(f"ninguna foto de val de clase {cls} cumple en {PICK_TRIES} intentos")
 
     return {
-        "central": first(3.75, lambda p: p.status == "ok" and p.bcs > 3.25 + 1e-9),
-        "extreme": first(3.25, lambda p: p.status == "low_confidence" and p.bcs == 3.25),
+        "central": first(3.75, lambda p: p["status"] == "ok" and p["bcs"] > 3.25 + 1e-9),
+        "extreme": first(3.25, lambda p: p["status"] == "low_confidence" and p["bcs"] == 3.25),
         "dog": FIXTURES / "dog.jpg",
     }
 
@@ -529,12 +531,7 @@ def main() -> int:
         return 1
     args.out.mkdir(parents=True, exist_ok=True)
     model_env = {"BCS_PREDICTOR": "model", "BCS_SCALE": "dairy_sdb"} if args.model else {}
-    if args.model:
-        os.environ.update(model_env)
-        photos = pick_val_photos()
-        print("fotos de val:", *(str(p) for p in photos.values()), sep="\n  ")
-    else:
-        photos = DUMMY_PHOTOS
+    photos = DUMMY_PHOTOS
 
     with tempfile.TemporaryDirectory(prefix="bcs-browser-") as tmp:
         api_port, wd_port = _free_port(), _free_port()
@@ -562,6 +559,9 @@ def main() -> int:
         run: Run | None = None
         try:
             _wait_http(f"{base}/health", api, "la API dummy")
+            if args.model:
+                photos = pick_val_photos(base)
+                print("fotos de val:", *(str(p) for p in photos.values()), sep="\n  ")
             _wait_http(f"http://127.0.0.1:{wd_port}/status", wd, "geckodriver")
             browser = Browser(f"http://127.0.0.1:{wd_port}")
             browser.go(f"{base}/__harness")

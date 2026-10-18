@@ -6,6 +6,7 @@ no se baja en los tests: el filtro de calidad usa el `ClipQualityChecker` real c
 
 from __future__ import annotations
 
+import io
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
@@ -184,3 +185,42 @@ def test_predictor_switch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(inference.PREDICTOR_ENV, "real")
     with pytest.raises(ValueError, match="BCS_PREDICTOR"):
         inference.use_model()
+
+
+def test_exif_orientation_is_applied_before_the_pipeline(pipe: inference.Pipeline) -> None:
+    """Una foto de celular girada por EXIF (Orientation=6, 90° horario) llega derecha a CLIP, al
+    detector y a la EfficientNet."""
+    upright = Image.new("RGB", (60, 40), (0, 0, 255))
+    upright.paste((255, 0, 0), (0, 0, 30, 40))  # mitad izquierda roja
+    stored = upright.rotate(90, expand=True)  # así guarda el sensor la toma girada: 40×60
+    exif = Image.Exif()
+    exif[0x0112] = 6
+    buf = io.BytesIO()
+    stored.save(buf, format="JPEG", exif=exif, quality=95)
+    raw = buf.getvalue()
+
+    seen: dict[str, Image.Image] = {}
+
+    class Spy:
+        def check(self, image: Image.Image) -> Any:
+            seen["quality"] = image
+            return _clip(0.9).check(image)
+
+    def locate(image: Image.Image) -> Image.Image:
+        seen["locate"] = image
+        return image
+
+    class SpyValue(FixedValue):
+        def predict_value(self, images: Sequence[Image.Image]) -> np.ndarray:
+            seen["model"] = images[0]
+            return super().predict_value(images)
+
+    scorer = inference.CalibratedEfficientNet(SpyValue(3.75), pipe.scorer.dist, "test")  # type: ignore[attr-defined]
+    p = replace(pipe, quality=Spy(), locate=locate, scorer=scorer)
+    inference.run_pipeline(p, raw, "A1")
+    assert set(seen) == {"quality", "locate", "model"}
+    for image in seen.values():
+        assert image.size == (60, 40)
+        px = np.asarray(image)
+        assert px[20, 5, 0] > 200  # rojo a la izquierda, como la foto derecha
+        assert px[20, 55, 2] > 200
