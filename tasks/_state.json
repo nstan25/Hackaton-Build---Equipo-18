@@ -526,11 +526,15 @@
     },
     "T18": {
       "title": "Rediseño integral de la UI (ARGOS)",
-      "status": "dispatched",
+      "status": "v1 entregada (worker retenido para integrar T17)",
       "dispatch_id": "ctx_ce8d0a1e8de1",
       "branch": "rediseño-ui",
       "agent": "claude",
-      "note": "humano: deployar la rama a Railway para que el equipo la vea antes de mergear"
+      "note": "humano: deployar la rama a Railway para que el equipo la vea antes de mergear",
+      "rounds": 1,
+      "notes": [
+        "verificada: check+smoke OK, solo web/ y docs/rediseno; web/img 656 KB; sin textos de G3 p.7; make browser no corrido (VM)"
+      ]
     }
   }
 }
