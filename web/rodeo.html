@@ -54,11 +54,20 @@
     .legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: .78rem; margin-top: 4px; }
     .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
     .hist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-    .hist-item { display: flex; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+    .hist-item { display: flex; gap: 12px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
     .hist-item .v { font-weight: 800; font-size: 1.2rem; }
     .hist-item ul { margin: 2px 0 0; padding-left: 18px; color: var(--bad); font-size: .82rem; }
     footer { color: var(--muted); font-size: .85rem; text-align: center; padding: 0 16px 24px; max-width: 720px; margin: 0 auto; }
     footer strong { color: var(--ink); }
+    .hist-item > div { flex: 1; min-width: 0; }
+    .explain-btn { margin-top: 6px; background: #fff; color: var(--brand); border: 1px solid var(--brand);
+      border-radius: 999px; padding: 4px 12px; font-size: .85rem; font-weight: 700; cursor: pointer; }
+    .explain-btn[disabled] { opacity: .5; cursor: default; }
+    .explain-body { margin-top: 6px; font-size: .88rem; }
+    .explain-body p { margin: 0 0 4px; }
+    .hist-item .explain-body ul { color: var(--ink); margin: 0 0 4px; }
+    .ai-label { color: var(--muted); font-size: .76rem; font-style: italic; }
+    .hist-item .explain-err { color: var(--bad); font-size: .82rem; margin: 4px 0 0; }
     [hidden] { display: none !important; }
     @media (min-width: 640px) { .cows { grid-template-columns: 1fr 1fr; } }
   </style>
@@ -299,6 +308,44 @@
       }
     }
 
+    // Explicación del puntaje (T17): GET /predictions/{id}/explain, generada por OpenAI.
+    function explainButton(p) {
+      const wrap = h("div");
+      const btn = h("button", "explain-btn", "¿Por qué este puntaje?");
+      btn.type = "button";
+      const body = h("div", "explain-body");
+      body.hidden = true;
+      const err = h("p", "explain-err");
+      err.hidden = true;
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "Mirando la foto…";
+        err.hidden = true;
+        try {
+          const r = await api(`/predictions/${encodeURIComponent(p.prediction_id)}/explain`);
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(r.status === 401 ? errorText(r) : typeof data.detail === "string" ? data.detail : "Error " + r.status);
+          const traits = h("ul");
+          for (const t of data.traits || []) {
+            const li = h("li");
+            li.append(h("strong", "", t.region + ": "), t.observation);
+            traits.append(li);
+          }
+          body.replaceChildren(h("p", "", data.explanation), traits,
+            h("p", "ai-label", "Texto generado por IA (OpenAI) a partir de la foto; puede equivocarse."));
+          body.hidden = false;
+          btn.hidden = true;
+        } catch (e) {
+          err.textContent = e instanceof TypeError ? "Sin conexión con el servidor." : e.message;
+          err.hidden = false;
+          btn.disabled = false;
+          btn.textContent = "¿Por qué este puntaje?";
+        }
+      });
+      wrap.append(btn, body, err);
+      return wrap;
+    }
+
     async function showHistory(cowId) {
       $("list-view").hidden = true;
       $("hist-view").hidden = false;
@@ -337,6 +384,8 @@
           const issues = h("ul");
           for (const msg of (p.quality && p.quality.issues) || []) issues.append(h("li", "", msg));
           info.append(issues);
+        } else {
+          info.append(explainButton(p));
         }
         li.append(img, info);
         ul.append(li);
