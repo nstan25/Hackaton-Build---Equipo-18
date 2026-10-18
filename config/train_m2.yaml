@@ -1,0 +1,14 @@
+# T09 · m2: cabeza lineal sobre embeddings congelados de DINOv2 (SPEC §2.3 paso 2).
+# Se aplica encima de config/train.yaml. `python -m bcs.models.baseline` corre el experimento
+# completo (tonto, ridge y ordinal, con y sin mitigación); `bcs.train --config` entrena solo la
+# cabeza de `model.head`. Los hiperparámetros salen de Group K-Fold dentro de train salvo que
+# se fijen en `model.params` (alpha para ridge, lam para ordinal).
+model:
+  name: baseline
+  target: "bcs.models.baseline:EmbeddingScorer"
+  head: ordinal               # prior | ridge | ordinal
+  backbone: vit_small_patch14_dinov2.lvd142m
+  img_size: 224
+  params: {}
+augment:
+  red_paint_desaturate: 0.5   # G1: train con la pintura desaturada (peso p); val siempre original
