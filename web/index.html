@@ -3,171 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#1f5f3f">
-  <title>BCS · Evaluar</title>
-  <style>
-    :root {
-      --bg: #f4f6f3; --card: #fff; --ink: #18211c; --muted: #5b6760; --line: #dde3de;
-      --brand: #1f5f3f; --brand-ink: #fff; --ok: #1f7a4a; --warn: #a86400; --warn-bg: #fff4dd;
-      --bad: #b3261e; --bad-bg: #fde8e6; --band: #e3f0e8;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--ink);
-      font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    header { background: var(--brand); color: var(--brand-ink); padding: 12px 16px;
-      display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    header h1 { font-size: 1.1rem; margin: 0; }
-    header a { color: var(--brand-ink); font-weight: 600; text-decoration: none;
-      border: 1px solid rgba(255,255,255,.5); border-radius: 999px; padding: 4px 12px; white-space: nowrap; }
-    main { max-width: 480px; margin: 0 auto; padding: 12px 16px 24px; }
-    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
-    label.field { display: block; font-weight: 700; margin-bottom: 6px; }
-    input[type=text] { width: 100%; font-size: 1.4rem; padding: 10px 12px; border: 2px solid var(--line);
-      border-radius: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: .02em; }
-    input[type=text]:focus { outline: none; border-color: var(--brand); }
-    input[type=text][aria-invalid=true] { border-color: var(--bad); }
-    .hint { color: var(--muted); font-size: .85rem; margin: 6px 0 0; }
-    .err { color: var(--bad); font-size: .9rem; margin: 6px 0 0; font-weight: 600; }
-    .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
-      min-height: 52px; border: 0; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer;
-      background: var(--brand); color: var(--brand-ink); text-decoration: none; }
-    .btn.secondary { background: #fff; color: var(--brand); border: 2px solid var(--brand); }
-    .btn.small { min-height: 40px; font-size: .95rem; }
-    .btn[disabled] { opacity: .5; cursor: default; }
-    .row { display: flex; gap: 8px; margin-top: 10px; }
-    .row > * { flex: 1; }
-    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-    details { margin-top: 10px; }
-    summary { font-weight: 600; color: var(--brand); cursor: pointer; }
-    details ul { margin: 8px 0 0; padding-left: 20px; color: var(--ink); font-size: .92rem; }
-    details li { margin-bottom: 4px; }
-    #confirm .cow { font-size: 1.5rem; font-weight: 800; margin: 0 0 8px; }
-    .preview { width: 100%; max-height: 260px; object-fit: contain; background: #e9ece9; border-radius: 8px; display: block; }
-    .banner { border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-weight: 600; }
-    .banner.warn { background: var(--warn-bg); color: var(--warn); }
-    .banner.bad { background: var(--bad-bg); color: var(--bad); }
-    .banner ul { margin: 6px 0 0; padding-left: 20px; font-weight: 500; }
-    .res-head { display: flex; gap: 12px; align-items: center; }
-    .res-head img { width: 96px; height: 96px; object-fit: cover; border-radius: 8px; background: #e9ece9; flex: none; }
-    .res-id { font-size: 1.25rem; font-weight: 800; }
-    .res-meta { color: var(--muted); font-size: .85rem; }
-    .bcs { display: flex; align-items: baseline; gap: 10px; margin: 14px 0 4px; }
-    .bcs .value { font-size: 3.6rem; font-weight: 800; line-height: 1; }
-    .bcs .label { color: var(--muted); font-weight: 600; }
-    .chip { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: .8rem; font-weight: 700; }
-    .chip.ok { background: var(--band); color: var(--ok); }
-    .chip.low_confidence { background: var(--warn-bg); color: var(--warn); }
-    .chip.rejected { background: var(--bad-bg); color: var(--bad); }
-    .metric { margin-top: 12px; }
-    .metric .top { display: flex; justify-content: space-between; font-weight: 600; }
-    .bar { height: 12px; background: #e6e9e6; border-radius: 999px; overflow: hidden; margin-top: 4px; }
-    .bar > span { display: block; height: 100%; background: var(--ok); }
-    .bar.low > span { background: var(--warn); }
-    .dist { width: 100%; height: 84px; display: block; margin-top: 6px; }
-    .note { color: var(--muted); font-size: .85rem; margin-top: 8px; }
-    footer { color: var(--muted); font-size: .85rem; text-align: center; padding: 0 16px 24px; max-width: 480px; margin: 0 auto; }
-    footer strong { color: var(--ink); }
-    .spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.4); border-top-color: #fff;
-      border-radius: 50%; animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    [hidden] { display: none !important; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Condición corporal (BCS)</h1>
-    <a id="to-rodeo" href="rodeo.html">Rodeo →</a>
-  </header>
-  <main>
-    <section class="card" id="step-id">
-      <label class="field" for="cow-id">ID de la vaca *</label>
-      <input id="cow-id" type="text" list="cow-list" autocomplete="off" autocapitalize="characters"
-             spellcheck="false" inputmode="text" maxlength="64" placeholder="Ej.: caravana 0042" required>
-      <datalist id="cow-list"></datalist>
-      <p class="hint">Número de caravana o ID interno. Letras, números, punto, guion o guion bajo.</p>
-      <p class="err" id="id-error" hidden></p>
-    </section>
-
-    <section class="card" id="step-photo">
-      <label class="btn" for="photo-camera">📷 Sacar foto de atrás</label>
-      <input class="visually-hidden" id="photo-camera" type="file" accept="image/*" capture="environment">
-      <div class="row">
-        <label class="btn secondary small" for="photo-file">Subir desde la galería</label>
-      </div>
-      <input class="visually-hidden" id="photo-file" type="file" accept="image/*">
-      <details id="protocol">
-        <summary>Cómo sacar la foto</summary>
-        <ul>
-          <li>Vaca <strong>de atrás</strong>, cámara <strong>por encima de la cadera</strong> (brazo en alto o desde arriba del tubo/brete), apuntando hacia abajo unos 30–60°.</li>
-          <li>Que se vean la base de la cola, los isquiones, los ilíacos y, si se puede, la línea del lomo.</li>
-          <li>Una sola vaca centrada, sin la cola tapando la zona y con buena luz.</li>
-        </ul>
-      </details>
-    </section>
-
-    <section class="card" id="confirm" hidden>
-      <p class="cow" id="confirm-cow">Vaca: —</p>
-      <img class="preview" id="confirm-preview" alt="Foto elegida">
-      <div class="row">
-        <button class="btn secondary small" id="change" type="button">Cambiar</button>
-        <button class="btn small" id="send" type="button">Evaluar</button>
-      </div>
-      <p class="err" id="send-error" hidden></p>
-    </section>
-
-    <section id="result" hidden>
-      <div class="banner bad" id="res-rejected" hidden>
-        Foto rechazada: no se puede estimar el BCS.
-        <ul id="res-issues"></ul>
-      </div>
-      <div class="banner warn" id="res-low" hidden></div>
-      <div class="card">
-        <div class="res-head">
-          <img id="res-thumb" alt="Miniatura de la foto evaluada">
-          <div>
-            <div class="res-id" id="res-cow"></div>
-            <div class="res-meta" id="res-date"></div>
-            <span class="chip" id="res-status"></span>
-          </div>
-        </div>
-        <div id="res-score">
-          <div class="bcs"><span class="value" id="res-bcs">—</span><span class="label">BCS estimado</span></div>
-          <div class="metric">
-            <div class="top"><span>Confianza</span><span id="res-conf">—</span></div>
-            <div class="bar" id="res-conf-bar"><span></span></div>
-          </div>
-          <div class="metric">
-            <div class="top"><span>Intervalo (90%)</span><span id="res-interval">—</span></div>
-          </div>
-          <div class="metric">
-            <div class="top"><span>Distribución</span><span class="res-meta">verde = rango validado</span></div>
-            <svg class="dist" id="res-dist" role="img" aria-label="Distribución de probabilidad por BCS"></svg>
-          </div>
-          <p class="note" id="res-range-note"></p>
-        </div>
-      </div>
-      <div class="row">
-        <button class="btn secondary" id="retry" type="button">Otra foto</button>
-        <button class="btn" id="next" type="button">Siguiente vaca</button>
-      </div>
-    </section>
-  </main>
-  <footer>
-    <p><strong>Estimación de apoyo; no reemplaza la evaluación de un técnico.</strong></p>
-    <p>Rango validado: BCS 3.25–4.25 (escala 1–5, vacas lecheras). Fuera de ese rango el valor es orientativo.</p>
-    <p>Sin evaluación en fotos de celular: el modelo se validó con fotos de cámara fija desde arriba.</p>
-  </footer>
-
+  <meta name="theme-color" content="#f7f4ec">
+  <meta name="description" content="Argos estima la condición corporal (BCS) de una vaca a partir de una foto desde atrás.">
+  <title>Argos · Condición corporal con IA</title>
   <script>
     "use strict";
-    // Rango validado por G0: el modelo solo vio BCS 3.25–4.25 (sdb_bcs).
-    const VALID_MIN = 3.25, VALID_MAX = 4.25;
-    const COW_RE = /^[A-Z0-9][A-Z0-9._-]{0,63}$/;
-    const LAST_KEY = "bcs.lastCowId";
-
-    // El token llega en el link compartido (?token=); nunca va escrito en el HTML. Se guarda
-    // (localStorage + cookie SameSite=Strict, para que las páginas carguen sin token en la URL) y se
-    // saca de la barra de direcciones: no queda en el historial ni en los logs de cada request.
+    // Va primero en <head>: deja la cookie antes de pedir la hoja de estilos y las imágenes, que
+    // también exigen el token. El token llega en el link compartido (?token=); nunca va escrito en el
+    // HTML. Se guarda (localStorage + cookie SameSite=Strict, para que las páginas carguen sin token en
+    // la URL) y se saca de la barra de direcciones: no queda en el historial ni en los logs.
     const TOKEN_KEY = "bcs.token";
     const token = (() => {
       const params = new URLSearchParams(location.search);
@@ -188,6 +32,458 @@
       }
       return t;
     })();
+  </script>
+  <link rel="icon" type="image/png" href="img/logo-mark-64.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="argos.css">
+  <style>
+    /* ---------- hero ---------- */
+    .hero { padding: 28px 0 8px; }
+    .hero .wrap { display: grid; gap: 28px; align-items: center; }
+    .hero h1 { font-size: clamp(2.2rem, 8.4vw, 4rem); }
+    .hero h1 em { font-style: italic; color: var(--forest-2); }
+    .hero .lead { font-size: 1.12rem; color: var(--muted); margin-top: 16px; max-width: 34ch; }
+    .hero .ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+    .hero .ctas .btn { flex: 1 1 200px; }
+    .hero .facts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 22px; color: var(--muted); font-size: .9rem; }
+    .hero .facts span { display: inline-flex; align-items: center; gap: 8px; }
+    .hero .facts span::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--sun); }
+    .hero-media { position: relative; margin: 0; border-radius: 28px; overflow: hidden; aspect-ratio: 832 / 864;
+      background: #f0d9b5; box-shadow: var(--shadow); }
+    .hero-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    /* Overlays en % del recorte hero-cow (832×864): la vaca va de x 11–78 %, y 38–86 %. */
+    .scan-area { position: absolute; left: 11%; top: 37%; width: 67%; height: 49%; pointer-events: none; }
+    .scan-area::before, .scan-area::after { content: ""; position: absolute; width: 22px; height: 22px;
+      border: 2px solid rgba(255, 253, 248, .9); }
+    .scan-area::before { left: 0; top: 0; border-right: 0; border-bottom: 0; border-radius: 6px 0 0 0; }
+    .scan-area::after { right: 0; bottom: 0; border-left: 0; border-top: 0; border-radius: 0 0 6px 0; }
+    .scan-line { position: absolute; left: 0; right: 0; top: 0; height: 2px; opacity: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 253, 248, .95), transparent);
+      box-shadow: 0 0 12px rgba(227, 161, 65, .8); }
+    .pulse { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+      background: var(--sun); border: 2px solid #fffdf8; }
+    .pulse::after { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 2px solid rgba(227, 161, 65, .9); opacity: 0; }
+    .pulse.p1 { left: 69%; top: 42%; }
+    .pulse.p2 { left: 76%; top: 47%; }
+    .tag { position: absolute; left: 34%; top: 27%; background: rgba(255, 253, 248, .94); color: var(--forest);
+      font-size: .78rem; font-weight: 700; padding: 6px 10px; border-radius: 999px; box-shadow: var(--shadow); white-space: nowrap; }
+    @media (prefers-reduced-motion: no-preference) {
+      .hero-media img { animation: drift 24s ease-in-out infinite alternate; transform-origin: 65% 60%; }
+      .scan-line { animation: scan 4.8s cubic-bezier(.45, 0, .55, 1) 1.2s infinite; }
+      .pulse::after { animation: ping 2.8s ease-out infinite; }
+      .pulse.p2::after { animation-delay: 1.4s; }
+      .hero .reveal { animation: rise .7s cubic-bezier(.2, .7, .2, 1) both; }
+      .hero .reveal:nth-child(2) { animation-delay: .08s; }
+      .hero .reveal:nth-child(3) { animation-delay: .16s; }
+      .hero .reveal:nth-child(4) { animation-delay: .24s; }
+      .tag { animation: rise .7s cubic-bezier(.2, .7, .2, 1) 1s both; }
+    }
+    @keyframes drift { from { transform: scale(1); } to { transform: scale(1.045); } }
+    @keyframes scan { 0% { top: 0; opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+    @keyframes ping { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(1.7); opacity: 0; } }
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    @media (min-width: 900px) {
+      .hero { padding: 56px 0 24px; }
+      .hero .wrap { grid-template-columns: 1.05fr 1fr; gap: 56px; }
+    }
+
+    /* ---------- secciones ---------- */
+    .section { padding: 56px 0 0; }
+    .section-head { max-width: 640px; margin-bottom: 22px; }
+    .section-head h2 { font-size: clamp(1.75rem, 6vw, 2.6rem); margin-top: 6px; }
+    .section-head p { color: var(--muted); margin-top: 10px; font-size: 1.05rem; }
+
+    /* ---------- analizar ---------- */
+    .steps { list-style: none; margin: 0 0 16px; padding: 0; display: flex; gap: 6px; counter-reset: s; }
+    .steps li { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: .82rem; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); padding: 8px; border-radius: 999px; background: var(--sand); counter-increment: s; }
+    .steps li::before { content: counter(s); display: grid; place-items: center; width: 24px; height: 24px; flex: none;
+      border-radius: 50%; background: var(--card); color: var(--muted); font-size: .8rem; font-weight: 700; }
+    .steps li[aria-current="step"] { background: var(--forest); color: #fff; }
+    .steps li[aria-current="step"]::before { background: var(--sun); color: var(--ink); }
+    .steps li.done::before { content: "✓"; background: var(--sage-soft); color: var(--ok); }
+    .flow { padding: 20px 16px; }
+    .flow > * + * { margin-top: 20px; }
+    #step-id .input { text-transform: uppercase; letter-spacing: .02em; font-size: 1.35rem; font-weight: 700; }
+    .photo-grid { display: grid; gap: 20px; }
+    .dropzone { border: 2px dashed var(--line-strong); border-radius: var(--radius); padding: 18px 16px; background: var(--ivory);
+      display: grid; gap: 10px; transition: background-color .15s ease, border-color .15s ease; }
+    .dropzone.dragging { background: var(--sage-soft); border-color: var(--forest); }
+    .dropzone .drop-hint { display: none; text-align: center; color: var(--muted); font-size: .92rem; }
+    .dropzone .accept { text-align: center; color: var(--muted); font-size: .85rem; }
+    @media (hover: hover) and (pointer: fine) { .dropzone .drop-hint { display: block; } }
+    .guide { display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: start; }
+    .guide svg { width: 112px; height: auto; display: block; }
+    .guide h3 { font-size: 1.1rem; margin-bottom: 8px; }
+    .tips { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: .93rem; }
+    .tips li { display: flex; gap: 8px; }
+    .tips li::before { content: ""; flex: none; width: 8px; height: 8px; margin-top: .55em; border-radius: 50%; background: var(--sun); }
+    details.more { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 10px; }
+    details.more summary { font-weight: 700; color: var(--forest); cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+    details.more ul { margin: 4px 0 0; padding-left: 20px; font-size: .93rem; }
+    details.more li + li { margin-top: 6px; }
+    @media (min-width: 760px) { .photo-grid { grid-template-columns: 1fr 1fr; align-items: start; } .flow { padding: 28px; } }
+
+    #confirm .cow { font-family: var(--font-display); font-size: 1.6rem; color: var(--forest); margin-bottom: 10px; overflow-wrap: anywhere; }
+    .preview-wrap { position: relative; border-radius: var(--radius); overflow: hidden; background: var(--sand); }
+    .preview { display: block; width: 100%; height: min(62vh, 420px); object-fit: contain; }
+    .analyzing { position: absolute; inset: 0; display: grid; place-items: end center; padding: 16px;
+      background: linear-gradient(180deg, rgba(31, 58, 37, .05), rgba(31, 58, 37, .55)); }
+    .analyzing .scan-line { opacity: 1; height: 3px; }
+    .analyzing p { background: var(--card); color: var(--forest); font-weight: 700; padding: 10px 16px; border-radius: 999px;
+      box-shadow: var(--shadow); display: inline-flex; align-items: center; gap: 10px; }
+    .spinner.dark { border-color: rgba(46, 81, 52, .25); border-top-color: var(--forest); }
+    @media (prefers-reduced-motion: no-preference) { .analyzing .scan-line { animation: scan 2.2s ease-in-out infinite; } }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .actions .primary { grid-column: 1 / -1; }
+
+    /* ---------- resultado ---------- */
+    #result:focus { outline: none; }
+    .res-grid { display: grid; gap: 20px; }
+    .res-photo { margin: 0; }
+    .res-photo img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); background: var(--sand); }
+    .res-photo figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-top: 8px; }
+    .res-id { font-weight: 800; font-size: 1.1rem; overflow-wrap: anywhere; }
+    .res-meta { color: var(--muted); font-size: .88rem; }
+    .res-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .bcs { display: flex; align-items: baseline; gap: 8px; margin: 6px 0 4px; }
+    .bcs .value { font-family: var(--font-display); font-weight: 600; font-size: clamp(4.2rem, 20vw, 5.6rem); line-height: 1; color: var(--forest); }
+    .bcs .of { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
+    @media (prefers-reduced-motion: no-preference) { #res-score:not([hidden]) .bcs .value { animation: rise .6s cubic-bezier(.2, .7, .2, 1) both; } }
+    .interp { font-size: 1.05rem; }
+    .scale-box { margin-top: 18px; }
+    .ticks { display: flex; justify-content: space-between; margin-top: 8px; font-size: .85rem; font-weight: 600; color: var(--muted); }
+    .scale-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: .82rem; color: var(--muted); }
+    .scale-legend i { display: inline-block; width: 18px; height: 8px; border-radius: 999px; margin-right: 6px; vertical-align: 1px; }
+    .facts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0 0; }
+    .facts-grid > div { background: var(--ivory); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; }
+    .facts-grid dt { font-size: .82rem; color: var(--muted); font-weight: 600; }
+    .facts-grid dd { margin: 2px 0 0; font-size: 1.2rem; font-weight: 700; }
+    .bar { height: 6px; background: var(--sand); border-radius: 999px; overflow: hidden; margin-top: 6px; }
+    .bar > span { display: block; height: 100%; background: var(--forest-2); }
+    details.model { margin-top: 14px; }
+    details.model summary { font-weight: 600; color: var(--forest); cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+    .dist { width: 100%; height: 96px; display: block; }
+    .note { color: var(--muted); font-size: .9rem; margin-top: 10px; }
+    .res-slot:empty { display: none; }
+    .res-slot { margin-top: 16px; }
+    .banner { border-radius: var(--radius-sm); padding: 14px 16px; margin-top: 10px; }
+    .banner.bad { background: var(--bad-soft); color: var(--bad); }
+    .banner strong { display: block; font-size: 1.05rem; }
+    .banner ul { margin: 6px 0 0; padding-left: 20px; font-weight: 600; }
+    .banner p { color: var(--ink); margin-top: 8px; font-size: .93rem; }
+    .disclaimer { margin-top: 18px; font-size: .88rem; color: var(--muted); border-left: 3px solid var(--sun); padding-left: 10px; }
+    @media (min-width: 760px) { .res-grid { grid-template-columns: 5fr 7fr; gap: 28px; align-items: start; } }
+
+    /* ---------- cómo funciona / sobre ---------- */
+    .how { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: h; }
+    .how li { padding: 22px 20px; counter-increment: h; position: relative; }
+    .how .icon { width: 52px; height: 52px; border-radius: 16px; background: var(--sage-soft); color: var(--forest);
+      display: grid; place-items: center; margin-bottom: 14px; }
+    .how .icon svg { width: 28px; height: 28px; }
+    .how li::after { content: counter(h); position: absolute; right: 20px; top: 16px; font-family: var(--font-display);
+      font-size: 2.4rem; color: var(--sun); line-height: 1; }
+    .how h3 { font-size: 1.3rem; margin-bottom: 6px; }
+    .how p { color: var(--muted); }
+    @media (min-width: 760px) { .how { grid-template-columns: repeat(3, 1fr); } }
+    .about { display: grid; gap: 24px; align-items: center; }
+    .about figure { margin: 0; border-radius: 24px; overflow: hidden; aspect-ratio: 3 / 2; box-shadow: var(--shadow); }
+    .about figure img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .about p { color: var(--muted); margin-top: 12px; }
+    .about ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 12px; }
+    .about li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; }
+    .about li svg { width: 24px; height: 24px; color: var(--forest-2); margin-top: 2px; }
+    .about li b { color: var(--ink); }
+    @media (min-width: 900px) { .about { grid-template-columns: 1fr 1fr; gap: 48px; } }
+
+    /* CTA fija en celulares: la acción principal siempre a mano fuera de la sección de análisis. */
+    .dock { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 15; }
+    .dock .btn { box-shadow: 0 8px 24px rgba(31, 58, 37, .3); }
+    @media (min-width: 760px) { .dock { display: none; } }
+    @media (max-width: 759px) { .site-footer { padding-bottom: 96px; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#analizar">Ir a analizar</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="#top" aria-label="Argos, inicio">
+        <picture>
+          <source type="image/webp" srcset="img/logo-mark-128.webp 2x, img/logo-mark-64.webp 1x">
+          <img src="img/logo-mark-128.png" alt="" width="52" height="32">
+        </picture>
+        <span>Argos</span>
+      </a>
+      <nav class="nav" aria-label="Principal">
+        <a class="nav-wide" href="#como-funciona">Cómo funciona</a>
+        <a class="nav-wide" href="#sobre">Sobre Argos</a>
+        <a id="to-rodeo" href="rodeo.html">Rodeo</a>
+        <a class="btn small" href="#analizar">Analizar</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap">
+        <div>
+          <p class="eyebrow reveal">Condición corporal · visión artificial</p>
+          <h1 class="reveal" id="hero-title" style="margin-top:12px">La inteligencia artificial <em>llega al campo.</em></h1>
+          <p class="lead reveal">Evaluá la condición corporal de tu ganado a partir de una fotografía. Simple, rápido e inteligente.</p>
+          <div class="reveal">
+            <div class="ctas">
+              <a class="btn" id="hero-cta" href="#analizar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+                Analizar una vaca
+              </a>
+              <a class="btn secondary" href="#como-funciona">¿Cómo funciona?</a>
+            </div>
+            <p class="facts"><span>Una foto desde atrás</span><span>Resultado en segundos</span><span>Escala BCS 1–5</span></p>
+          </div>
+        </div>
+        <figure class="hero-media">
+          <picture>
+            <source type="image/webp" srcset="img/hero-cow-480.webp 480w, img/hero-cow-720.webp 720w, img/hero-cow-832.webp 832w"
+                    sizes="(min-width: 1120px) 520px, (min-width: 900px) 46vw, calc(100vw - 32px)">
+            <img src="img/hero-cow-720.jpg" srcset="img/hero-cow-480.jpg 480w, img/hero-cow-720.jpg 720w, img/hero-cow-832.jpg 832w"
+                 sizes="(min-width: 1120px) 520px, (min-width: 900px) 46vw, calc(100vw - 32px)"
+                 width="832" height="864" fetchpriority="high"
+                 alt="Vaca Holando pastando al atardecer, marcada por líneas de visión artificial">
+          </picture>
+          <div class="scan-area" aria-hidden="true"><span class="scan-line"></span></div>
+          <span class="pulse p1" aria-hidden="true"></span>
+          <span class="pulse p2" aria-hidden="true"></span>
+          <span class="tag" aria-hidden="true">Grupa y caderas</span>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section" id="analizar" aria-labelledby="analizar-title" data-state="foto">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">Analizar</p>
+          <h2 id="analizar-title">Conocé la condición corporal de tu vaca</h2>
+          <p>Tomá una foto desde atrás o seleccioná una imagen de tu dispositivo.</p>
+        </div>
+        <ol class="steps" aria-label="Pasos">
+          <li data-step="foto" aria-current="step">Foto</li>
+          <li data-step="confirm">Análisis</li>
+          <li data-step="result">Resultado</li>
+        </ol>
+
+        <div class="card flow" id="flow">
+          <input class="visually-hidden" id="photo-camera" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+          <input class="visually-hidden" id="photo-file" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
+
+          <div id="step-id">
+            <label class="field-label" for="cow-id">ID de la vaca</label>
+            <input class="input" id="cow-id" type="text" list="cow-list" autocomplete="off" autocapitalize="characters"
+                   spellcheck="false" inputmode="text" maxlength="64" placeholder="Ej.: 0042" required
+                   aria-describedby="id-hint id-error">
+            <datalist id="cow-list"></datalist>
+            <p class="hint" id="id-hint">Número de caravana o ID interno. Así queda registrada en el rodeo.</p>
+            <p class="err" id="id-error" role="alert" hidden></p>
+          </div>
+
+          <div id="step-photo" class="photo-grid">
+            <div class="dropzone" id="dropzone">
+              <button class="btn block" id="pick-camera" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+                Tomar fotografía
+              </button>
+              <button class="btn secondary block" id="pick-file" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5"/><path d="M4 15v4h16v-4"/></svg>
+                Subir imagen
+              </button>
+              <p class="drop-hint">o arrastrá una foto hasta acá</p>
+              <p class="accept">JPG, PNG o WebP · hasta 20 MB</p>
+              <p class="err" id="file-error" role="alert" hidden></p>
+            </div>
+
+            <div class="guide">
+              <svg viewBox="0 0 160 150" role="img" aria-labelledby="guide-svg-title">
+                <title id="guide-svg-title">Vaca vista desde atrás y arriba, con la grupa y las caderas dentro del encuadre</title>
+                <rect x="1" y="1" width="158" height="148" rx="16" fill="#f7f4ec"/>
+                <path d="M80 6v30" stroke="#769b56" stroke-width="2" stroke-dasharray="4 4"/>
+                <path d="M34 44q0-18 20-20h52q20 2 20 20l-4 58q-2 14-16 14H54q-14 0-16-14z" fill="#ece6d6" stroke="#2e5134" stroke-width="2.5"/>
+                <path d="M47 116v26M113 116v26" stroke="#2e5134" stroke-width="7" stroke-linecap="round"/>
+                <path d="M80 42c0 30-2 58 0 92" stroke="#2e5134" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <circle cx="80" cy="40" r="5" fill="#2e5134"/>
+                <circle cx="42" cy="34" r="6" fill="#e3a141" stroke="#1d2a20" stroke-width="1.5"/>
+                <circle cx="118" cy="34" r="6" fill="#e3a141" stroke="#1d2a20" stroke-width="1.5"/>
+                <circle cx="66" cy="62" r="5" fill="#e3a141" stroke="#1d2a20" stroke-width="1.5"/>
+                <circle cx="94" cy="62" r="5" fill="#e3a141" stroke="#1d2a20" stroke-width="1.5"/>
+                <path d="M22 26v-12h14M138 26v-12h-14M22 70v12h14M138 70v12h-14" stroke="#2e5134" stroke-width="3" fill="none" stroke-linecap="round"/>
+              </svg>
+              <div>
+                <h3>Cómo sacar la foto</h3>
+                <ul class="tips">
+                  <li>Ubicate detrás de la vaca, a una distancia segura, con el celular por encima de la cadera.</li>
+                  <li>Asegurate de que la grupa y las caderas sean visibles.</li>
+                  <li>Evitá imágenes borrosas u oscuras.</li>
+                </ul>
+              </div>
+              <details class="more" id="protocol">
+                <summary>Protocolo de captura recomendado</summary>
+                <ul>
+                  <li>Vaca <strong>de atrás</strong>, cámara <strong>por encima de la cadera</strong> (brazo en alto o desde arriba del tubo/brete), apuntando hacia abajo unos 30–60°.</li>
+                  <li>Que se vean la base de la cola, los isquiones, los ilíacos y, si se puede, la línea del lomo.</li>
+                  <li>Una sola vaca centrada, sin la cola tapando la zona y con buena luz.</li>
+                </ul>
+              </details>
+            </div>
+          </div>
+
+          <section id="confirm" aria-label="Foto elegida" hidden>
+            <p class="cow" id="confirm-cow">Vaca: —</p>
+            <div class="preview-wrap">
+              <img class="preview" id="confirm-preview" alt="Foto elegida para analizar">
+              <div class="analyzing" id="analyzing" hidden>
+                <span class="scan-line" aria-hidden="true"></span>
+                <p><span class="spinner dark" aria-hidden="true"></span>Argos está analizando la imagen…</p>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" id="send" type="button">Analizar condición corporal</button>
+              <button class="btn secondary small" id="replace" type="button">Reemplazar foto</button>
+              <button class="btn ghost small" id="change" type="button">Quitar foto</button>
+            </div>
+            <p class="visually-hidden" id="live" role="status" aria-live="polite"></p>
+            <p class="err" id="send-error" role="alert" hidden></p>
+          </section>
+
+          <section id="result" tabindex="-1" aria-labelledby="res-title" hidden>
+            <div class="res-grid">
+              <figure class="res-photo">
+                <img id="res-thumb" alt="Foto analizada">
+                <figcaption><span class="res-id" id="res-cow"></span><span class="res-meta" id="res-date"></span></figcaption>
+              </figure>
+              <div>
+                <div class="res-head">
+                  <h3 class="eyebrow" id="res-title">Condición corporal estimada</h3>
+                  <span class="chip" id="res-status"></span>
+                </div>
+                <div class="banner bad" id="res-rejected" hidden>
+                  <strong>No pudimos analizar esta foto.</strong>
+                  <ul id="res-issues"></ul>
+                  <p>Probá con otra: vaca de atrás, cámara por encima de la cadera, buena luz y sin movimiento.</p>
+                </div>
+                <div id="res-score">
+                  <p class="bcs"><span class="value" id="res-bcs">—</span><span class="of">/ 5</span></p>
+                  <p class="interp" id="res-text"></p>
+                  <div class="scale-box">
+                    <div class="scale" id="res-scale" role="img" aria-label="Indicador de BCS en la escala 1 a 5">
+                      <span class="band"></span><span class="iv"></span><span class="mark"></span>
+                    </div>
+                    <div class="ticks" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
+                    <p class="scale-legend"><span><i style="background:#769b56;opacity:.6"></i>Rango validado 3.25–4.25</span><span><i style="background:#365e3c;opacity:.7"></i>Intervalo (90%)</span></p>
+                  </div>
+                  <dl class="facts-grid">
+                    <div><dt>Intervalo (90%)</dt><dd id="res-interval">—</dd></div>
+                    <div><dt>Confianza del modelo</dt><dd id="res-conf">—</dd><div class="bar" id="res-conf-bar"><span></span></div></div>
+                  </dl>
+                  <p class="note" id="res-range-note"></p>
+                  <details class="model">
+                    <summary>Ver distribución del modelo</summary>
+                    <svg class="dist" id="res-dist" role="img" aria-label="Distribución de probabilidad por BCS"></svg>
+                    <p class="res-meta">Probabilidad por valor de BCS; la franja verde es el rango validado.</p>
+                  </details>
+                  <!-- T17: el panel "¿Por qué este puntaje?" va en este contenedor (vacío y oculto por defecto). -->
+                  <div class="res-slot" data-slot="explicacion"></div>
+                </div>
+              </div>
+            </div>
+            <p class="disclaimer">Estimación automatizada de apoyo; no reemplaza la evaluación de un técnico.</p>
+            <div class="actions">
+              <button class="btn secondary" id="retry" type="button">Analizar otra foto</button>
+              <button class="btn" id="next" type="button">Siguiente vaca</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="como-funciona" aria-labelledby="como-title">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">Cómo funciona</p>
+          <h2 id="como-title">Tres pasos, una foto</h2>
+        </div>
+        <ol class="how">
+          <li class="card">
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
+            <h3>Tomá una fotografía</h3>
+            <p>Desde atrás y por encima de la cadera, con la grupa y las caderas a la vista.</p>
+          </li>
+          <li class="card">
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3h3M3 3v3M21 3h-3M21 3v3M3 21h3M3 21v-3M21 21h-3M21 21v-3"/></svg></span>
+            <h3>Argos la analiza con IA</h3>
+            <p>Detecta la vaca, revisa que la foto sirva y un modelo de visión artificial estima su condición corporal.</p>
+          </li>
+          <li class="card">
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17h18"/><path d="M5 17v-3M9 17v-6M13 17v-9M17 17v-5"/><circle cx="13" cy="5" r="1.5"/></svg></span>
+            <h3>Conocé la condición estimada</h3>
+            <p>Un BCS en la escala 1–5 con su intervalo, guardado con el ID de la vaca para seguir su evolución en el rodeo.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section" id="sobre" aria-labelledby="sobre-title">
+      <div class="wrap about">
+        <figure>
+          <picture>
+            <source type="image/webp" srcset="img/hero-full-640.webp 640w, img/hero-full-1024.webp 1024w, img/hero-full-1536.webp 1536w"
+                    sizes="(min-width: 1120px) 536px, (min-width: 900px) 46vw, calc(100vw - 32px)">
+            <img src="img/hero-full-1024.jpg" srcset="img/hero-full-640.jpg 640w, img/hero-full-1024.jpg 1024w, img/hero-full-1536.jpg 1536w"
+                 sizes="(min-width: 1120px) 536px, (min-width: 900px) 46vw, calc(100vw - 32px)"
+                 width="1536" height="1024" loading="lazy" decoding="async"
+                 alt="Logo de Argos sobre un campo al atardecer, con una vaca Holando analizada por visión artificial">
+          </picture>
+        </figure>
+        <div>
+          <p class="eyebrow">Sobre Argos</p>
+          <h2 id="sobre-title" style="font-size:clamp(1.75rem,6vw,2.6rem);margin-top:6px">Un segundo par de ojos para el manejo del rodeo</h2>
+          <p>Seguir la condición corporal ayuda a anticipar decisiones de alimentación y manejo. Argos lo hace más frecuente y más fácil: una foto, un número y un registro por vaca. La decisión sigue siendo del productor y del técnico.</p>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg><span><b>Historial por vaca.</b> Cada análisis queda con su ID, la foto y la fecha, y el rodeo muestra la evolución.</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg><span><b>Rechaza las fotos que no sirven.</b> Si no detecta una vaca o la imagen está oscura o borrosa, lo dice en vez de inventar un número.</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Claro con sus límites.</b> Entrenado con fotos de vacas lecheras desde atrás y arriba; validado entre BCS 3.25 y 4.25.</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="dock" id="dock" hidden><a class="btn block" href="#analizar">Analizar una vaca</a></div>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div>
+        <span class="brand"><img src="img/logo-mark-128.png" alt="" width="60" height="40" loading="lazy"><span>Argos</span></span>
+        <p class="fine" style="margin-top:10px">Condición corporal con visión artificial. Prototipo de hackatón · Equipo 18.</p>
+      </div>
+      <div>
+        <p><strong>Estimación de apoyo; no reemplaza la evaluación de un técnico.</strong></p>
+        <p>Rango validado: BCS 3.25–4.25 (escala 1–5, vacas lecheras). Fuera de ese rango el valor es orientativo.</p>
+        <p>Sin evaluación en fotos de celular: el modelo se validó con fotos de cámara fija desde arriba.</p>
+        <p class="fine">Argos no diagnostica enfermedades ni indica tratamientos. Qué condición conviene depende de la etapa productiva de cada animal.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    "use strict";
+    // Rango validado por G0: el modelo solo vio BCS 3.25–4.25 (sdb_bcs), dentro de la escala 1–5.
+    const VALID_MIN = 3.25, VALID_MAX = 4.25;
+    const SCALE_MIN = 1, SCALE_MAX = 5;
+    const MAX_BYTES = 20 * 1024 * 1024;  // = api_predict.MAX_IMAGE_BYTES
+    const COW_RE = /^[A-Z0-9][A-Z0-9._-]{0,63}$/;
+    const LAST_KEY = "bcs.lastCowId";
+    const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+
     const api = (path, opts = {}) =>
       fetch(path, { ...opts, headers: { ...(opts.headers || {}), "X-App-Token": token } });
     const store = {
@@ -195,25 +491,30 @@
       set(k, v) { try { localStorage.setItem(k, v); } catch { /* sin storage: no se recuerda */ } },
     };
     const $ = (id) => document.getElementById(id);
-
-    // Miniaturas con el header, no con ?token= en el src: fetch → blob URL.
-    async function loadThumb(img, id) {
-      try {
-        const r = await api(`/media/${encodeURIComponent(id)}.jpg`);
-        if (!r.ok) return;
-        const url = URL.createObjectURL(await r.blob());
-        img.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
-        img.src = url;
-      } catch { /* sin miniatura */ }
-    }
+    const scrollToEl = (el) => el.scrollIntoView({ block: "start", behavior: reduceMotion.matches ? "auto" : "smooth" });
 
     const idInput = $("cow-id");
     let photo = null;
     let previewUrl = null;
 
+    // Estados del flujo: foto → confirm (análisis) → result.
+    const STATES = ["foto", "confirm", "result"];
+    function setState(state) {
+      $("analizar").dataset.state = state;
+      $("step-id").hidden = state === "result";
+      $("step-photo").hidden = state !== "foto";
+      $("confirm").hidden = state !== "confirm";
+      $("result").hidden = state !== "result";
+      const at = STATES.indexOf(state);
+      document.querySelectorAll(".steps li").forEach((li, i) => {
+        li.classList.toggle("done", i < at);
+        if (i === at) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
+      });
+    }
+
     const normalize = (raw) => raw.trim().toUpperCase();
     function idError(cowId) {
-      if (!cowId) return "Ingresá el ID de la vaca antes de la foto.";
+      if (!cowId) return "Ingresá el ID de la vaca para poder registrar el análisis.";
       if (!COW_RE.test(cowId)) return "ID inválido: usá letras, números, punto, guion o guion bajo, sin espacios (máx. 64).";
       return "";
     }
@@ -244,25 +545,50 @@
       $("send").disabled = !!idError(cowId) || !photo;
     }
 
-    function onPhoto(e) {
-      const file = e.target.files && e.target.files[0];
-      e.target.value = "";
-      if (!file) return;
+    function fileError(file) {
+      if (file.type && !file.type.startsWith("image/")) return "Ese archivo no es una imagen. Elegí una foto (JPG, PNG o WebP).";
+      if (file.size > MAX_BYTES) return `La foto pesa ${(file.size / 2 ** 20).toFixed(1)} MB y el máximo es 20 MB. Probá con otra o reducila.`;
+      return "";
+    }
+
+    function setPhoto(file) {
+      const bad = fileError(file);
+      $("file-error").textContent = bad;
+      $("file-error").hidden = !bad;
+      if (bad) return;
       photo = file;
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(file);
       $("confirm-preview").src = previewUrl;
       $("send-error").hidden = true;
-      $("result").hidden = true;
-      $("confirm").hidden = false;
+      setState("confirm");
       const msg = idError(normalize(idInput.value));
       showIdError(msg);
       updateConfirm();
-      (msg ? idInput : $("send")).focus();
-      $("confirm").scrollIntoView({ block: "nearest" });
+      (msg ? idInput : $("send")).focus({ preventScroll: true });
+      $("analizar").scrollIntoView({ block: "start" });
+    }
+    function onPhoto(e) {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (file) setPhoto(file);
     }
     $("photo-camera").addEventListener("change", onPhoto);
     $("photo-file").addEventListener("change", onPhoto);
+    $("pick-camera").addEventListener("click", () => $("photo-camera").click());
+    $("pick-file").addEventListener("click", () => $("photo-file").click());
+    $("replace").addEventListener("click", () => $("photo-file").click());
+
+    // Arrastrar y soltar (escritorio).
+    const drop = $("dropzone");
+    drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("dragging"); });
+    drop.addEventListener("dragleave", () => drop.classList.remove("dragging"));
+    drop.addEventListener("drop", (e) => {
+      e.preventDefault();
+      drop.classList.remove("dragging");
+      const file = e.dataTransfer && e.dataTransfer.files[0];
+      if (file) setPhoto(file);
+    });
 
     idInput.addEventListener("input", () => {
       if (!$("id-error").hidden) showIdError(idError(normalize(idInput.value)));
@@ -273,19 +599,31 @@
     });
 
     $("change").addEventListener("click", () => {
-      $("confirm").hidden = true;
-      photo = null;
-      idInput.focus();
+      resetPhoto();
+      $("pick-camera").focus();
     });
+
+    function setAnalyzing(on) {
+      const btn = $("send");
+      $("analyzing").hidden = !on;
+      $("replace").disabled = on;
+      $("change").disabled = on;
+      $("live").textContent = on ? "Argos está analizando la imagen…" : "";
+      if (on) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Analizando…';
+      } else {
+        btn.textContent = "Analizar condición corporal";
+        updateConfirm();
+      }
+    }
 
     $("send").addEventListener("click", async () => {
       const cowId = normalize(idInput.value);
       const msg = idError(cowId);
       showIdError(msg);
       if (msg || !photo) return;
-      const btn = $("send");
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Evaluando…';
+      setAnalyzing(true);
       $("send-error").hidden = true;
       try {
         const body = new FormData();
@@ -299,23 +637,45 @@
         }
         store.set(LAST_KEY, data.cow_id);
         idInput.value = data.cow_id;
+        setAnalyzing(false);
         showResult(data);
         loadCows();
       } catch (err) {
-        $("send-error").textContent = err instanceof TypeError ? "Sin conexión con el servidor. Probá de nuevo." : err.message;
+        setAnalyzing(false);
+        $("send-error").textContent = (err instanceof TypeError ? "Sin conexión con el servidor." : "No se pudo analizar: " + err.message) +
+          " Podés reintentar con el mismo botón.";
         $("send-error").hidden = false;
-      } finally {
-        btn.textContent = "Evaluar";
-        updateConfirm();
       }
     });
 
     const fmt = (x) => Number(x).toFixed(2);
     const STATUS_TEXT = { ok: "OK", low_confidence: "Confianza baja", rejected: "Rechazada" };
+    const pct = (v) => (100 * (Math.min(SCALE_MAX, Math.max(SCALE_MIN, v)) - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)).toFixed(2) + "%";
+
+    // Lectura relativa al rango validado, sin juzgar: el BCS adecuado depende de la etapa productiva.
+    function interpretation(bcs) {
+      let where;
+      if (bcs < VALID_MIN - 1e-9) where = "Por debajo del rango que Argos sabe medir.";
+      else if (bcs > VALID_MAX + 1e-9) where = "Por encima del rango que Argos sabe medir.";
+      else if (bcs <= 3.25 + 1e-9) where = "Condición en la parte baja del rango que Argos sabe medir.";
+      else if (bcs < 4 - 1e-9) where = "Condición en la zona media del rango que Argos sabe medir.";
+      else where = "Condición en la parte alta del rango que Argos sabe medir.";
+      return where + " Qué valor conviene depende de la etapa productiva (lactancia, secado, preparto).";
+    }
+
+    function drawScale(el, bcs, interval) {
+      el.querySelector(".band").style.cssText = `left:${pct(VALID_MIN)};width:calc(${pct(VALID_MAX)} - ${pct(VALID_MIN)})`;
+      const iv = el.querySelector(".iv");
+      iv.hidden = !interval;
+      if (interval) iv.style.cssText = `left:${pct(interval[0])};width:calc(${pct(interval[1])} - ${pct(interval[0])})`;
+      el.querySelector(".mark").style.left = pct(bcs);
+      el.setAttribute("aria-label", `BCS ${fmt(bcs)} en la escala ${SCALE_MIN} a ${SCALE_MAX}; rango validado ${fmt(VALID_MIN)} a ${fmt(VALID_MAX)}` +
+        (interval ? `; intervalo ${fmt(interval[0])} a ${fmt(interval[1])}` : ""));
+    }
 
     function drawDistribution(svg, distribution, bcs) {
       const keys = Object.keys(distribution).sort((a, b) => parseFloat(a) - parseFloat(b));
-      const W = 340, H = 84, top = 4, base = 64, n = keys.length, slot = W / n;
+      const W = 340, H = 96, top = 4, base = 74, n = keys.length, slot = W / Math.max(n, 1);
       const maxP = Math.max(0.01, ...keys.map((k) => distribution[k]));
       const ns = "http://www.w3.org/2000/svg";
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
@@ -329,26 +689,25 @@
       };
       const i0 = keys.findIndex((k) => parseFloat(k) >= VALID_MIN - 1e-9);
       const i1 = keys.findIndex((k) => parseFloat(k) > VALID_MAX + 1e-9);
-      if (i0 >= 0) el("rect", { x: i0 * slot, y: 0, width: ((i1 < 0 ? n : i1) - i0) * slot, height: base, fill: "#e3f0e8" });
+      if (i0 >= 0) el("rect", { x: i0 * slot, y: 0, width: ((i1 < 0 ? n : i1) - i0) * slot, height: base, fill: "#e6efdf", rx: 6 });
       keys.forEach((k, i) => {
         const p = distribution[k];
         const h = (p / maxP) * (base - top);
         const isTop = bcs != null && Math.abs(parseFloat(k) - bcs) < 1e-9;
-        el("rect", { x: i * slot + slot * 0.15, y: base - h, width: slot * 0.7, height: Math.max(h, p > 0 ? 1 : 0),
-                     fill: isTop ? "#1f5f3f" : "#7fa58f", rx: 1 }).appendChild(
+        el("rect", { x: i * slot + slot * 0.18, y: base - h, width: slot * 0.64, height: Math.max(h, p > 0 ? 1 : 0),
+                     fill: isTop ? "#2e5134" : "#769b56", rx: 2 }).appendChild(
           Object.assign(document.createElementNS(ns, "title"), { textContent: `BCS ${k}: ${Math.round(p * 100)}%` }));
         const v = parseFloat(k);
         if (Math.abs(v - Math.round(v)) < 1e-9 || isTop) {
           el("text", { x: i * slot + slot / 2, y: H - 4, "text-anchor": "middle", "font-size": 11,
-                       fill: isTop ? "#1f5f3f" : "#5b6760", "font-weight": isTop ? 700 : 400 }, isTop ? fmt(v) : v.toFixed(0));
+                       fill: isTop ? "#2e5134" : "#4f5c52", "font-weight": isTop ? 700 : 400 }, isTop ? fmt(v) : v.toFixed(0));
         }
       });
-      el("line", { x1: 0, x2: W, y1: base, y2: base, stroke: "#b9c2bc" });
+      el("line", { x1: 0, x2: W, y1: base, y2: base, stroke: "#8a958c" });
     }
 
     function showResult(p) {
-      $("confirm").hidden = true;
-      $("result").hidden = false;
+      setState("result");
       $("result").dataset.predictionId = p.prediction_id;
       $("result").dataset.status = p.status;
       $("res-cow").textContent = "Vaca: " + p.cow_id;
@@ -356,8 +715,8 @@
       const chip = $("res-status");
       chip.className = "chip " + p.status;
       chip.textContent = STATUS_TEXT[p.status] || p.status;
-      $("res-thumb").removeAttribute("src");
-      loadThumb($("res-thumb"), p.prediction_id);
+      // La foto original del animal, la misma que se mandó.
+      $("res-thumb").src = previewUrl;
 
       const rejected = p.status === "rejected";
       $("res-rejected").hidden = !rejected;
@@ -370,40 +729,58 @@
       if (rejected && !issues.childElementCount) issues.appendChild(document.createElement("li")).textContent = "no parece una vaca de atrás";
 
       // G3 punto 7: sin aviso de texto para low_confidence (el estado se ve en la etiqueta).
-      $("res-low").hidden = true;
-      $("retry").textContent = rejected ? "Sacar otra foto" : "Otra foto";
-      if (rejected) { $("result").scrollIntoView({ block: "start" }); return; }
-
-      $("res-bcs").textContent = p.bcs != null ? fmt(p.bcs) : "—";
-      const conf = p.confidence;
-      $("res-conf").textContent = conf != null ? Math.round(conf * 100) + "%" : "—";
-      $("res-conf-bar").classList.toggle("low", conf != null && conf < 0.5);
-      $("res-conf-bar").firstElementChild.style.width = conf != null ? (conf * 100).toFixed(1) + "%" : "0";
-      $("res-interval").textContent = p.interval ? `${fmt(p.interval[0])} – ${fmt(p.interval[1])}` : "—";
-      drawDistribution($("res-dist"), p.distribution || {}, p.bcs);
-      const out = p.bcs != null && (p.bcs < VALID_MIN - 1e-9 || p.bcs > VALID_MAX + 1e-9);
-      $("res-range-note").textContent = out
-        ? `Fuera del rango validado (${fmt(VALID_MIN)}–${fmt(VALID_MAX)}): tomalo como orientativo.`
-        : "";
-      $("result").scrollIntoView({ block: "start" });
+      $("retry").textContent = rejected ? "Sacar otra foto" : "Analizar otra foto";
+      $("next").textContent = "Siguiente vaca";
+      if (!rejected) {
+        $("res-bcs").textContent = p.bcs != null ? fmt(p.bcs) : "—";
+        $("res-text").textContent = p.bcs != null ? interpretation(p.bcs) : "";
+        if (p.bcs != null) drawScale($("res-scale"), p.bcs, p.interval);
+        const conf = p.confidence;
+        $("res-conf").textContent = conf != null ? Math.round(conf * 100) + "%" : "—";
+        $("res-conf-bar").firstElementChild.style.width = conf != null ? (conf * 100).toFixed(1) + "%" : "0";
+        $("res-interval").textContent = p.interval ? `${fmt(p.interval[0])} – ${fmt(p.interval[1])}` : "—";
+        drawDistribution($("res-dist"), p.distribution || {}, p.bcs);
+        const out = p.bcs != null && (p.bcs < VALID_MIN - 1e-9 || p.bcs > VALID_MAX + 1e-9);
+        $("res-range-note").textContent = out
+          ? `Fuera del rango validado (${fmt(VALID_MIN)}–${fmt(VALID_MAX)}): tomalo como orientativo.`
+          : "";
+      }
+      $("live").textContent = rejected ? "Foto rechazada." : `Condición corporal estimada: ${fmt(p.bcs)} de 5.`;
+      $("result").focus({ preventScroll: true });
+      scrollToEl($("analizar"));
     }
 
     function resetPhoto() {
       photo = null;
-      $("confirm").hidden = true;
-      $("result").hidden = true;
+      $("file-error").hidden = true;
       $("send-error").hidden = true;
+      setState("foto");
+      $("res-thumb").removeAttribute("src");
+      if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+      $("confirm-preview").removeAttribute("src");
     }
     $("retry").addEventListener("click", () => { resetPhoto(); $("photo-camera").click(); });
     $("next").addEventListener("click", () => {
       resetPhoto();
       idInput.value = "";
       showIdError("");
-      window.scrollTo(0, 0);
-      idInput.focus();
+      scrollToEl($("analizar"));
+      idInput.focus({ preventScroll: true });
     });
 
+    // CTA fija (celular): visible cuando no se ve ni el CTA del hero ni la sección de análisis.
+    if ("IntersectionObserver" in window) {
+      const seen = new Map();
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) seen.set(e.target.id, e.isIntersecting);
+        $("dock").hidden = [...seen.values()].some(Boolean);
+      });
+      io.observe($("hero-cta"));
+      io.observe($("analizar"));
+    }
+
     idInput.value = store.get(LAST_KEY) || "";
+    setState("foto");
     updateConfirm();
     loadCows();
   </script>
