@@ -43,6 +43,8 @@ data-sample:
 labels:
 	$(RUN) python -m bcs.data.merge
 
+# G1: make eval usa la grilla del modelo (dairy_sdb) salvo que se pise BCS_SCALE.
+eval: export BCS_SCALE ?= dairy_sdb
 eval:
 	@test -n "$(MODEL)" -a -n "$(STAGE)" || { echo "uso: make eval MODEL=<name> STAGE=<m2|m3|m4>" >&2; exit 2; }
 	$(RUN) python eval/evaluate.py --model $(MODEL) --stage $(STAGE) $(if $(PREDICTIONS),--predictions $(PREDICTIONS)) $(if $(QUALITY),--quality $(QUALITY)) $(if $(TASK),--task $(TASK))
