@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +17,20 @@ THUMBNAIL_SIZE = 512
 # Igual que `inference.MAX_IMAGE_PIXELS`: no se decodifica una foto más grande (R3).
 MAX_SOURCE_PIXELS = 40_000_000
 ORIENTATION = 0x0112  # tag EXIF
+
+
+@dataclass(frozen=True)
+class CowMean:
+    """Promedio de los BCS válidos (ok o low_confidence) de una vaca (T20)."""
+
+    cow_id: str
+    mean_bcs: float | None  # None: solo tiene fotos rejected
+    n_valid: int
+
+
+def _ts(iso: str) -> float:
+    dt = datetime.fromisoformat(iso.strip())
+    return (dt if dt.tzinfo else dt.replace(tzinfo=UTC)).timestamp()
 
 
 def thumbnail_jpeg(img: Image.Image) -> bytes:
@@ -108,4 +124,16 @@ class InMemoryStore:
             if f.since is not None and row.last_at < f.since:
                 continue
             rows.append(row)
+        return rows
+
+    def mean_bcs_by_cow(self, since: str | None = None) -> list[CowMean]:
+        """Una fila por vaca con evaluaciones en o después de `since` (ISO 8601; todas si None)."""
+        by_cow: dict[str, list[Prediction]] = {}
+        for p in self._predictions.values():
+            if since is None or _ts(p.created_at) >= _ts(since):
+                by_cow.setdefault(p.cow_id, []).append(p)
+        rows: list[CowMean] = []
+        for cow_id in sorted(by_cow):
+            vals = [p.bcs for p in by_cow[cow_id] if p.status != "rejected" and p.bcs is not None]
+            rows.append(CowMean(cow_id, sum(vals) / len(vals) if vals else None, len(vals)))
         return rows
