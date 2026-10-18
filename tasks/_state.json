@@ -553,11 +553,14 @@
     },
     "T20": {
       "title": "Gráfico de distribución del rodeo",
-      "status": "dispatched",
+      "status": "completed (rama graficas-rodeo; worker retenido)",
       "dispatch_id": "ctx_487ad1fc11f3",
       "branch": "graficas-rodeo (base rediseño-ui)",
       "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/graficas-rodeo",
-      "agent": "claude"
+      "agent": "claude",
+      "notes": [
+        "verificada: check/smoke/11 tests OK; promedio por vaca, empates hacia arriba; base rediseño-ui 3bab9ef (sin T19 final ni footer)"
+      ]
     },
     "T21": {
       "title": "make eval-final (G4)",
