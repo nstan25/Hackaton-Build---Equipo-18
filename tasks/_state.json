@@ -308,13 +308,14 @@
       "agent": "claude",
       "status": "dispatched",
       "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t09-baseline",
-      "terminal": "term_fab1776c-964b-4398-928e-d014151304ae",
-      "dispatch_id": "ctx_4dd1798b16ce",
+      "terminal": "term_82d7751e-42d0-499f-94c6-f0046a4fd739",
+      "dispatch_id": "ctx_8e6cf6cba839",
       "rounds": 1,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t09-baseline",
       "notes": [
         "Re-despachado tras segundo reinicio de la máquina (20:42); embeddings ya cacheados",
-        "17/10: alcance cambiado a evaluar models/bcs_efficientnet_b0.pt (sin DINOv2); worker redirigido"
+        "17/10: alcance cambiado a evaluar models/bcs_efficientnet_b0.pt (sin DINOv2); worker redirigido",
+        "Re-despachado tras tercer reinicio (21:25); retoma desde 80128b3"
       ]
     },
     "G2": {
