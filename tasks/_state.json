@@ -306,17 +306,19 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t09-baseline",
-      "terminal": "term_82d7751e-42d0-499f-94c6-f0046a4fd739",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_8e6cf6cba839",
       "rounds": 1,
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t09-baseline",
       "notes": [
         "Re-despachado tras segundo reinicio de la máquina (20:42); embeddings ya cacheados",
         "17/10: alcance cambiado a evaluar models/bcs_efficientnet_b0.pt (sin DINOv2); worker redirigido",
-        "Re-despachado tras tercer reinicio (21:25); retoma desde 80128b3"
-      ]
+        "Re-despachado tras tercer reinicio (21:25); retoma desde 80128b3",
+        "verificada + review aprobada: val MAE 0.155, ±1 0.916, ±2 0.990, ECE 0.009; m2/m3 pasan; texto no influye (Δ 0.006); pintura sí (4.25 pintadas MAE 0.48 vs 0.25); val usado por el equipo para elegir checkpoint → optimista"
+      ],
+      "branch": "Mithrandir7/t09-baseline"
     },
     "G2": {
       "task_id": "task_e593944fbd7e",
@@ -326,11 +328,12 @@
       ],
       "gate": true,
       "agent": null,
-      "status": "pending",
+      "status": "ready",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "gate_id": "gate_066fc6673bc9"
     },
     "T10a": {
       "task_id": "task_8dd3013fce67",
@@ -370,11 +373,12 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t11-calib",
+      "terminal": "term_db58fedd-20b6-437d-a30e-1d12bc0b0911",
+      "dispatch_id": "ctx_ebec2d1ea595",
+      "rounds": 1,
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t11-calib"
     },
     "G3": {
       "task_id": "task_258348408e19",
