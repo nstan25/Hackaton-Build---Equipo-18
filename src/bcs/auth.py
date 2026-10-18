@@ -15,7 +15,7 @@ import re
 from collections.abc import Awaitable, Callable, MutableMapping
 from http.cookies import CookieError, SimpleCookie
 from typing import Any
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, unquote
 
 from fastapi import Cookie, Header, HTTPException, Query
 
@@ -42,7 +42,8 @@ def require_token(
     token: str | None = Query(default=None),
     bcs_token: str | None = Cookie(default=None),
 ) -> None:
-    if not token_ok(x_app_token or token or bcs_token):
+    # la web guarda la cookie con encodeURIComponent
+    if not token_ok(x_app_token or token or (bcs_token and unquote(bcs_token))):
         raise HTTPException(status_code=401, detail="token inválido o ausente")
 
 
@@ -57,7 +58,7 @@ def _scope_token(scope: Scope) -> str | None:
         morsel = SimpleCookie(headers.get("cookie", "")).get(COOKIE)
     except CookieError:
         return None
-    return morsel.value if morsel is not None else None
+    return unquote(morsel.value) if morsel is not None else None
 
 
 class _BodyTooLarge(Exception):
@@ -72,9 +73,13 @@ class PredictGuard:
     bytes al recibirlos y se corta al pasar `MAX_PREDICT_BODY`.
     """
 
-    def __init__(self, app: ASGIApp, max_body: int = MAX_PREDICT_BODY) -> None:
+    def __init__(self, app: ASGIApp, max_body: int | None = None) -> None:
         self.app = app
-        self.max_body = max_body
+        self._max_body = max_body
+
+    @property
+    def max_body(self) -> int:
+        return self._max_body if self._max_body is not None else MAX_PREDICT_BODY
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http" or scope["method"] != "POST" or scope["path"] != "/predict":
