@@ -438,12 +438,13 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0,
-      "replaced_task_id": "task_6abf512267d4"
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t13-review",
+      "terminal": "term_95f8747b-1abc-448a-8427-a2d74dcfdb32",
+      "dispatch_id": "ctx_241a181095f0",
+      "rounds": 1,
+      "replaced_task_id": "task_6abf512267d4",
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t13-review"
     },
     "T14": {
       "task_id": "task_084f03210fde",
