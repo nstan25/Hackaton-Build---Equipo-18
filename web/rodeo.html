@@ -66,9 +66,7 @@
     .explain-body { margin-top: 6px; font-size: .88rem; }
     .explain-body p { margin: 0 0 4px; }
     .hist-item .explain-body ul { color: var(--ink); margin: 0 0 4px; }
-    .agreement { font-weight: 700; }
-    .agreement.coincide { color: var(--ok); }
-    .agreement.sugiere_mas_baja, .agreement.sugiere_mas_alta { color: var(--warn); }
+    .explain-title { font-weight: 700; }
     .ai-label { color: var(--muted); font-size: .76rem; font-style: italic; }
     .hist-item .explain-err { color: var(--bad); font-size: .82rem; margin: 4px 0 0; }
     [hidden] { display: none !important; }
@@ -311,23 +309,10 @@
       }
     }
 
-    // Explicación del puntaje (T17): GET /predictions/{id}/explain, generada por OpenAI.
-    const ESTIMATE_TEXT = { baja: "condición baja (BCS ≤ 3.25)", media: "condición media (BCS 3.5–3.75)", alta: "condición alta (BCS ≥ 4.0)" };
-    const AGREEMENT_TEXT = {
-      coincide: "La foto coincide con el puntaje",
-      sugiere_mas_baja: "La foto sugiere una condición más baja que el puntaje",
-      sugiere_mas_alta: "La foto sugiere una condición más alta que el puntaje",
-    };
-    // Una línea con el acuerdo entre lo que se ve en la foto y el puntaje.
-    function agreementText(data) {
-      const base = AGREEMENT_TEXT[data.agreement];
-      const seen = ESTIMATE_TEXT[data.photo_estimate];
-      if (!base || !seen) return "La foto no deja ver lo suficiente para compararla con el puntaje.";
-      return `${base}: se ve ${seen}.`;
-    }
+    // Qué se observa en la foto (T17): GET /predictions/{id}/explain, descripción de OpenAI sin el puntaje.
     function explainButton(p) {
       const wrap = h("div");
-      const btn = h("button", "explain-btn", "¿Por qué este puntaje?");
+      const btn = h("button", "explain-btn", "Ver qué se observa en la foto");
       btn.type = "button";
       const body = h("div", "explain-body");
       body.hidden = true;
@@ -347,7 +332,7 @@
             li.append(h("strong", "", t.region + ": "), t.observation);
             traits.append(li);
           }
-          body.replaceChildren(h("p", "agreement " + (data.agreement || ""), agreementText(data)),
+          body.replaceChildren(h("p", "explain-title", "Qué se observa en la foto"),
             h("p", "", data.explanation), traits,
             h("p", "ai-label", "Texto generado por IA (OpenAI) a partir de la foto; puede equivocarse."));
           body.hidden = false;
@@ -356,7 +341,7 @@
           err.textContent = e instanceof TypeError ? "Sin conexión con el servidor." : e.message;
           err.hidden = false;
           btn.disabled = false;
-          btn.textContent = "¿Por qué este puntaje?";
+          btn.textContent = "Ver qué se observa en la foto";
         }
       });
       wrap.append(btn, body, err);

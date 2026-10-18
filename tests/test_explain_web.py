@@ -1,4 +1,4 @@
-"""La web ofrece la explicación (T17): botón, endpoint y etiqueta de texto generado por IA."""
+"""La web ofrece "Qué se observa en la foto" (T17): botón, endpoint y etiqueta de texto de IA."""
 
 from __future__ import annotations
 
@@ -13,13 +13,13 @@ def test_page_has_explain_button(client: TestClient, page: str) -> None:
     r = client.get(f"/{page}")
     assert r.status_code == 200
     html = r.text
-    assert "¿Por qué este puntaje?" in html
+    assert "Ver qué se observa en la foto" in html
+    assert "Qué se observa en la foto</p>" in html or '"Qué se observa en la foto")' in html
     assert "/explain`" in html
     assert LABEL in html
-    # el acuerdo entre la foto y el puntaje, en una línea
-    assert "agreementText(data)" in html
-    for key in ("coincide", "sugiere_mas_baja", "sugiere_mas_alta"):
-        assert f"{key}:" in html
+    # decisión del humano (vuelta 3): no se muestra ningún acuerdo ni rango de la foto
+    for word in ("agreement", "photo_estimate", "sugiere", "¿Por qué este puntaje?"):
+        assert word not in html
 
 
 def test_rodeo_hides_button_for_rejected(client: TestClient) -> None:
