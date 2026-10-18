@@ -328,12 +328,13 @@
       ],
       "gate": true,
       "agent": null,
-      "status": "ready",
+      "status": "completed",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
       "rounds": 0,
-      "gate_id": "gate_066fc6673bc9"
+      "gate_id": "gate_066fc6673bc9",
+      "resolution": "sin reentrenar; umbrales sin cambios (tasks/G2.md)"
     },
     "T10a": {
       "task_id": "task_8dd3013fce67",
