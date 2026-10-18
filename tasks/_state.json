@@ -568,11 +568,15 @@
     },
     "T21": {
       "title": "make eval-final (G4)",
-      "status": "dispatched",
+      "status": "merged a main (a984271); make eval-final listo para el humano",
       "dispatch_id": "ctx_5b991ec42854",
       "branch": "eval-final",
       "agent": "claude",
-      "note": "el worker no corre sobre test; lo corre el humano"
+      "note": "el worker no corre sobre test; lo corre el humano",
+      "notes": [
+        "verificada: check + 6 tests; prueba del orquestador con 30 fotos de val: recortes MAE 0.183, punta a punta 0.167, 0 rechazos; nunca sobre test"
+      ]
     }
-  }
+  },
+  "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
 }
