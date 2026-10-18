@@ -44,6 +44,11 @@ CREATE TABLE IF NOT EXISTS predictions (
 );
 CREATE INDEX IF NOT EXISTS idx_predictions_cow_created ON predictions (cow_id, created_ts, seq);
 CREATE INDEX IF NOT EXISTS idx_predictions_sha256 ON predictions (image_sha256);
+-- cache de explicaciones de OpenAI (T17): una por predicción, para no pagarla dos veces
+CREATE TABLE IF NOT EXISTS explanations (
+    prediction_id TEXT PRIMARY KEY REFERENCES predictions (prediction_id),
+    data TEXT NOT NULL                      -- JSON de `/predictions/{id}/explain`
+);
 """
 
 _PRED_COLUMNS = (
@@ -186,6 +191,21 @@ class SqliteStore:
                 (prediction_id,),
             ).fetchone()
         return {"taken_at": row["taken_at"], "notes": row["notes"]} if row is not None else None
+
+    def get_explanation(self, prediction_id: str) -> dict[str, Any] | None:
+        """Explicación de OpenAI ya generada (T17), o None. No es parte de `Store`."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT data FROM explanations WHERE prediction_id = ?", (prediction_id,)
+            ).fetchone()
+        return json.loads(row["data"]) if row is not None else None
+
+    def save_explanation(self, prediction_id: str, explanation: dict[str, Any]) -> None:
+        with self._write_lock, self._connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO explanations (prediction_id, data) VALUES (?, ?)",
+                (prediction_id, json.dumps(explanation, ensure_ascii=False)),
+            )
 
     def thumbnail_path(self, prediction_id: str) -> Path | None:
         with self._connect() as conn:

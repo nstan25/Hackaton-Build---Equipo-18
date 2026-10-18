@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
+from typing import Any
 
 from PIL import Image, ImageOps
 
@@ -43,6 +44,7 @@ class InMemoryStore:
     def __init__(self, media_dir: Path) -> None:
         self.media_dir = media_dir
         self._predictions: dict[str, Prediction] = {}
+        self._explanations: dict[str, dict[str, Any]] = {}
 
     def save(
         self,
@@ -70,6 +72,13 @@ class InMemoryStore:
             return None
         path = self.media_dir / f"{prediction_id}.jpg"
         return path if path.exists() else None
+
+    def get_explanation(self, prediction_id: str) -> dict[str, Any] | None:
+        """Explicación de OpenAI ya generada (T17), o None. No es parte de `Store`."""
+        return self._explanations.get(prediction_id)
+
+    def save_explanation(self, prediction_id: str, explanation: dict[str, Any]) -> None:
+        self._explanations[prediction_id] = explanation
 
     def latest_by_cow(self, filters: CowFilters | None = None) -> list[CowSummary]:
         f = filters or CowFilters()

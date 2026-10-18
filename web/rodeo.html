@@ -83,6 +83,18 @@
     .hist-item > div { flex: 1; min-width: 0; }
     .hist-item .v { font-weight: 800; font-size: 1.2rem; }
     .hist-item ul { margin: 4px 0 0; padding-left: 18px; color: var(--bad); font-size: .86rem; }
+    .explain-btn { margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px;
+      background: var(--card); color: var(--forest); border: 2px solid var(--forest); border-radius: 999px;
+      font: 700 .9rem/1.2 var(--font-ui); cursor: pointer; }
+    .explain-btn:hover { background: var(--sage-soft); }
+    .explain-btn[disabled] { opacity: .5; cursor: default; }
+    .explain-body { margin-top: 10px; font-size: .92rem; background: var(--ivory); border: 1px solid var(--line);
+      border-left: 3px solid var(--sage); border-radius: var(--radius-sm); padding: 10px 12px; }
+    .explain-body p + p { margin-top: 4px; }
+    .hist-item .explain-body ul { color: var(--ink); margin: 6px 0 0; }
+    .explain-body strong { color: var(--forest); }
+    .explain-title { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; color: var(--forest); }
+    .hist-item .explain-err { color: var(--bad); font-size: .86rem; font-weight: 600; margin-top: 6px; }
     @media (min-width: 680px) { .cows { grid-template-columns: 1fr 1fr; } }
   </style>
 </head>
@@ -142,7 +154,6 @@
           <span><i style="background:#e6efdf;border:1px solid #769b56;border-radius:2px"></i>Rango validado</span>
         </div>
       </div>
-      <!-- T17: el botón "¿Por qué este puntaje?" de cada evaluación va al final de su `.hist-item > div`. -->
       <ul class="hist" id="hist"></ul>
     </section>
   </main>
@@ -151,12 +162,11 @@
     <div class="wrap">
       <div>
         <span class="brand"><img src="img/logo-mark-128.png" alt="" width="60" height="40" loading="lazy"><span>Argos</span></span>
-        <p class="fine" style="margin-top:10px">Condición corporal con visión artificial. Prototipo de hackatón · Equipo 18.</p>
+        <p class="fine" style="margin-top:10px">Condición corporal con visión artificial.</p>
       </div>
       <div>
         <p><strong>Estimación de apoyo; no reemplaza la evaluación de un técnico.</strong></p>
         <p>Rango validado: BCS 3.25–4.25 (escala 1–5, vacas lecheras). Fuera de ese rango el valor es orientativo.</p>
-        <p>Sin evaluación en fotos de celular: el modelo se validó con fotos de cámara fija desde arriba.</p>
       </div>
     </div>
   </footer>
@@ -346,6 +356,46 @@
       }
     }
 
+    // Qué se observa en la foto (T17): GET /predictions/{id}/explain, descripción de OpenAI sin el puntaje.
+    function explainButton(p) {
+      const wrap = h("div");
+      const btn = h("button", "explain-btn", "Ver qué se observa en la foto");
+      btn.type = "button";
+      const body = h("div", "explain-body");
+      body.hidden = true;
+      body.setAttribute("aria-live", "polite");
+      const err = h("p", "explain-err");
+      err.hidden = true;
+      err.setAttribute("role", "alert");
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "Mirando la foto…";
+        err.hidden = true;
+        try {
+          const r = await api(`/predictions/${encodeURIComponent(p.prediction_id)}/explain`);
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(r.status === 401 ? errorText(r) : typeof data.detail === "string" ? data.detail : "Error " + r.status);
+          const traits = h("ul");
+          for (const t of data.traits || []) {
+            const li = h("li");
+            li.append(h("strong", "", t.region + ": "), t.observation);
+            traits.append(li);
+          }
+          body.replaceChildren(h("p", "explain-title", "Qué se observa en la foto"),
+            h("p", "", data.explanation), traits);
+          body.hidden = false;
+          btn.hidden = true;
+        } catch (e) {
+          err.textContent = e instanceof TypeError ? "Sin conexión con el servidor." : e.message;
+          err.hidden = false;
+          btn.disabled = false;
+          btn.textContent = "Ver qué se observa en la foto";
+        }
+      });
+      wrap.append(btn, body, err);
+      return wrap;
+    }
+
     async function showHistory(cowId) {
       $("list-view").hidden = true;
       $("hist-view").hidden = false;
@@ -385,6 +435,8 @@
           const issues = h("ul");
           for (const msg of (p.quality && p.quality.issues) || []) issues.append(h("li", "", msg));
           info.append(issues);
+        } else {
+          info.append(explainButton(p));
         }
         li.append(img, info);
         ul.append(li);

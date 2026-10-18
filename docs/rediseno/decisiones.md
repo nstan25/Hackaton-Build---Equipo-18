@@ -70,16 +70,17 @@ Notas del worker sobre cómo se implementó `rediseno-ux-ui.md` en `web/` (HTML/
   lectura relativa al rango validado sin juzgar ("qué valor conviene depende de la etapa productiva"),
   intervalo y confianza (sin los textos que sacó G3 punto 7), distribución en un desplegable, foto
   original, nota de "estimación automatizada de apoyo". Rechazo con los `issues` y cómo reintentar.
-- Lugar para T17: `.res-slot[data-slot="explicacion"]` en el resultado (vacío y oculto) y el final de
-  cada `.hist-item > div` en el rodeo. No se usa ningún ID `explain-*`.
+- T17 integrado (vuelta 2): "Ver qué se observa en la foto" y el panel "Qué se observa en la foto" van en
+  `.res-slot[data-slot="explicacion"]` del resultado y al final de cada `.hist-item > div` del rodeo
+  (no en las rechazadas), con la lógica JS de T17 sin cambios de comportamiento.
 - CTA fija "Analizar una vaca" en celulares cuando no se ve ni el CTA del hero ni la sección de análisis.
 - Animaciones solo con `prefers-reduced-motion: no-preference`; el scroll suave solo en links internos.
 
 ## Pendientes / requiere información
 - Sin modo demo ni foto de ejemplo: no hay una imagen propia con licencia clara para incluir en `web/`.
-- Nombre de la hackatón para el footer (hoy: "Prototipo de hackatón · Equipo 18").
+- Footer sin nombre de la hackatón (decisión del humano, vuelta 2).
 - Sin capturas: no se corrió Firefox (cuelga la VM); `make browser` lo tiene que correr el orquestador.
-- "Sin evaluación en fotos de celular" convive con el botón "Tomar fotografía": se mantiene el texto
-  pedido, pero conviene que el equipo decida cómo comunicarlo en el pitch.
+- El aviso "Sin evaluación en fotos de celular" se sacó de todas las páginas (decisión del humano,
+  vuelta 2); `tests/browser/run_browser.py` ahora verifica que no aparezca.
 - G3 punto 5: el filtro ya no verifica que la foto sea de atrás; la UI no lo promete (dice "si no
   detecta una vaca o la imagen está oscura o borrosa").
