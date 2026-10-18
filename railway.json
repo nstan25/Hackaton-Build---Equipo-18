@@ -3,7 +3,19 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile",
-    "watchPatterns": ["src/**", "config/**", "web/**", "Dockerfile", "pyproject.toml", "uv.lock"]
+    "watchPatterns": [
+      "src/**",
+      "config/**",
+      "web/**",
+      "models/**",
+      "train_cnn.py",
+      "metrics.py",
+      "prep_yolo.py",
+      "prep_crops.py",
+      "Dockerfile",
+      "pyproject.toml",
+      "uv.lock"
+    ]
   },
   "deploy": {
     "numReplicas": 1,
