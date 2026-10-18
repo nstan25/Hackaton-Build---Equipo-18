@@ -395,12 +395,14 @@
       ],
       "gate": true,
       "agent": null,
-      "status": "ready",
+      "status": "completed",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
       "rounds": 0,
-      "note": "deps T10a/T10b cancelados: se abre a mano cuando T11 termine"
+      "note": "deps T10a/T10b cancelados: se abre a mano cuando T11 termine",
+      "gate_id": "gate_d4de52a1dfa0",
+      "resolution": "ver tasks/G3.md (4 puntos aprobados)"
     },
     "T12": {
       "task_id": "task_001acac2c2eb",

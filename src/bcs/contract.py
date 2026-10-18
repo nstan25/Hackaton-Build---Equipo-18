@@ -100,15 +100,29 @@ def decide_status(
     confidence: float | None,
     interval: tuple[float, float] | None,
     step: float,
+    *,
+    bcs: float | None = None,
+    edges: tuple[float, float] | None = None,
 ) -> Status:
-    """Reglas de `status` (SPEC §2.2)."""
+    """Reglas de `status` (SPEC §2.2).
+
+    G3: si se pasan `bcs` y `edges` (extremos de la grilla del modelo), un BCS en un extremo
+    también es `low_confidence` (SPEC §1.2: posible condición baja/alta, verificar a mano).
+    """
     if not quality.passed:
         return "rejected"
     if confidence is None or confidence < LOW_CONFIDENCE_THRESHOLD:
         return "low_confidence"
     if interval is None or interval_steps(interval, step) > MAX_INTERVAL_STEPS:
         return "low_confidence"
+    if bcs is not None and edges is not None and is_edge(bcs, edges, step):
+        return "low_confidence"
     return "ok"
+
+
+def is_edge(bcs: float, edges: tuple[float, float], step: float) -> bool:
+    """`bcs` cae en el extremo inferior o superior de la grilla (tolerancia de medio paso)."""
+    return abs(bcs - edges[0]) < step / 2 or abs(bcs - edges[1]) < step / 2
 
 
 def interval_steps(interval: tuple[float, float], step: float) -> int:
@@ -189,7 +203,14 @@ def validate_prediction_dict(
         errors.append("bcs_expected no coincide con la esperanza de distribution")
     if step is not None:
         quality = QualityReport(**q)
-        want = decide_status(quality, d["confidence"], (iv[0], iv[1]), step)
+        edges = (
+            (float(min(grid_keys, key=float)), float(max(grid_keys, key=float)))
+            if grid_keys
+            else None
+        )
+        want = decide_status(
+            quality, d["confidence"], (iv[0], iv[1]), step, bcs=d["bcs"], edges=edges
+        )
         if want != d["status"]:
             errors.append(f"status={d['status']!r} no respeta las reglas (debería ser {want!r})")
     return errors
