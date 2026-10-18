@@ -8,6 +8,11 @@ solo en 3/6 fotos de val y contradecía predicciones correctas).
 
 La clave se lee **solo** de `OPENAI_API_KEY` y nunca se loguea ni se devuelve. Se llama a la
 Responses API con `httpx` (sin el SDK) y salida estructurada (`text.format` = `json_schema`).
+
+Latencia (T19, 6 fotos de val): la llama la domina la salida (~40 tokens/s; la imagen son ~770
+tokens con cualquier `detail` y el razonamiento "low" casi no genera tokens). Pedir una oración
+breve por región bajó la media de 12,8 s a 9,5 s sin perder regiones; `gpt-6-luna` tarda 3,5–4 s
+pero repite la misma descripción en todas las fotos (degrada), y `detail: "low"` no ayuda.
 """
 
 from __future__ import annotations
@@ -15,6 +20,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import threading
 from datetime import UTC, datetime
 from typing import Any
 
@@ -24,17 +30,21 @@ from bcs.contract import Prediction
 
 OPENAI_URL = "https://api.openai.com/v1/responses"
 # Default: modelo multimodal vigente de la familia GPT-6 (docs de OpenAI, 18/10/2026). Se pisa con
-# OPENAI_MODEL; p. ej. `gpt-6-luna` es ~20 veces más barato. Con razonamiento "low" responde mucho
-# más rápido (medido con fotos de val), lejos del timeout de 30 s.
+# OPENAI_MODEL; `gpt-6-luna` es ~20 veces más barato y ~2,5 veces más rápido, pero sus textos son
+# genéricos (T19). Con razonamiento "low" responde lejos del timeout de 30 s.
 DEFAULT_MODEL = "gpt-6.1-sol"
-# OPENAI_REASONING_EFFORT; vacío = no se manda (modelos sin razonamiento)
+# OPENAI_REASONING_EFFORT; vacío = no se manda (modelos sin razonamiento). "low" es el mínimo que
+# admite gpt-6.1-sol ("none" y "minimal" dan 400).
 DEFAULT_REASONING_EFFORT = "low"
 MAX_TIMEOUT_S = 30.0
 MAX_OUTPUT_TOKENS = 4000  # incluye el razonamiento interno del modelo, si lo tiene
 MAX_TRAITS = 12
 MAX_TEXT = 2000
 # Versión del prompt: entra en la cache, así una explicación vieja se regenera al cambiarlo.
-PROMPT_VERSION = "3-observacion"
+PROMPT_VERSION = "4-breve"
+# A lo sumo tantas llamadas a OpenAI a la vez (las de fondo de `/predict` y las del endpoint).
+MAX_CONCURRENT_CALLS = 2
+_call_slots = threading.BoundedSemaphore(MAX_CONCURRENT_CALLS)
 
 DISCLAIMER = (
     "Texto generado por IA (OpenAI) a partir de la foto; puede equivocarse. "
@@ -69,9 +79,10 @@ Reglas:
 - Si hay varias vacas, hablá solo de la vaca central vista desde atrás.
 - traits: una entrada por región, en este orden: ilíacos; isquiones; base de la cola y hueco; \
 ligamentos sacro y de la cola; lomo y apófisis; forma del anca. Si una región no se ve (tapada, \
-fuera de cuadro, oscura, borrosa), decilo en su observación.
-- summary: 2 o 3 oraciones neutrales con lo más relevante que se observa (huesos, huecos de la \
-cola, forma del anca, cobertura) y lo que no se puede ver.
+fuera de cuadro, oscura, borrosa), decilo en su observación. Cada observación es UNA oración \
+concreta de 25 palabras como máximo: qué se ve y qué tan marcado.
+- summary: 2 oraciones neutrales y breves con lo más relevante que se observa (huesos, huecos de \
+la cola, forma del anca, cobertura) y lo que no se puede ver.
 - No des ningún puntaje, número de BCS ni rango, y no califiques la condición en general (nada de \
 "condición baja/media/alta/buena", "flaca" o "gorda"): solo lo observable.
 - Español rioplatense (vos), claro, para un productor. Sin adjetivos vacíos."""
@@ -215,21 +226,36 @@ def parse_response(body: Any) -> tuple[str, list[dict[str, str]]]:
     return _clip(data.get("summary")), traits
 
 
+def configured() -> bool:
+    return bool(os.environ.get("OPENAI_API_KEY", "").strip())
+
+
 def explain(pred: Prediction, thumbnail: bytes, client: httpx.Client) -> dict[str, Any]:
     """Pide la observación a OpenAI. Devuelve el JSON del endpoint `/predictions/{id}/explain`."""
     if pred.bcs is None or pred.status == "rejected":
         raise ValueError("solo se explican predicciones con BCS")
+    return for_prediction(observe(thumbnail, client), pred)
+
+
+def for_prediction(observation: dict[str, Any], pred: Prediction) -> dict[str, Any]:
+    """El JSON del endpoint: la observación ciega + el `prediction_id` y el BCS que explica."""
+    return {"prediction_id": pred.prediction_id, "bcs": pred.bcs, **observation}
+
+
+def observe(thumbnail: bytes, client: httpx.Client) -> dict[str, Any]:
+    """La observación ciega de la foto (solo la imagen: sirve antes de tener la predicción)."""
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key:
         raise ExplainUnavailable("explicación no disponible: falta configurar OPENAI_API_KEY")
     model = model_name()
     try:
-        r = client.post(
-            OPENAI_URL,
-            json=build_request(thumbnail, model),
-            headers={"Authorization": f"Bearer {api_key}"},
-            timeout=timeout_s(),
-        )
+        with _call_slots:
+            r = client.post(
+                OPENAI_URL,
+                json=build_request(thumbnail, model),
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=timeout_s(),
+            )
     except httpx.TimeoutException as e:
         raise ExplainTimeout("OpenAI tardó demasiado en responder; probá de nuevo") from e
     except httpx.HTTPError as e:
@@ -247,8 +273,6 @@ def explain(pred: Prediction, thumbnail: bytes, client: httpx.Client) -> dict[st
         raise ExplainBadResponse("la respuesta de OpenAI no es JSON") from e
     summary, traits = parse_response(body)
     return {
-        "prediction_id": pred.prediction_id,
-        "bcs": pred.bcs,
         "explanation": summary,
         "traits": traits,
         "model": str(body.get("model") or model),
