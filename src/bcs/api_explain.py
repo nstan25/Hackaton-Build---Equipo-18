@@ -12,6 +12,7 @@ no, el endpoint espera la que está en curso en vez de pedir otra.
 from __future__ import annotations
 
 import inspect
+import io
 import threading
 from collections import defaultdict
 from collections.abc import Callable, Iterator
@@ -21,11 +22,13 @@ from typing import Annotated, Any, cast
 
 import httpx
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
+from PIL import Image, ImageOps
 
-from bcs import explain
+from bcs import explain, inference
 from bcs.auth import require_token
 from bcs.contract import Prediction
 from bcs.store.base import Store
+from bcs.store.memory import THUMBNAIL_SIZE, thumbnail_jpeg
 
 router = APIRouter(dependencies=[Depends(require_token)])
 
@@ -36,7 +39,7 @@ _locks_guard = threading.Lock()
 # Observaciones lanzadas por `/predict` que todavía no terminaron, por `prediction_id`. La
 # concurrencia real hacia OpenAI la limita `explain.MAX_CONCURRENT_CALLS`.
 _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="explain")
-_pending: dict[str, Future[dict[str, Any]]] = {}
+_pending: dict[str, Future[dict[str, Any] | None]] = {}
 _pending_guard = threading.Lock()
 
 
@@ -46,7 +49,27 @@ def openai_client() -> Iterator[httpx.Client]:
         yield client
 
 
-def _observe(factory: Callable[[], Any], thumbnail: bytes) -> dict[str, Any]:
+def quick_thumbnail(raw: bytes) -> bytes | None:
+    """Miniatura para OpenAI sin esperar la predicción, solo de JPEG: se decodifica achicada con
+    `draft()` (unos milisegundos, en el hilo de fondo). Con otro formato, o si la foto no abre,
+    None: la valida `inference` y la explicación queda a demanda."""
+    try:
+        img = Image.open(io.BytesIO(raw))
+        if img.format != "JPEG":
+            return None
+        img.draft("RGB", (THUMBNAIL_SIZE, THUMBNAIL_SIZE))
+        if img.width * img.height > inference.MAX_IMAGE_PIXELS:
+            return None
+        return thumbnail_jpeg(ImageOps.exif_transpose(img))
+    except Exception:  # noqa: BLE001 — cualquier problema lo reporta la predicción, no esto
+        return None
+
+
+def _observe(factory: Callable[[], Any], raw: bytes) -> dict[str, Any] | None:
+    """La observación de la foto original; None si no se pudo armar la miniatura."""
+    thumbnail = quick_thumbnail(raw)
+    if thumbnail is None:
+        return None
     made: Any = factory()
     if not inspect.isgenerator(made):
         return explain.observe(thumbnail, made)
@@ -57,16 +80,17 @@ def _observe(factory: Callable[[], Any], thumbnail: bytes) -> dict[str, Any]:
         made.close()
 
 
-def start(app: FastAPI, thumbnail: bytes) -> Future[dict[str, Any]] | None:
-    """Lanza la observación ciega en segundo plano. None si no hay clave de OpenAI."""
+def start(app: FastAPI, raw: bytes) -> Future[dict[str, Any] | None] | None:
+    """Lanza en segundo plano la observación ciega de la foto (`raw`, los bytes subidos): la
+    miniatura también se arma en el hilo, así `/predict` no tarda más. None si no hay clave."""
     if not explain.configured():
         return None
     # El mismo cliente que usaría el endpoint (los tests lo reemplazan por uno falso).
     factory = app.dependency_overrides.get(openai_client, openai_client)
-    return _executor.submit(_observe, factory, thumbnail)
+    return _executor.submit(_observe, factory, raw)
 
 
-def attach(app: FastAPI, pred: Prediction, future: Future[dict[str, Any]]) -> None:
+def attach(app: FastAPI, pred: Prediction, future: Future[dict[str, Any] | None]) -> None:
     """Asocia la observación en curso a su predicción; con `rejected` (o sin BCS) se descarta."""
     if pred.status == "rejected" or pred.bcs is None:
         future.cancel()  # si ya arrancó, el resultado no se guarda ni se muestra
@@ -75,12 +99,12 @@ def attach(app: FastAPI, pred: Prediction, future: Future[dict[str, Any]]) -> No
     with _pending_guard:
         _pending[pid] = future
 
-    def done(f: Future[dict[str, Any]]) -> None:
+    def done(f: Future[dict[str, Any] | None]) -> None:
         try:
-            if not f.cancelled() and f.exception() is None:
+            if not f.cancelled() and f.exception() is None and (obs := f.result()) is not None:
                 with _lock(pid):
                     if _cached(app, pid) is None:
-                        _remember(app, pid, explain.for_prediction(f.result(), pred))
+                        _remember(app, pid, explain.for_prediction(obs, pred))
         finally:
             with _pending_guard:
                 if _pending.get(pid) is f:

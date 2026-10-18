@@ -2,20 +2,19 @@
 
 from __future__ import annotations
 
-import io
 import threading
 from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from PIL import Image, ImageOps
+from PIL import Image
 
-from bcs import api_explain, explain, inference
+from bcs import api_explain, inference
 from bcs.auth import require_token
 from bcs.contract import InvalidCowId, Prediction, normalize_cow_id
 from bcs.store.base import Store
-from bcs.store.memory import THUMBNAIL_SIZE, thumbnail_jpeg
+from bcs.store.memory import thumbnail_jpeg
 
 router = APIRouter()
 
@@ -58,29 +57,12 @@ def _predict_raw(raw: bytes, cow_id: str) -> tuple[Prediction, Image.Image]:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
 
-def _quick_thumbnail(raw: bytes) -> bytes | None:
-    """Miniatura para OpenAI antes de predecir (T19), solo de JPEG: se decodifica achicada con
-    `draft()` y cuesta unos milisegundos, así `/predict` no tarda más. Con otro formato, o si la
-    foto no abre, None: la valida `inference` y la explicación queda a demanda."""
-    try:
-        img = Image.open(io.BytesIO(raw))
-        if img.format != "JPEG":
-            return None
-        img.draft("RGB", (THUMBNAIL_SIZE, THUMBNAIL_SIZE))
-        if img.width * img.height > inference.MAX_IMAGE_PIXELS:
-            return None
-        return thumbnail_jpeg(ImageOps.exif_transpose(img))
-    except Exception:  # noqa: BLE001 — cualquier problema lo reporta la predicción, no esto
-        return None
-
-
 def _predict_and_save(
     app: FastAPI, store: Store, raw: bytes, cow_id: str, **extra: str | None
 ) -> dict[str, Any]:
     with _decode_slots:
         # La explicación es ciega (solo la foto): arranca ya, en paralelo con el modelo de BCS.
-        quick = _quick_thumbnail(raw) if explain.configured() else None
-        observation = api_explain.start(app, quick) if quick is not None else None
+        observation = api_explain.start(app, raw)
         try:
             pred, img = _predict_raw(raw, cow_id)
         except BaseException:

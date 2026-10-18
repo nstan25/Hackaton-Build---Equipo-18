@@ -6,6 +6,7 @@ Ningún test llama a la API real de OpenAI. Es una sola llamada ciega: la foto, 
 from __future__ import annotations
 
 import base64
+import io
 import json
 import threading
 import time
@@ -18,6 +19,7 @@ from typing import Any
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from bcs import api_explain, explain, inference
 from bcs.api_explain import openai_client
@@ -406,3 +408,14 @@ def test_at_most_two_calls_at_once(fake: FakeOpenAI, monkeypatch: pytest.MonkeyP
         for t in threads:
             t.join()
     assert len(fake.calls) == 5 and peak[0] == explain.MAX_CONCURRENT_CALLS == 2
+
+
+def test_non_jpeg_falls_back_to_on_demand(api: TestClient, store: Store, fake: FakeOpenAI) -> None:
+    buf = io.BytesIO()
+    Image.open(FIXTURES / "rear_cow.jpg").save(buf, format="PNG")
+    r = api.post("/predict", data={"cow_id": "UY-19"}, files={"image": ("f.png", buf.getvalue())})
+    assert r.status_code == 200
+    _settle()
+    assert fake.calls == []  # sin miniatura rápida no se pagó nada en segundo plano
+    assert api.get(f"/predictions/{r.json()['prediction_id']}/explain").status_code == 200
+    assert len(fake.calls) == 1  # el GET la generó como antes
