@@ -367,10 +367,23 @@
       const err = h("p", "explain-err");
       err.hidden = true;
       err.setAttribute("role", "alert");
+      // Mientras OpenAI mira la foto: esqueleto con la paleta ARGOS (argos.css), sin porcentajes.
+      const loading = () => {
+        const status = h("p", "explain-status");
+        const dot = h("span", "sun-dot");
+        dot.setAttribute("aria-hidden", "true");
+        status.append(dot, "Argos está mirando la foto…");
+        const lines = ["skeleton", "skeleton", "skeleton short"].map((cls) => h("span", cls));
+        lines.forEach((l) => l.setAttribute("aria-hidden", "true"));
+        return [h("p", "explain-title", "Qué se observa en la foto"), status, ...lines];
+      };
       btn.addEventListener("click", async () => {
         btn.disabled = true;
         btn.textContent = "Mirando la foto…";
         err.hidden = true;
+        body.replaceChildren(...loading());
+        body.hidden = false;
+        body.setAttribute("aria-busy", "true");
         try {
           const r = await api(`/predictions/${encodeURIComponent(p.prediction_id)}/explain`);
           const data = await r.json().catch(() => ({}));
@@ -386,10 +399,13 @@
           body.hidden = false;
           btn.hidden = true;
         } catch (e) {
+          body.hidden = true;
           err.textContent = e instanceof TypeError ? "Sin conexión con el servidor." : e.message;
           err.hidden = false;
           btn.disabled = false;
           btn.textContent = "Ver qué se observa en la foto";
+        } finally {
+          body.removeAttribute("aria-busy");
         }
       });
       wrap.append(btn, body, err);

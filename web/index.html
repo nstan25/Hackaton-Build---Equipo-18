@@ -174,6 +174,7 @@
     .explain-body ul { margin: 10px 0 0; padding-left: 20px; font-size: .95rem; }
     .explain-body li + li { margin-top: 6px; }
     .explain-body strong { color: var(--forest); }
+    #explain-btn { margin-top: 10px; }
     .banner { border-radius: var(--radius-sm); padding: 14px 16px; margin-top: 10px; }
     .banner.bad { background: var(--bad-soft); color: var(--bad); }
     .banner strong { display: block; font-size: 1.05rem; }
@@ -395,19 +396,25 @@
                     <svg class="dist" id="res-dist" role="img" aria-label="Distribución de probabilidad por BCS"></svg>
                     <p class="res-meta">Probabilidad por valor de BCS; la franja verde es el rango validado.</p>
                   </details>
-                  <!-- T17: qué se observa en la foto (GET /predictions/{id}/explain). -->
+                  <!-- T17/T19: qué se observa en la foto. Se abre solo con el resultado: la explicación
+                       arrancó en el servidor junto con el BCS (GET /predictions/{id}/explain la espera). -->
                   <div class="res-slot" data-slot="explicacion">
                     <div class="explain" id="explain">
-                      <button class="btn secondary block" id="explain-btn" type="button">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-                        Ver qué se observa en la foto
-                      </button>
-                      <div class="explain-body" id="explain-body" aria-live="polite" hidden>
+                      <div class="explain-body" id="explain-body" aria-live="polite">
                         <p class="explain-title">Qué se observa en la foto</p>
-                        <p id="explain-text"></p>
-                        <ul id="explain-traits"></ul>
+                        <div class="explain-loading" id="explain-loading" hidden>
+                          <p class="explain-status"><span class="sun-dot" aria-hidden="true"></span>Argos está mirando la foto…</p>
+                          <span class="skeleton" aria-hidden="true"></span>
+                          <span class="skeleton" aria-hidden="true"></span>
+                          <span class="skeleton short" aria-hidden="true"></span>
+                        </div>
+                        <div id="explain-content" hidden>
+                          <p id="explain-text"></p>
+                          <ul id="explain-traits"></ul>
+                        </div>
+                        <p class="err" id="explain-error" role="alert" hidden></p>
+                        <button class="btn secondary small" id="explain-btn" type="button" hidden>Reintentar</button>
                       </div>
-                      <p class="err" id="explain-error" role="alert" hidden></p>
                     </div>
                   </div>
                 </div>
@@ -755,6 +762,7 @@
       }
       if (rejected && !issues.childElementCount) issues.appendChild(document.createElement("li")).textContent = "no parece una vaca de atrás";
 
+      if (!rejected) loadExplain(p.prediction_id);
       // G3 punto 7: sin aviso de texto para low_confidence (el estado se ve en la etiqueta).
       $("retry").textContent = rejected ? "Sacar otra foto" : "Analizar otra foto";
       $("next").textContent = "Siguiente vaca";
@@ -778,26 +786,26 @@
     }
 
     // Qué se observa en la foto (T17): GET /predictions/{id}/explain, descripción de OpenAI sin el puntaje.
-    const EXPLAIN_LABEL = $("explain-btn").innerHTML;
+    // T19: se pide sola apenas llega el resultado; el servidor ya la estaba generando con el BCS.
+    let explainSeq = 0;  // cada resultado nuevo invalida la respuesta de uno anterior
     function resetExplain() {
-      const btn = $("explain-btn");
-      btn.disabled = false;
-      btn.innerHTML = EXPLAIN_LABEL;
-      btn.hidden = false;
-      $("explain-body").hidden = true;
+      explainSeq++;
+      $("explain-loading").hidden = true;
+      $("explain-content").hidden = true;
       $("explain-error").hidden = true;
+      $("explain-btn").hidden = true;
+      $("explain-body").removeAttribute("aria-busy");
     }
-    $("explain-btn").addEventListener("click", async () => {
-      const id = $("result").dataset.predictionId;
-      const btn = $("explain-btn");
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner dark" aria-hidden="true"></span> Mirando la foto…';
-      $("explain-error").hidden = true;
+    async function loadExplain(id) {
+      resetExplain();
+      const seq = explainSeq;
+      $("explain-loading").hidden = false;
+      $("explain-body").setAttribute("aria-busy", "true");
       try {
         const r = await api(`/predictions/${encodeURIComponent(id)}/explain`);
         const data = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "error " + r.status);
-        if ($("result").dataset.predictionId !== id) return;  // ya se evaluó otra foto
+        if (seq !== explainSeq || $("result").dataset.predictionId !== id) return;  // ya se evaluó otra foto
         $("explain-text").textContent = data.explanation;
         const ul = $("explain-traits");
         ul.replaceChildren();
@@ -807,17 +815,23 @@
           li.append(t.observation);
           ul.appendChild(li);
         }
-        $("explain-body").hidden = false;
-        btn.hidden = true;
+        $("explain-content").hidden = false;
       } catch (err) {
+        if (seq !== explainSeq) return;
         $("explain-error").textContent = err instanceof TypeError ? "Sin conexión con el servidor. Probá de nuevo." : err.message;
         $("explain-error").hidden = false;
-        btn.disabled = false;
-        btn.innerHTML = EXPLAIN_LABEL;
+        $("explain-btn").hidden = false;
+      } finally {
+        if (seq === explainSeq) {
+          $("explain-loading").hidden = true;
+          $("explain-body").removeAttribute("aria-busy");
+        }
       }
-    });
+    }
+    $("explain-btn").addEventListener("click", () => loadExplain($("result").dataset.predictionId));
 
     function resetPhoto() {
+      resetExplain();
       photo = null;
       $("file-error").hidden = true;
       $("send-error").hidden = true;

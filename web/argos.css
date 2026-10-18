@@ -123,6 +123,20 @@ a { color: var(--forest); }
 .scale.mini .iv { top: 1px; bottom: 1px; }
 .scale.mini .mark { width: 12px; height: 12px; margin-left: -6px; margin-top: -6px; border-width: 2px; box-shadow: 0 0 0 1px var(--forest); }
 
+/* ---------- carga de "Qué se observa en la foto" (T19): esqueleto con la paleta, sin porcentajes ---------- */
+.explain-status { display: flex; align-items: center; gap: 10px; color: var(--forest); font-weight: 600; margin: 4px 0 12px; }
+.sun-dot { position: relative; width: 12px; height: 12px; flex: none; border-radius: 50%; background: var(--sun); }
+.sun-dot::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--sun); opacity: 0; }
+.skeleton { display: block; height: 12px; border-radius: 999px; margin-top: 10px;
+  background: linear-gradient(90deg, var(--sand) 0%, #f6f1e4 45%, var(--sand) 90%) 0 0 / 200% 100%; }
+.skeleton.short { width: 60%; }
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton { animation: shimmer 1.6s ease-in-out infinite; }
+  .sun-dot::after { animation: sun-ping 1.8s ease-out infinite; }
+}
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@keyframes sun-ping { 0% { transform: scale(.5); opacity: .9; } 100% { transform: scale(1.6); opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important;
     transition-duration: .01ms !important; scroll-behavior: auto !important; }
