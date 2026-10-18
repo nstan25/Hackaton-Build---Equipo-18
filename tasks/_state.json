@@ -514,7 +514,7 @@
     "T17": {
       "title": "Explicación del puntaje con OpenAI",
       "agent": "claude",
-      "status": "completed (rama agregar-explicacion-texto, sin mergear a main)",
+      "status": "merged a main",
       "rounds": 3,
       "dispatch_id": "ctx_b24578dcb83b",
       "branch": "agregar-explicacion-texto",
@@ -524,11 +524,12 @@
         "v2 verificada por el orquestador (mismas 6 fotos): ya no avala; descripciones distinguen 3.25 de 4.25; acuerdo con BCS real 3/6 (YM oblicua 3.75 → 'baja'); ~14–18 s, ~US$0,01",
         "humano eligió (b): sin acuerdo visible; v3 = solo 'Qué se observa en la foto', resumen neutral, posiblemente una sola llamada",
         "v3 verificada: una llamada ciega, panel 'Qué se observa en la foto', sin etiqueta de IA; ~13,6 s, ~US$0,0067"
-      ]
+      ],
+      "merged": "3162fdd"
     },
     "T18": {
       "title": "Rediseño integral de la UI (ARGOS)",
-      "status": "v2 entregada (T17 integrado); deploy de la rama a Railway para revisión del equipo; merge a main pendiente de OK",
+      "status": "merged a main",
       "dispatch_id": "ctx_cc09681f7201",
       "branch": "rediseño-ui",
       "agent": "claude",
@@ -538,29 +539,32 @@
         "verificada: check+smoke OK, solo web/ y docs/rediseno; web/img 656 KB; sin textos de G3 p.7; make browser no corrido (VM)",
         "v2: merge de agregar-explicacion-texto en rediseño-ui; sin 'Sin evaluación en fotos de celular'; sin nombre de hackatón",
         "v2 verificada: sin conflictos, sin textos pedidos, check/smoke/smoke-model OK; deploy desde la rama rediseño-ui"
-      ]
+      ],
+      "merged": "554d5c6"
     },
     "T19": {
       "title": "Latencia de la explicación",
-      "status": "completed (rama rediseño-ui)",
+      "status": "merged a main",
       "dispatch_id": "ctx_cb9259c74cd3",
       "branch": "rediseño-ui",
       "agent": "claude",
       "note": "reusa el worker de T18",
       "notes": [
         "verificada: check/smoke/smoke-model OK; config D (sol, low, salida breve): 13,1→9,5 s por llamada, US$0,0057; foto→explicación mediana 9,7 s en paralelo; /predict sin cambio (0,50→0,44 s)"
-      ]
+      ],
+      "merged": "554d5c6"
     },
     "T20": {
       "title": "Gráfico de distribución del rodeo",
-      "status": "completed (rama graficas-rodeo; worker retenido)",
+      "status": "merged a main",
       "dispatch_id": "ctx_487ad1fc11f3",
       "branch": "graficas-rodeo (base rediseño-ui)",
       "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/graficas-rodeo",
       "agent": "claude",
       "notes": [
         "verificada: check/smoke/11 tests OK; promedio por vaca, empates hacia arriba; base rediseño-ui 3bab9ef (sin T19 final ni footer)"
-      ]
+      ],
+      "merged": "607aa06"
     },
     "T21": {
       "title": "make eval-final (G4)",
