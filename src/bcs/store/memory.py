@@ -11,14 +11,32 @@ from bcs.contract import Prediction
 from bcs.store.base import CowFilters, CowSummary
 
 THUMBNAIL_SIZE = 512
+# Igual que `inference.MAX_IMAGE_PIXELS`: no se decodifica una foto más grande (R3).
+MAX_SOURCE_PIXELS = 40_000_000
+ORIENTATION = 0x0112  # tag EXIF
+
+
+def thumbnail_jpeg(img: Image.Image) -> bytes:
+    """Miniatura JPEG (lado mayor `THUMBNAIL_SIZE`) de una foto ya decodificada y derecha.
+    Achica `img` en el lugar: no copia la foto grande."""
+    img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE))
+    out = io.BytesIO()
+    img.convert("RGB").save(out, format="JPEG", quality=85)
+    return out.getvalue()
 
 
 def make_thumbnail(image_bytes: bytes) -> bytes:
-    img = ImageOps.exif_transpose(Image.open(io.BytesIO(image_bytes))).convert("RGB")
-    img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE))
-    out = io.BytesIO()
-    img.save(out, format="JPEG", quality=85)
-    return out.getvalue()
+    """Miniatura de los bytes de una foto. Si ya es una miniatura JPEG (la que arma la API con
+    `thumbnail_jpeg`), se guarda tal cual: no se vuelve a decodificar nada grande."""
+    img = Image.open(io.BytesIO(image_bytes))
+    upright = img.getexif().get(ORIENTATION, 1) == 1
+    if img.format == "JPEG" and max(img.size) <= THUMBNAIL_SIZE and upright:
+        return image_bytes
+    if img.format == "JPEG":
+        img.draft("RGB", (THUMBNAIL_SIZE, THUMBNAIL_SIZE))  # decodifica ya achicada
+    if img.size[0] * img.size[1] > MAX_SOURCE_PIXELS:
+        raise ValueError(f"la foto supera {MAX_SOURCE_PIXELS // 10**6} MP")
+    return thumbnail_jpeg(ImageOps.exif_transpose(img))
 
 
 class InMemoryStore:

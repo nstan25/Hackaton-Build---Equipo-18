@@ -5,9 +5,14 @@ El `cow_id` solo viaja con la predicción: nunca se le pasa al `Scorer` ni a nin
 
 - `dummy` (default; tests y `make browser`): el fixture con el `cow_id` recibido normalizado.
 - `model` (Docker/Railway): el pipeline de producción de G3 (`model_pipeline`): filtro de calidad
-  CLIP (T08) sobre la foto → detector `models/cow_det.pt` → recorte (+10%, lado mayor 320) →
-  EfficientNet-B0 con TTA (T09) → distribución, temperatura y conformal de T11
-  (`models/calibration_efficientnet_b0.json`) → reglas de status con la de extremos de G3.
+  básico (brillo, sobreexposición y nitidez de T08; sin CLIP desde el 18/10, `BCS_QUALITY=clip`
+  lo vuelve a CLIP) sobre la foto → detector `models/cow_det.pt` (también hace de "es una vaca")
+  → recorte (+10%, lado mayor 320) → EfficientNet-B0 con TTA (T09) → distribución, temperatura y
+  conformal de T11 (`models/calibration_efficientnet_b0.json`) → reglas de status con la
+  de extremos de G3.
+
+`predict_raw` es lo mismo que `predict` pero devuelve también la foto decodificada, para que la API
+arme la miniatura sin decodificar la original otra vez (R3 de eval/review.md).
 """
 
 from __future__ import annotations
@@ -15,7 +20,9 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import math
 import os
+import sys
 import threading
 import uuid
 from collections.abc import Callable, Sequence
@@ -74,13 +81,64 @@ def stub_pipeline(scale: Scale | None = None) -> Pipeline:
     )
 
 
+# Tope de píxeles de la foto, se chequea antes de decodificar (R3 de eval/review.md: una PNG de un
+# color de 80 MP pesa 250 KB y decodificada ocupa más de 1 GB). Una JPEG más grande (p. ej. 48 MP de
+# celular) se decodifica achicada con `draft()`, que es casi gratis.
+MAX_IMAGE_PIXELS = 40_000_000
+FORMATS_HINT = "usá una foto JPEG, PNG o WebP"
+
+
+class InvalidImage(ValueError):
+    """Los bytes no son una imagen que se pueda abrir (la API responde 422)."""
+
+
+class ImageTooLarge(InvalidImage):
+    """La imagen tiene más de `MAX_IMAGE_PIXELS` (la API responde 413)."""
+
+
+def _pil_open(fp: io.BytesIO) -> Image.Image:
+    # ultralytics reemplaza `Image.open` por uno que ante un formato desconocido intenta instalar
+    # pi-heif en runtime y levanta ModuleNotFoundError (R4): se usa el `Image.open` original.
+    patches = sys.modules.get("ultralytics.utils.patches")
+    return getattr(patches, "_image_open", Image.open)(fp)
+
+
+def _open_bounded(raw: bytes) -> Image.Image:
+    try:
+        img = _pil_open(io.BytesIO(raw))
+    except Image.DecompressionBombError as e:
+        raise ImageTooLarge(f"la imagen supera {MAX_IMAGE_PIXELS // 10**6} MP") from e
+    except Exception as e:  # noqa: BLE001 — cualquier cosa que no abre es un 422, nunca un 500
+        raise InvalidImage(f"image no es una imagen válida ({FORMATS_HINT})") from e
+    w, h = img.size
+    if w * h > MAX_IMAGE_PIXELS and img.format == "JPEG":
+        # la menor reducción (1/2, 1/4, 1/8) que deja la foto bajo el tope
+        k = 2 ** math.ceil(math.log2(math.sqrt(w * h / MAX_IMAGE_PIXELS)))
+        if k <= 8:
+            img.draft("RGB", (math.ceil(w / k), math.ceil(h / k)))
+    w, h = img.size
+    if w * h > MAX_IMAGE_PIXELS:
+        raise ImageTooLarge(
+            f"la imagen tiene {w}×{h} píxeles; el máximo es {MAX_IMAGE_PIXELS // 10**6} MP"
+        )
+    return img
+
+
 def _to_image(image: ImageInput) -> tuple[Image.Image, bytes]:
-    """La foto derecha (orientación EXIF aplicada, como la ve el celular) en RGB y sus bytes."""
+    """La foto derecha (orientación EXIF aplicada, como la ve el celular) en RGB y sus bytes.
+
+    Con bytes, el tamaño se chequea antes de decodificar; si no abren levanta `InvalidImage`
+    (`ImageTooLarge` si superan `MAX_IMAGE_PIXELS`).
+    """
     if isinstance(image, Image.Image):
         buf = io.BytesIO()
         image.save(buf, format="PNG")
         return ImageOps.exif_transpose(image).convert("RGB"), buf.getvalue()
-    return ImageOps.exif_transpose(Image.open(io.BytesIO(image))).convert("RGB"), image
+    img = _open_bounded(image)
+    try:
+        return ImageOps.exif_transpose(img).convert("RGB"), image
+    except Exception as e:  # noqa: BLE001 — JPEG truncada, datos corruptos, modos raros
+        raise InvalidImage(f"image no es una imagen válida ({FORMATS_HINT})") from e
 
 
 def _now() -> str:
@@ -117,6 +175,10 @@ def run_pipeline(pipeline: Pipeline, image: ImageInput, cow_id: str) -> Predicti
     """Filtro de calidad → scorer → calibración → intervalo → reglas de status."""
     cow_id = normalize_cow_id(cow_id)
     img, raw = _to_image(image)
+    return _run_decoded(pipeline, img, raw, cow_id)
+
+
+def _run_decoded(pipeline: Pipeline, img: Image.Image, raw: bytes, cow_id: str) -> Prediction:
     scale = pipeline.scale
     grid = np.asarray(scale.grid)
     quality = pipeline.quality.check(img)
@@ -295,9 +357,13 @@ def _fixture() -> Prediction:
 
 def predict_dummy(image: ImageInput, cow_id: str) -> Prediction:
     """Dummy de T00: el fixture con el `cow_id` normalizado y metadatos propios de esta foto."""
+    return _predict_dummy_decoded(image, cow_id)[0]
+
+
+def _predict_dummy_decoded(image: ImageInput, cow_id: str) -> tuple[Prediction, Image.Image]:
     cow_id = normalize_cow_id(cow_id)
-    _, raw = _to_image(image)
-    return replace(_fixture(), cow_id=cow_id, **_new_meta(raw))
+    img, raw = _to_image(image)
+    return replace(_fixture(), cow_id=cow_id, **_new_meta(raw)), img
 
 
 def predict(image: ImageInput, cow_id: str) -> Prediction:
@@ -308,13 +374,25 @@ def predict(image: ImageInput, cow_id: str) -> Prediction:
         return run_pipeline(_model_pipeline(), image, cow_id)
 
 
+def predict_raw(raw: bytes, cow_id: str) -> tuple[Prediction, Image.Image]:
+    """`predict` sobre los bytes originales, que devuelve también la foto ya decodificada (derecha,
+    RGB) para armar la miniatura sin decodificar dos veces. `image_sha256` es el de `raw`."""
+    if not use_model():
+        return _predict_dummy_decoded(raw, cow_id)
+    cow_id = normalize_cow_id(cow_id)
+    with _model_lock:
+        img, raw = _to_image(raw)
+        return _run_decoded(_model_pipeline(), img, raw, cow_id), img
+
+
 def predict_model_version() -> str:
     return model_version() if use_model() else _fixture().model_version
 
 
 def warmup() -> None:
-    """Carga CLIP, YOLO y la EfficientNet y corre una pasada, para que la primera foto no pague
-    la carga (~12 s en CPU). Toma el mismo lock que `predict`: una foto que llega antes espera."""
+    """Carga el filtro de calidad, YOLO y la EfficientNet y corre una pasada, para que la primera
+    foto no pague la carga (~12 s en CPU). Toma el mismo lock que `predict`: una foto que llega
+    antes espera."""
     with _model_lock:
         pipe = _model_pipeline()
         img = Image.new("RGB", (480, 320), (90, 80, 70))

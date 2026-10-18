@@ -165,9 +165,29 @@
     const COW_RE = /^[A-Z0-9][A-Z0-9._-]{0,63}$/;
     const LAST_KEY = "bcs.lastCowId";
 
-    // El token viene en el link (?token=); nunca va escrito en el HTML.
-    const token = new URLSearchParams(location.search).get("token") || "";
-    const withToken = (url) => token ? url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(token) : url;
+    // El token llega en el link compartido (?token=); nunca va escrito en el HTML. Se guarda
+    // (localStorage + cookie SameSite=Strict, para que las páginas carguen sin token en la URL) y se
+    // saca de la barra de direcciones: no queda en el historial ni en los logs de cada request.
+    const TOKEN_KEY = "bcs.token";
+    const token = (() => {
+      const params = new URLSearchParams(location.search);
+      const fromLink = params.get("token");
+      let t = fromLink || "";
+      try {
+        if (fromLink) localStorage.setItem(TOKEN_KEY, fromLink);
+        else t = localStorage.getItem(TOKEN_KEY) || "";
+      } catch { /* sin storage: queda la cookie */ }
+      if (fromLink !== null) {
+        params.delete("token");
+        const q = params.toString();
+        history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash);
+      }
+      if (t) {
+        document.cookie = "bcs_token=" + encodeURIComponent(t) + "; path=/; max-age=2592000; SameSite=Strict" +
+          (location.protocol === "https:" ? "; Secure" : "");
+      }
+      return t;
+    })();
     const api = (path, opts = {}) =>
       fetch(path, { ...opts, headers: { ...(opts.headers || {}), "X-App-Token": token } });
     const store = {
@@ -176,7 +196,16 @@
     };
     const $ = (id) => document.getElementById(id);
 
-    $("to-rodeo").href = withToken("rodeo.html");
+    // Miniaturas con el header, no con ?token= en el src: fetch → blob URL.
+    async function loadThumb(img, id) {
+      try {
+        const r = await api(`/media/${encodeURIComponent(id)}.jpg`);
+        if (!r.ok) return;
+        const url = URL.createObjectURL(await r.blob());
+        img.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
+        img.src = url;
+      } catch { /* sin miniatura */ }
+    }
 
     const idInput = $("cow-id");
     let photo = null;
@@ -327,7 +356,8 @@
       const chip = $("res-status");
       chip.className = "chip " + p.status;
       chip.textContent = STATUS_TEXT[p.status] || p.status;
-      $("res-thumb").src = withToken(`/media/${encodeURIComponent(p.prediction_id)}.jpg`);
+      $("res-thumb").removeAttribute("src");
+      loadThumb($("res-thumb"), p.prediction_id);
 
       const rejected = p.status === "rejected";
       $("res-rejected").hidden = !rejected;
