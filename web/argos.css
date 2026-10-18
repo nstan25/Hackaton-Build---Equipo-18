@@ -127,3 +127,48 @@ a { color: var(--forest); }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important;
     transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ---------- distribución de condición corporal del rodeo (T20, rodeo.html) ---------- */
+.dist { padding: 18px 16px 14px; margin: 20px 0 0; }
+.dist-head h2 { font-size: clamp(1.25rem, 4.6vw, 1.55rem); }
+.dist-sub { color: var(--muted); font-size: .92rem; margin-top: 4px; }
+.dist-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 6px; }
+.dist-stats > div { background: var(--ivory); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; }
+.dist-stats dt { font-size: .8rem; font-weight: 700; color: var(--muted); }
+.dist-stats dd { margin: 2px 0 0; font-family: var(--font-display); font-weight: 600; font-size: 1.7rem; line-height: 1.1; color: var(--forest);
+  font-variant-numeric: tabular-nums; }
+.dist-stats .mean-key { display: inline-block; width: 14px; border-top: 3px dashed var(--sun); margin-right: 6px; vertical-align: 3px; }
+.dist-plot { position: relative; margin-top: 6px; }
+.dist-chart { width: 100%; height: auto; display: block; overflow: visible; font-family: var(--font-ui); }
+.dist-chart .hit { fill: transparent; cursor: pointer; outline: none; }
+.dist-chart .bar { fill: var(--sage); transition: fill .15s ease; }
+.dist-chart .bar.top { fill: var(--forest-2); }
+.dist-chart .zero { fill: var(--line-strong); }
+.dist-chart .cat.active .bar, .dist-chart .cat:focus-visible .bar { fill: var(--forest); }
+.dist-chart .cat:focus-visible .hit { stroke: var(--forest); stroke-width: 2; rx: 8; }
+.dist-chart .grid { stroke: var(--sand); }
+.dist-chart .axis { stroke: var(--line-strong); }
+.dist-chart .tick { fill: var(--muted); font-size: 12px; }
+.dist-chart .xlab { fill: var(--ink); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dist-chart .val { fill: var(--ink); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dist-chart .val.zero-val { fill: var(--muted); font-weight: 500; }
+.dist-chart .mean { stroke: var(--sun); stroke-width: 2; stroke-dasharray: 5 4; }
+.dist-chart .mean-tri { fill: var(--sun); }
+@media (prefers-reduced-motion: no-preference) {
+  .dist-chart.animate .bar { transform-box: fill-box; transform-origin: 50% 100%; animation: dist-grow .6s cubic-bezier(.2, .7, .3, 1) both; }
+  .dist-chart.animate .val, .dist-chart.animate .mean, .dist-chart.animate .mean-tri { animation: dist-fade .4s ease .45s both; }
+}
+@keyframes dist-grow { from { transform: scaleY(0); } }
+@keyframes dist-fade { from { opacity: 0; } }
+.dist-tip { position: absolute; z-index: 2; transform: translate(-50%, calc(-100% - 10px)); pointer-events: none;
+  width: max-content; max-width: 220px; text-align: center;
+  background: var(--deep); color: #fff; border-radius: 10px; padding: 7px 11px; font-size: .86rem; line-height: 1.3;
+  box-shadow: 0 6px 18px rgba(31, 58, 37, .22); }
+.dist-tip strong { color: var(--sun-soft); }
+.dist-tip span { display: block; color: #c9d3c4; font-size: .78rem; }
+.dist-tip::after { content: ""; position: absolute; left: 50%; bottom: -6px; margin-left: -6px; border: 6px solid transparent;
+  border-bottom: 0; border-top-color: var(--deep); }
+.dist-state { text-align: center; color: var(--muted); padding: 28px 8px; }
+.dist-state.err { color: var(--bad); font-weight: 600; margin: 0; }
+.dist-note { color: var(--muted); font-size: .82rem; margin-top: 8px; }
+@media (min-width: 680px) { .dist { padding: 22px 22px 16px; } .dist-stats { max-width: 420px; } }
