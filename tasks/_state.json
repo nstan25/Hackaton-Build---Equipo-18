@@ -527,7 +527,7 @@
     },
     "T18": {
       "title": "Rediseño integral de la UI (ARGOS)",
-      "status": "dispatched",
+      "status": "v2 entregada (T17 integrado); deploy de la rama a Railway para revisión del equipo; merge a main pendiente de OK",
       "dispatch_id": "ctx_cc09681f7201",
       "branch": "rediseño-ui",
       "agent": "claude",
@@ -535,7 +535,8 @@
       "rounds": 2,
       "notes": [
         "verificada: check+smoke OK, solo web/ y docs/rediseno; web/img 656 KB; sin textos de G3 p.7; make browser no corrido (VM)",
-        "v2: merge de agregar-explicacion-texto en rediseño-ui; sin 'Sin evaluación en fotos de celular'; sin nombre de hackatón"
+        "v2: merge de agregar-explicacion-texto en rediseño-ui; sin 'Sin evaluación en fotos de celular'; sin nombre de hackatón",
+        "v2 verificada: sin conflictos, sin textos pedidos, check/smoke/smoke-model OK; deploy desde la rama rediseño-ui"
       ]
     }
   }
