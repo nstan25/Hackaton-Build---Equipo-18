@@ -457,13 +457,16 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
+      "status": "merged a main",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
       "rounds": 1,
       "replaced_task_id": "task_287e66b2a7fb",
-      "note": "sin guion de demo (18/10)"
+      "note": "sin guion de demo (18/10)",
+      "notes": [
+        "README verificado: métricas G4, limitaciones, atribución (sdb_bcs CC BY 4.0, Ultralytics AGPL-3.0); check+smoke OK"
+      ]
     },
     "G4": {
       "task_id": "task_1c8abf2263b0",
@@ -473,7 +476,7 @@
       ],
       "gate": true,
       "agent": null,
-      "status": "pending",
+      "status": "completed",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
