@@ -39,8 +39,13 @@ def _store(request: Request) -> Store:
 def _cached(request: Request, prediction_id: str) -> dict[str, Any] | None:
     get = getattr(_store(request), "get_explanation", None)
     if get is not None:
-        return get(prediction_id)
-    return getattr(request.app.state, "explanations", {}).get(prediction_id)
+        data = get(prediction_id)
+    else:
+        data = getattr(request.app.state, "explanations", {}).get(prediction_id)
+    # Una explicación de otra versión del prompt no sirve: se regenera y se pisa.
+    if data is None or data.get("prompt_version") != explain.PROMPT_VERSION:
+        return None
+    return data
 
 
 def _remember(request: Request, prediction_id: str, data: dict[str, Any]) -> None:
