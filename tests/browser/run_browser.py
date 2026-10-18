@@ -38,6 +38,15 @@ ELEMENT = "element-6066-11e4-a52e-4f735466cecf"
 WIDTH, HEIGHT = 390, 844
 SEED = 42
 PICK_TRIES = 25
+# Render por software: con aceleración, Firefox headless cuelga la VM de VMware (vmwgfx/ttm).
+SOFTWARE_ENV = {"MOZ_WEBRENDER": "0", "MOZ_ACCELERATED": "0", "LIBGL_ALWAYS_SOFTWARE": "1"}
+SOFTWARE_PREFS = {
+    "layers.acceleration.disabled": True,
+    "gfx.webrender.software": True,
+    "gfx.webrender.all": False,
+    "webgl.disabled": True,
+    "media.hardware-video-decoding.enabled": False,
+}
 
 
 def _free_port() -> int:
@@ -69,7 +78,13 @@ class Browser:
 
     def __init__(self, base: str) -> None:
         self.http = httpx.Client(base_url=base, timeout=60)
-        caps = {"moz:firefoxOptions": {"args": ["-headless", "--width=600", "--height=1000"]}}
+        caps = {
+            "moz:firefoxOptions": {
+                "args": ["-headless", "--width=600", "--height=1000"],
+                "prefs": SOFTWARE_PREFS,
+                "env": SOFTWARE_ENV,
+            }
+        }
         self.sid = self._call("POST", "/session", {"capabilities": {"alwaysMatch": caps}})[
             "sessionId"
         ]
@@ -537,6 +552,7 @@ def main() -> int:
         )
         wd = subprocess.Popen(
             [gecko, "--port", str(wd_port), "--log", "error"],
+            env={**os.environ, **SOFTWARE_ENV},
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
