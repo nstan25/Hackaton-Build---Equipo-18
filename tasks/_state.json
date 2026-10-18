@@ -475,5 +475,13 @@
         "Railway: servicio bcs, volumen bcs-volume en /data (500MB), deploy a0bc3ac8; verificado health 200, predict/cows/web sin token 401. Pendiente: prueba 422 con token (humano)"
       ]
     }
-  }
+  },
+  "backlog": [
+    {
+      "id": "T17",
+      "title": "Explicación del puntaje con VLM chico (imagen + puntaje → por qué)",
+      "when": "después de G4 / cuando se cierre lo definido",
+      "ref": "tasks/G2.md punto 5"
+    }
+  ]
 }
