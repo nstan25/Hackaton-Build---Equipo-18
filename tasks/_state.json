@@ -462,7 +462,8 @@
       "terminal": null,
       "dispatch_id": null,
       "rounds": 0,
-      "replaced_task_id": "task_287e66b2a7fb"
+      "replaced_task_id": "task_287e66b2a7fb",
+      "note": "sin guion de demo (18/10)"
     },
     "G4": {
       "task_id": "task_1c8abf2263b0",
@@ -538,6 +539,14 @@
         "v2: merge de agregar-explicacion-texto en rediseño-ui; sin 'Sin evaluación en fotos de celular'; sin nombre de hackatón",
         "v2 verificada: sin conflictos, sin textos pedidos, check/smoke/smoke-model OK; deploy desde la rama rediseño-ui"
       ]
+    },
+    "T19": {
+      "title": "Latencia de la explicación",
+      "status": "dispatched",
+      "dispatch_id": "ctx_cb9259c74cd3",
+      "branch": "rediseño-ui",
+      "agent": "claude",
+      "note": "reusa el worker de T18"
     }
   }
 }
