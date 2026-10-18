@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import hashlib
+import io
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from bcs import api_predict, inference
 from bcs.contract import Prediction, validate_prediction_dict
 from bcs.scale import load_scale
-from bcs.store.memory import InMemoryStore
+from bcs.store.memory import THUMBNAIL_SIZE, InMemoryStore
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SCALE = load_scale("dairy_1_5")
@@ -67,7 +69,10 @@ def test_predict_saves_prediction_and_thumbnail(client: TestClient, spy: SpyStor
     assert body["cow_id"] == "UY-7"
     assert body["image_sha256"] == hashlib.sha256(REAR).hexdigest()
     [call] = spy.calls
-    assert call["pred"].to_dict() == body and call["raw"] == REAR
+    assert call["pred"].to_dict() == body
+    # el store recibe la miniatura armada desde la foto ya decodificada (R3), no la original
+    stored = Image.open(io.BytesIO(call["raw"]))
+    assert stored.format == "JPEG" and max(stored.size) <= THUMBNAIL_SIZE
     assert call["taken_at"] == "2026-10-17T08:30:00Z" and call["notes"] == "flaca"
     thumb = spy.thumbnail_path(body["prediction_id"])
     assert thumb is not None and thumb.read_bytes()[:2] == b"\xff\xd8"
@@ -104,6 +109,7 @@ def test_bad_cow_id_is_422_and_not_evaluated(
         raise AssertionError("no debería evaluar la foto")
 
     monkeypatch.setattr(inference, "predict", boom)
+    monkeypatch.setattr(inference, "predict_raw", boom)
     r = _post(client, data)
     assert r.status_code == 422 and "cow_id" in r.json()["detail"]
     assert spy.calls == []

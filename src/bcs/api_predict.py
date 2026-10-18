@@ -2,22 +2,26 @@
 
 from __future__ import annotations
 
+import threading
 from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from PIL import Image
 
 from bcs import inference
 from bcs.auth import require_token
 from bcs.contract import InvalidCowId, normalize_cow_id
 from bcs.store.base import Store
+from bcs.store.memory import thumbnail_jpeg
 
 router = APIRouter()
 
 MAX_NOTES = 280
 MAX_IMAGE_BYTES = 20 * 1024 * 1024  # fotos de celular de sobra; corta uploads absurdos
+# A lo sumo dos fotos decodificadas a la vez (hasta 40 MP c/u): la RAM no crece con las requests
+# en paralelo (R3). Con el modelo, `inference` ya serializa la predicción con su propio lock.
+_decode_slots = threading.BoundedSemaphore(2)
 
 
 @router.get("/health")
@@ -44,11 +48,17 @@ def _check_notes(notes: str | None) -> str | None:
 
 
 def _predict_and_save(store: Store, raw: bytes, cow_id: str, **extra: str | None) -> dict[str, Any]:
-    try:
-        pred = inference.predict(raw, cow_id)
-    except (OSError, Image.DecompressionBombError) as e:  # PIL no puede abrir la imagen
-        raise HTTPException(status_code=422, detail="image no es una imagen válida") from e
-    store.save(pred, raw, **extra)
+    with _decode_slots:
+        try:
+            pred, img = inference.predict_raw(raw, cow_id)
+        except inference.ImageTooLarge as e:
+            raise HTTPException(status_code=413, detail=str(e)) from e
+        except inference.InvalidImage as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        # La miniatura sale de la foto ya decodificada: la original no se vuelve a abrir.
+        thumb = thumbnail_jpeg(img)
+        del img
+    store.save(pred, thumb, **extra)
     return pred.to_dict()
 
 
