@@ -3,127 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#1f5f3f">
-  <title>BCS · Rodeo</title>
-  <style>
-    :root {
-      --bg: #f4f6f3; --card: #fff; --ink: #18211c; --muted: #5b6760; --line: #dde3de;
-      --brand: #1f5f3f; --brand-ink: #fff; --ok: #1f7a4a; --warn: #a86400; --warn-bg: #fff4dd;
-      --bad: #b3261e; --bad-bg: #fde8e6; --band: #e3f0e8;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--ink);
-      font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    header { background: var(--brand); color: var(--brand-ink); padding: 12px 16px;
-      display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    header h1 { font-size: 1.1rem; margin: 0; }
-    header a { color: var(--brand-ink); font-weight: 600; text-decoration: none;
-      border: 1px solid rgba(255,255,255,.5); border-radius: 999px; padding: 4px 12px; white-space: nowrap; }
-    main { max-width: 720px; margin: 0 auto; padding: 12px 16px 24px; }
-    .filters { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
-    .filters input[type=search] { width: 100%; font-size: 1.05rem; padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px; }
-    .filters input[type=search]:focus, .filters input[type=number]:focus { outline: none; border-color: var(--brand); }
-    .filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    .toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px;
-      padding: 6px 12px; font-size: .9rem; background: #fff; cursor: pointer; user-select: none; }
-    .toggle:has(input:checked) { background: var(--band); border-color: var(--ok); color: var(--ok); font-weight: 600; }
-    .toggle input[type=number] { width: 4.2em; font-size: .9rem; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px; }
-    .count { color: var(--muted); font-size: .85rem; margin: 0 0 8px; }
-    .cows { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-    .cow { display: flex; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line);
-      border-radius: 12px; padding: 10px; cursor: pointer; text-decoration: none; color: inherit; }
-    .cow:focus-visible { outline: 3px solid var(--brand); }
-    .cow img, .hist-item img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; background: #e9ece9; flex: none; }
-    .cow .info { flex: 1; min-width: 0; }
-    .cow .id { font-weight: 800; font-size: 1.1rem; overflow-wrap: anywhere; }
-    .cow .meta, .hist-item .meta { color: var(--muted); font-size: .82rem; }
-    .cow .score { text-align: right; flex: none; }
-    .cow .score .v { font-size: 1.8rem; font-weight: 800; line-height: 1; }
-    .cow .score .iv { color: var(--muted); font-size: .78rem; }
-    .chip { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: .75rem; font-weight: 700; margin-top: 2px; }
-    .chip.ok { background: var(--band); color: var(--ok); }
-    .chip.low_confidence { background: var(--warn-bg); color: var(--warn); }
-    .chip.rejected { background: var(--bad-bg); color: var(--bad); }
-    .empty { text-align: center; color: var(--muted); padding: 24px 8px; }
-    .err { color: var(--bad); font-weight: 600; }
-    .back { background: none; border: 0; color: var(--brand); font-weight: 700; font-size: 1rem; padding: 4px 0; cursor: pointer; }
-    .hist-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 4px 0 8px; }
-    .hist-head h2 { margin: 0; font-size: 1.4rem; overflow-wrap: anywhere; }
-    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 12px; }
-    .chart { width: 100%; height: auto; display: block; }
-    .legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: .78rem; margin-top: 4px; }
-    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
-    .hist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-    .hist-item { display: flex; gap: 12px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
-    .hist-item .v { font-weight: 800; font-size: 1.2rem; }
-    .hist-item ul { margin: 2px 0 0; padding-left: 18px; color: var(--bad); font-size: .82rem; }
-    footer { color: var(--muted); font-size: .85rem; text-align: center; padding: 0 16px 24px; max-width: 720px; margin: 0 auto; }
-    footer strong { color: var(--ink); }
-    .hist-item > div { flex: 1; min-width: 0; }
-    .explain-btn { margin-top: 6px; background: #fff; color: var(--brand); border: 1px solid var(--brand);
-      border-radius: 999px; padding: 4px 12px; font-size: .85rem; font-weight: 700; cursor: pointer; }
-    .explain-btn[disabled] { opacity: .5; cursor: default; }
-    .explain-body { margin-top: 6px; font-size: .88rem; }
-    .explain-body p { margin: 0 0 4px; }
-    .hist-item .explain-body ul { color: var(--ink); margin: 0 0 4px; }
-    .explain-title { font-weight: 700; }
-    .hist-item .explain-err { color: var(--bad); font-size: .82rem; margin: 4px 0 0; }
-    [hidden] { display: none !important; }
-    @media (min-width: 640px) { .cows { grid-template-columns: 1fr 1fr; } }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Rodeo</h1>
-    <a id="to-eval" href="index.html">+ Evaluar</a>
-  </header>
-  <main>
-    <section id="list-view">
-      <div class="filters">
-        <input id="q" type="search" placeholder="Buscar por ID de vaca" autocomplete="off" aria-label="Buscar por ID de vaca">
-        <div class="filter-row">
-          <label class="toggle"><input id="f-bcs" type="checkbox"> BCS ≤
-            <input id="f-bcs-max" type="number" min="1" max="9" step="0.25" value="3.25" aria-label="BCS máximo"></label>
-          <label class="toggle"><input id="f-low" type="checkbox"> Baja confianza</label>
-          <label class="toggle"><input id="f-rej" type="checkbox"> Última foto rechazada</label>
-        </div>
-      </div>
-      <p class="count" id="count"></p>
-      <ul class="cows" id="cows"></ul>
-      <p class="empty" id="empty" hidden></p>
-    </section>
-
-    <section id="hist-view" hidden>
-      <button class="back" id="back" type="button">← Rodeo</button>
-      <div class="hist-head"><h2 id="hist-cow"></h2><span class="meta" id="hist-count"></span></div>
-      <div class="panel">
-        <svg class="chart" id="chart" role="img" aria-label="Evolución del BCS"></svg>
-        <div class="legend">
-          <span><i style="background:#1f7a4a"></i>OK</span>
-          <span><i style="background:#a86400"></i>Confianza baja</span>
-          <span><i style="background:#b3261e"></i>Rechazada</span>
-          <span><i style="background:#e3f0e8;border-radius:2px"></i>Rango validado</span>
-        </div>
-      </div>
-      <ul class="hist" id="hist"></ul>
-    </section>
-  </main>
-  <footer>
-    <p><strong>Estimación de apoyo; no reemplaza la evaluación de un técnico.</strong></p>
-    <p>Rango validado: BCS 3.25–4.25. Fuera de ese rango el valor es orientativo.</p>
-    <p>Sin evaluación en fotos de celular.</p>
-  </footer>
-
+  <meta name="theme-color" content="#f7f4ec">
+  <title>Argos · Rodeo</title>
   <script>
     "use strict";
-    // Rango validado por G0: el modelo solo vio BCS 3.25–4.25 (sdb_bcs).
-    const VALID_MIN = 3.25, VALID_MAX = 4.25;
-    const STATUS_TEXT = { ok: "OK", low_confidence: "Confianza baja", rejected: "Rechazada" };
-    const STATUS_COLOR = { ok: "#1f7a4a", low_confidence: "#a86400", rejected: "#b3261e" };
-
-    // El token llega en el link compartido (?token=); nunca va escrito en el HTML. Se guarda
-    // (localStorage + cookie SameSite=Strict, para que las páginas carguen sin token en la URL) y se
-    // saca de la barra de direcciones: no queda en el historial ni en los logs de cada request.
+    // Va primero en <head>: deja la cookie antes de pedir la hoja de estilos y las imágenes, que
+    // también exigen el token. El token llega en el link compartido (?token=); nunca va escrito en el
+    // HTML. Se guarda (localStorage + cookie SameSite=Strict, para que las páginas carguen sin token en
+    // la URL) y se saca de la barra de direcciones: no queda en el historial ni en los logs.
     const TOKEN_KEY = "bcs.token";
     const token = (() => {
       const params = new URLSearchParams(location.search);
@@ -144,6 +31,153 @@
       }
       return t;
     })();
+  </script>
+  <link rel="icon" type="image/png" href="img/logo-mark-64.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="argos.css">
+  <style>
+    main.wrap { max-width: 880px; padding-top: 28px; }
+    .page-head h1 { font-size: clamp(2rem, 7vw, 2.8rem); margin-top: 6px; }
+    .page-head p { color: var(--muted); margin-top: 8px; }
+    .filters { padding: 14px; margin: 20px 0 12px; }
+    .search { position: relative; }
+    .search svg { position: absolute; left: 14px; top: 50%; width: 20px; height: 20px; margin-top: -10px; color: var(--muted); pointer-events: none; }
+    .search .input { padding-left: 44px; font-weight: 500; font-size: 1.05rem; }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; border: 1px solid var(--line-strong); border-radius: 999px;
+      padding: 6px 14px; font-size: .92rem; background: var(--card); cursor: pointer; user-select: none; }
+    .toggle input[type=checkbox] { width: 18px; height: 18px; margin: 0; accent-color: var(--forest); }
+    .toggle:has(input[type=checkbox]:checked) { background: var(--sage-soft); border-color: var(--forest); color: var(--forest); font-weight: 700; }
+    .toggle input[type=number] { width: 4.6em; font: inherit; padding: 4px 6px; border: 1px solid var(--line-strong); border-radius: 8px; background: #fff; }
+    .count { color: var(--muted); font-size: .88rem; margin: 0 0 10px; }
+    .cows { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .cow { display: grid; grid-template-columns: 72px 1fr auto; gap: 12px; align-items: center; background: var(--card);
+      border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; text-decoration: none; color: inherit;
+      box-shadow: var(--shadow); transition: border-color .15s ease, transform .15s ease; }
+    .cow:hover { border-color: var(--sage); }
+    @media (prefers-reduced-motion: no-preference) { .cow:hover { transform: translateY(-1px); } }
+    .cow img, .hist-item img { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius-sm); background: var(--sand); display: block; }
+    .cow .info { min-width: 0; }
+    .cow .id { font-weight: 800; font-size: 1.1rem; overflow-wrap: anywhere; }
+    .cow .meta, .hist-item .meta { color: var(--muted); font-size: .84rem; }
+    .cow .score { text-align: right; min-width: 84px; }
+    .cow .score .v { font-family: var(--font-display); font-weight: 600; font-size: 2rem; line-height: 1; color: var(--forest); }
+    .cow .score .iv { color: var(--muted); font-size: .78rem; margin-top: 2px; }
+    .cow .scale { margin-top: 8px; }
+    .chip { margin-top: 4px; }
+    .empty { text-align: center; color: var(--muted); padding: 32px 8px; }
+    .empty.err { color: var(--bad); font-weight: 600; }
+    .back { margin-left: -8px; }
+    .hist-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 8px 0 14px; }
+    .hist-head h2 { font-size: clamp(1.8rem, 6vw, 2.4rem); overflow-wrap: anywhere; }
+    .panel { padding: 14px; margin-bottom: 14px; }
+    .panel h3 { font-family: var(--font-ui); font-size: .95rem; color: var(--ink); margin-bottom: 6px; }
+    .chart { width: 100%; height: auto; display: block; }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: .82rem; margin-top: 6px; }
+    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+    .hist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .hist-item { display: flex; gap: 12px; align-items: flex-start; background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 12px; }
+    .hist-item > div { flex: 1; min-width: 0; }
+    .hist-item .v { font-weight: 800; font-size: 1.2rem; }
+    .hist-item ul { margin: 4px 0 0; padding-left: 18px; color: var(--bad); font-size: .86rem; }
+    .explain-btn { margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px;
+      background: var(--card); color: var(--forest); border: 2px solid var(--forest); border-radius: 999px;
+      font: 700 .9rem/1.2 var(--font-ui); cursor: pointer; }
+    .explain-btn:hover { background: var(--sage-soft); }
+    .explain-btn[disabled] { opacity: .5; cursor: default; }
+    .explain-body { margin-top: 10px; font-size: .92rem; background: var(--ivory); border: 1px solid var(--line);
+      border-left: 3px solid var(--sage); border-radius: var(--radius-sm); padding: 10px 12px; }
+    .explain-body p + p { margin-top: 4px; }
+    .hist-item .explain-body ul { color: var(--ink); margin: 6px 0 0; }
+    .explain-body strong { color: var(--forest); }
+    .explain-title { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; color: var(--forest); }
+    .hist-item .explain-err { color: var(--bad); font-size: .86rem; font-weight: 600; margin-top: 6px; }
+    @media (min-width: 680px) { .cows { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Ir al contenido</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html" aria-label="Argos, inicio">
+        <picture>
+          <source type="image/webp" srcset="img/logo-mark-128.webp 2x, img/logo-mark-64.webp 1x">
+          <img src="img/logo-mark-128.png" alt="" width="52" height="32">
+        </picture>
+        <span>Argos</span>
+      </a>
+      <nav class="nav" aria-label="Principal">
+        <a class="nav-wide" href="index.html#como-funciona">Cómo funciona</a>
+        <a href="rodeo.html" aria-current="page">Rodeo</a>
+        <a class="btn small" id="to-eval" href="index.html#analizar">+ Analizar</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap" id="main">
+    <section id="list-view" aria-labelledby="rodeo-title">
+      <div class="page-head">
+        <p class="eyebrow">Rodeo</p>
+        <h1 id="rodeo-title">Tus vacas</h1>
+        <p>Último BCS de cada vaca, de la más baja a la más alta. Tocá una para ver su evolución.</p>
+      </div>
+      <div class="card filters">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input class="input" id="q" type="search" placeholder="Buscar por ID de vaca" autocomplete="off" aria-label="Buscar por ID de vaca">
+        </div>
+        <div class="filter-row" role="group" aria-label="Filtros">
+          <label class="toggle"><input id="f-bcs" type="checkbox"> BCS ≤
+            <input id="f-bcs-max" type="number" min="1" max="9" step="0.25" value="3.25" aria-label="BCS máximo"></label>
+          <label class="toggle"><input id="f-low" type="checkbox"> Baja confianza</label>
+          <label class="toggle"><input id="f-rej" type="checkbox"> Última foto rechazada</label>
+        </div>
+      </div>
+      <p class="count" id="count" aria-live="polite"></p>
+      <ul class="cows" id="cows"></ul>
+      <p class="empty" id="empty" hidden></p>
+    </section>
+
+    <section id="hist-view" aria-labelledby="hist-cow" hidden>
+      <button class="btn ghost small back" id="back" type="button">← Volver al rodeo</button>
+      <div class="hist-head"><h2 id="hist-cow" tabindex="-1"></h2><span class="meta" id="hist-count"></span></div>
+      <div class="card panel">
+        <h3>Evolución del BCS</h3>
+        <svg class="chart" id="chart" role="img" aria-label="Evolución del BCS"></svg>
+        <div class="legend">
+          <span><i style="background:#2e6b3a"></i>OK</span>
+          <span><i style="background:#8a5a12"></i>Confianza baja</span>
+          <span><i style="background:#9e2a1f"></i>Rechazada</span>
+          <span><i style="background:#e6efdf;border:1px solid #769b56;border-radius:2px"></i>Rango validado</span>
+        </div>
+      </div>
+      <ul class="hist" id="hist"></ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div>
+        <span class="brand"><img src="img/logo-mark-128.png" alt="" width="60" height="40" loading="lazy"><span>Argos</span></span>
+        <p class="fine" style="margin-top:10px">Condición corporal con visión artificial.</p>
+      </div>
+      <div>
+        <p class="fine">Argos no diagnostica enfermedades ni indica tratamientos.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    "use strict";
+    // Rango validado por G0: el modelo solo vio BCS 3.25–4.25 (sdb_bcs), dentro de la escala 1–5.
+    const VALID_MIN = 3.25, VALID_MAX = 4.25;
+    const SCALE_MIN = 1, SCALE_MAX = 5;
+    const STATUS_TEXT = { ok: "OK", low_confidence: "Confianza baja", rejected: "Rechazada" };
+    const STATUS_COLOR = { ok: "#2e6b3a", low_confidence: "#8a5a12", rejected: "#9e2a1f" };
+
     const api = (path) => fetch(path, { headers: { "X-App-Token": token } });
     const $ = (id) => document.getElementById(id);
     const fmt = (x) => Number(x).toFixed(2);
@@ -167,6 +201,18 @@
       return node;
     };
     const chip = (status) => h("span", "chip " + status, STATUS_TEXT[status] || status);
+    const pct = (v) => (100 * (Math.min(SCALE_MAX, Math.max(SCALE_MIN, v)) - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)).toFixed(2) + "%";
+    // Escala 1–5 en miniatura: franja del rango validado y la marca del BCS.
+    function miniScale(bcs) {
+      const s = h("div", "scale mini");
+      s.setAttribute("aria-hidden", "true");
+      const band = h("span", "band");
+      band.style.cssText = `left:${pct(VALID_MIN)};width:calc(${pct(VALID_MAX)} - ${pct(VALID_MIN)})`;
+      const mark = h("span", "mark");
+      mark.style.left = pct(bcs);
+      s.append(band, mark);
+      return s;
+    }
 
     let cows = [];
 
@@ -231,7 +277,7 @@
           const parts = [];
           if (c.interval) parts.push(`${fmt(c.interval[0])}–${fmt(c.interval[1])}`);
           if (c.confidence != null) parts.push(Math.round(c.confidence * 100) + "% conf.");
-          score.append(h("div", "iv", parts.join(" · ")));
+          score.append(h("div", "iv", parts.join(" · ")), miniScale(c.bcs));
         } else {
           score.append(h("div", "iv", "sin BCS válido"));
         }
@@ -241,7 +287,7 @@
       }
       $("count").textContent = cows.length ? `${rows.length} de ${cows.length} vacas · ordenadas por BCS (más bajo primero)` : "";
       if (!$("empty").classList.contains("err")) {
-        $("empty").textContent = cows.length ? "Ninguna vaca cumple los filtros." : "Todavía no hay evaluaciones. Empezá desde “+ Evaluar”.";
+        $("empty").textContent = cows.length ? "Ninguna vaca cumple los filtros." : "Todavía no hay evaluaciones. Empezá desde “+ Analizar”.";
       }
       $("empty").hidden = rows.length > 0;
     }
@@ -274,21 +320,22 @@
         : x0 + (x1 - x0) * (Date.parse(p.created_at) - t0) / (t1 - t0);
       const y = (v) => T + (H - T - B) * (yMax - v) / (yMax - yMin);
 
-      el("rect", { x: L, y: y(VALID_MAX), width: W - L - R, height: y(VALID_MIN) - y(VALID_MAX), fill: "#e3f0e8" });
+      el("rect", { x: L, y: y(VALID_MAX), width: W - L - R, height: y(VALID_MIN) - y(VALID_MAX), fill: "#e6efdf" });
       for (let v = yMin; v <= yMax + 1e-9; v += 0.5) {
-        el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "#e6e9e6" });
-        el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", "font-size": 11, fill: "#5b6760" }, v.toFixed(1));
+        el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "#ece6d6" });
+        el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", "font-size": 11, fill: "#4f5c52" }, v.toFixed(1));
       }
-      el("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: "#b9c2bc" });
+      el("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: "#8a958c" });
       const sameDay = new Date(t0).toDateString() === new Date(t1).toDateString();
       const tickFmt = (t) => sameDay
         ? new Date(t).toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit", hour12: false })
         : new Date(t).toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit" });
-      el("text", { x: L, y: H - 8, "font-size": 11, fill: "#5b6760" }, tickFmt(t0));
-      if (t1 !== t0) el("text", { x: W - R, y: H - 8, "text-anchor": "end", "font-size": 11, fill: "#5b6760" }, tickFmt(t1));
+      el("text", { x: L, y: H - 8, "font-size": 11, fill: "#4f5c52" }, tickFmt(t0));
+      if (t1 !== t0) el("text", { x: W - R, y: H - 8, "text-anchor": "end", "font-size": 11, fill: "#4f5c52" }, tickFmt(t1));
 
       if (valid.length > 1) {
-        el("polyline", { points: valid.map((p) => `${x(p)},${y(p.bcs)}`).join(" "), fill: "none", stroke: "#7fa58f", "stroke-width": 2 });
+        el("polyline", { points: valid.map((p) => `${x(p)},${y(p.bcs)}`).join(" "), fill: "none", stroke: "#769b56", "stroke-width": 2.5,
+                         "stroke-linejoin": "round", "stroke-linecap": "round" });
       }
       for (const p of pts) {
         const tip = `${fmtDate(p.created_at)} · ${STATUS_TEXT[p.status]}` + (p.bcs != null ? ` · BCS ${fmt(p.bcs)}` : "");
@@ -301,7 +348,7 @@
           if (p.interval) {
             el("line", { x1: x(p), x2: x(p), y1: y(p.interval[0]), y2: y(p.interval[1]), stroke: STATUS_COLOR[p.status], "stroke-width": 2, opacity: .35 });
           }
-          mark = el("circle", { cx: x(p), cy: y(p.bcs), r: 5, fill: STATUS_COLOR[p.status] || "#1f7a4a", stroke: "#fff", "stroke-width": 1.5 });
+          mark = el("circle", { cx: x(p), cy: y(p.bcs), r: 5.5, fill: STATUS_COLOR[p.status] || STATUS_COLOR.ok, stroke: "#fffdf8", "stroke-width": 2 });
         }
         mark.dataset.predictionId = p.prediction_id;
         mark.appendChild(document.createElementNS(ns, "title")).textContent = tip;
@@ -315,12 +362,27 @@
       btn.type = "button";
       const body = h("div", "explain-body");
       body.hidden = true;
+      body.setAttribute("aria-live", "polite");
       const err = h("p", "explain-err");
       err.hidden = true;
+      err.setAttribute("role", "alert");
+      // Mientras OpenAI mira la foto: esqueleto con la paleta ARGOS (argos.css), sin porcentajes.
+      const loading = () => {
+        const status = h("p", "explain-status");
+        const dot = h("span", "sun-dot");
+        dot.setAttribute("aria-hidden", "true");
+        status.append(dot, "Argos está mirando la foto…");
+        const lines = ["skeleton", "skeleton", "skeleton short"].map((cls) => h("span", cls));
+        lines.forEach((l) => l.setAttribute("aria-hidden", "true"));
+        return [h("p", "explain-title", "Qué se observa en la foto"), status, ...lines];
+      };
       btn.addEventListener("click", async () => {
         btn.disabled = true;
         btn.textContent = "Mirando la foto…";
         err.hidden = true;
+        body.replaceChildren(...loading());
+        body.hidden = false;
+        body.setAttribute("aria-busy", "true");
         try {
           const r = await api(`/predictions/${encodeURIComponent(p.prediction_id)}/explain`);
           const data = await r.json().catch(() => ({}));
@@ -336,10 +398,13 @@
           body.hidden = false;
           btn.hidden = true;
         } catch (e) {
+          body.hidden = true;
           err.textContent = e instanceof TypeError ? "Sin conexión con el servidor." : e.message;
           err.hidden = false;
           btn.disabled = false;
           btn.textContent = "Ver qué se observa en la foto";
+        } finally {
+          body.removeAttribute("aria-busy");
         }
       });
       wrap.append(btn, body, err);
@@ -355,6 +420,7 @@
       ul.replaceChildren();
       $("chart").replaceChildren();
       window.scrollTo(0, 0);
+      $("hist-cow").focus({ preventScroll: true });
       let items;
       try {
         const r = await api("/cows/" + encodeURIComponent(cowId));

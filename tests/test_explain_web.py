@@ -13,7 +13,9 @@ def test_page_has_explain_button(client: TestClient, page: str) -> None:
     r = client.get(f"/{page}")
     assert r.status_code == 200
     html = r.text
-    assert "Ver qué se observa en la foto" in html
+    if page == "rodeo.html":
+        assert "Ver qué se observa en la foto" in html  # en el rodeo sigue a demanda
+    assert "Argos está mirando la foto…" in html and "skeleton" in html  # loader (T19)
     assert "Qué se observa en la foto</p>" in html or '"Qué se observa en la foto")' in html
     assert "/explain`" in html
     assert LABEL not in html and "ai-label" not in html  # el humano sacó la etiqueta de IA
@@ -27,3 +29,11 @@ def test_rodeo_hides_button_for_rejected(client: TestClient) -> None:
     rejected = html.index('if (p.status === "rejected") {')
     assert html.index("explainButton(p)", rejected) > rejected
     assert "} else {\n          info.append(explainButton(p));" in html
+
+
+def test_result_opens_explanation_without_click(client: TestClient) -> None:
+    # T19: el resultado pide la explicación solo (el servidor ya la generaba con el BCS); el botón
+    # queda para reintentar si falla.
+    html = client.get("/index.html").text
+    assert "if (!rejected) loadExplain(p.prediction_id);" in html
+    assert 'id="explain-btn" type="button" hidden>Reintentar</button>' in html
