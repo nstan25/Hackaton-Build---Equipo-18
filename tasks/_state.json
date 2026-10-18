@@ -547,6 +547,14 @@
       "branch": "rediseño-ui",
       "agent": "claude",
       "note": "reusa el worker de T18"
+    },
+    "T20": {
+      "title": "Gráfico de distribución del rodeo",
+      "status": "dispatched",
+      "dispatch_id": "ctx_487ad1fc11f3",
+      "branch": "graficas-rodeo (base rediseño-ui)",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/graficas-rodeo",
+      "agent": "claude"
     }
   }
 }
