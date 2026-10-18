@@ -438,13 +438,16 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t13-review",
-      "terminal": "term_95f8747b-1abc-448a-8427-a2d74dcfdb32",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_241a181095f0",
       "rounds": 1,
       "replaced_task_id": "task_6abf512267d4",
-      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t13-review"
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t13-review",
+      "notes": [
+        "16 hallazgos en eval/review.md (3 altos: R1 confianza no mira la imagen, R2 confianza miente en GS pintadas 4.25, R3 bomba de memoria)"
+      ]
     },
     "T14": {
       "task_id": "task_084f03210fde",
@@ -493,6 +496,18 @@
       "notes": [
         "Railway: servicio bcs, volumen bcs-volume en /data (500MB), deploy a0bc3ac8; verificado health 200, predict/cows/web sin token 401. Pendiente: prueba 422 con token (humano)"
       ]
+    },
+    "T13-fix-1": {
+      "task_id": "(ver Orca)",
+      "title": "Robustez de la API (R3–R6, R16)",
+      "status": "dispatched",
+      "dispatch_id": "ctx_be1e5362aa7d",
+      "agent": "claude"
+    },
+    "T13-R13": {
+      "title": "cow_id Unicode (R13)",
+      "status": "completed",
+      "note": "lo hizo el orquestador (contract.py, archivo caliente) + tests/test_cow_id_unicode.py"
     }
   },
   "backlog": [

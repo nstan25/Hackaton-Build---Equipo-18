@@ -84,6 +84,10 @@ def normalize_cow_id(raw: str | None) -> str:
     """Quita espacios en los extremos, pasa a mayúsculas y valida el formato."""
     if raw is None:
         raise InvalidCowId("cow_id es obligatorio")
+    if not raw.isascii():  # "ß1".upper() == "SS1": sin esto, otro ID pasaría la validación
+        raise InvalidCowId(
+            "cow_id inválido: usá solo letras A-Z sin acentos, números, '.', '_' o '-'"
+        )
     cow_id = raw.strip().upper()
     if not cow_id:
         raise InvalidCowId("cow_id es obligatorio")
