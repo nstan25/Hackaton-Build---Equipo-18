@@ -558,6 +558,14 @@
       "branch": "graficas-rodeo (base rediseño-ui)",
       "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/graficas-rodeo",
       "agent": "claude"
+    },
+    "T21": {
+      "title": "make eval-final (G4)",
+      "status": "dispatched",
+      "dispatch_id": "ctx_5b991ec42854",
+      "branch": "eval-final",
+      "agent": "claude",
+      "note": "el worker no corre sobre test; lo corre el humano"
     }
   }
 }
