@@ -509,14 +509,18 @@
       "title": "cow_id Unicode (R13)",
       "status": "completed",
       "note": "lo hizo el orquestador (contract.py, archivo caliente) + tests/test_cow_id_unicode.py"
+    },
+    "T17": {
+      "title": "Explicación del puntaje con OpenAI",
+      "agent": "claude",
+      "status": "dispatched",
+      "rounds": 2,
+      "dispatch_id": "ctx_6c5afb770bc0",
+      "branch": "agregar-explicacion-texto",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/agregar-explicacion-texto",
+      "notes": [
+        "v1: endpoint+cache+UI+41 tests OK; prueba orquestador 6 fotos val: explicaciones complacientes (3.25 descrita como redondeada); v2: descripción ciega + comparación, criterios de referencia, sin textos de confianza"
+      ]
     }
-  },
-  "backlog": [
-    {
-      "id": "T17",
-      "title": "Explicación del puntaje con VLM chico (imagen + puntaje → por qué)",
-      "when": "después de G4 / cuando se cierre lo definido",
-      "ref": "tasks/G2.md punto 5"
-    }
-  ]
+  }
 }
