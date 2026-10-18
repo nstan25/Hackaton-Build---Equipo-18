@@ -10,7 +10,7 @@ define pending
 	@echo "make $@: pendiente, lo implementa $(1)" >&2; exit 1
 endef
 
-.PHONY: check smoke preprocess data data-sample labels eval pack-data train browser \
+.PHONY: check smoke smoke-model browser-model preprocess data data-sample labels eval pack-data train browser \
 	holdout eval-final deploy fixtures
 
 check:
@@ -55,6 +55,12 @@ pack-data:
 train:
 	@test -n "$(BACKEND)" || { echo "uso: make train [MODEL=<m>] BACKEND=<modal|kaggle|tenki|local> [SMOKE=1] [FOLDS=all] [TASK=<id>]" >&2; exit 2; }
 	$(RUN) python scripts/compute/launch.py --model $(or $(MODEL),stub_uniform) --backend $(BACKEND) $(if $(FOLDS),--folds $(FOLDS)) $(if $(SMOKE),--smoke) $(if $(TASK),--task $(TASK))
+
+smoke-model:
+	BCS_PREDICTOR=model BCS_SCALE=dairy_sdb $(RUN) python scripts/smoke.py
+
+browser-model:
+	$(RUN) python tests/browser/run_browser.py --model
 
 browser:
 	$(RUN) python tests/browser/run_browser.py
