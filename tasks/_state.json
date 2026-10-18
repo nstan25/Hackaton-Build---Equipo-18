@@ -542,11 +542,14 @@
     },
     "T19": {
       "title": "Latencia de la explicación",
-      "status": "dispatched",
+      "status": "completed (rama rediseño-ui)",
       "dispatch_id": "ctx_cb9259c74cd3",
       "branch": "rediseño-ui",
       "agent": "claude",
-      "note": "reusa el worker de T18"
+      "note": "reusa el worker de T18",
+      "notes": [
+        "verificada: check/smoke/smoke-model OK; config D (sol, low, salida breve): 13,1→9,5 s por llamada, US$0,0057; foto→explicación mediana 9,7 s en paralelo; /predict sin cambio (0,50→0,44 s)"
+      ]
     },
     "T20": {
       "title": "Gráfico de distribución del rodeo",
