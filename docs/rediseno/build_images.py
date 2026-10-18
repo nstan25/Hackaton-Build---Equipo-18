@@ -51,7 +51,7 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     logo = Image.open(HERE / "logo.jpeg")
     mark = _transparent_paper(logo.crop(LOGO_MARK_BOX))
-    _save(mark, "logo-mark", [64, 128, 192], jpeg=False)
+    _save(mark, "logo-mark", [64, 128], jpeg=False)
 
     hero = Image.open(HERE / "hero.jpeg").convert("RGB")
     _save(hero.crop(HERO_COW_BOX), "hero-cow", [480, 720, 832], jpeg=True)

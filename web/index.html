@@ -491,7 +491,16 @@
       set(k, v) { try { localStorage.setItem(k, v); } catch { /* sin storage: no se recuerda */ } },
     };
     const $ = (id) => document.getElementById(id);
-    const scrollToEl = (el) => el.scrollIntoView({ block: "start", behavior: reduceMotion.matches ? "auto" : "smooth" });
+    // Sin scroll suave global: solo los links internos del menú y los CTA se desplazan suave.
+    const scrollToEl = (el) => el.scrollIntoView({ block: "start" });
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest('a[href^="#"]');
+      const dest = a && a.hash.length > 1 && document.querySelector(a.hash);
+      if (!dest || reduceMotion.matches || a.classList.contains("skip")) return;
+      e.preventDefault();
+      dest.scrollIntoView({ block: "start", behavior: "smooth" });
+      history.replaceState(null, "", a.hash);
+    });
 
     const idInput = $("cow-id");
     let photo = null;
