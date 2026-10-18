@@ -415,17 +415,19 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t12-integracion",
-      "terminal": "term_04a8116d-d179-43c6-9d38-11fcfd93bcab",
+      "status": "merged, deploy pendiente (OK humano)",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_d4449448c499",
       "rounds": 2,
       "replaced_task_id": "task_001acac2c2eb",
       "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t12-integracion",
       "notes": [
         "Re-despachado tras cuarto reinicio (22:18); causa de los reinicios: open-vm-tools (órdenes del host VMware)",
-        "v1: pipeline G3 OK, review aprobada; software render OK; v2 por EXIF en _to_image y carga doble de modelos en run_browser --model. Hallazgo: detector rechaza ~4-5% de val; MAE punta a punta 0.179 (190 fotos)"
-      ]
+        "v1: pipeline G3 OK, review aprobada; software render OK; v2 por EXIF en _to_image y carga doble de modelos en run_browser --model. Hallazgo: detector rechaza ~4-5% de val; MAE punta a punta 0.179 (190 fotos)",
+        "v2 verificada (EXIF, runner sin modelos); mergeada 4b73647; Makefile smoke-model/browser-model"
+      ],
+      "branch": "Mithrandir7/t12-integracion"
     },
     "T13": {
       "task_id": "task_7186f972d451",
