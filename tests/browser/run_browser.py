@@ -452,8 +452,8 @@ class Run:
             " && document.querySelectorAll('#cows .cow').length",
             "rodeo con vacas",
         )
-        self.check(
-            self.b.js("return location.search") == f"?token={TOKEN}", "link al rodeo con token"
+        self.check(  # R5: el token viaja por cookie/header, nunca en la URL
+            "token=" not in self.b.js("return location.search"), "link al rodeo sin token en la URL"
         )
         self.check(
             self.cards() == ["UY-202", "UY-101"], f"dos vacas, BCS ascendente: {self.cards()}"
