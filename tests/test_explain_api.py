@@ -1,7 +1,6 @@
 """`GET /predictions/{id}/explain` (T17) con un OpenAI falso (`httpx.MockTransport`).
 
-Ningún test llama a la API real de OpenAI. El flujo tiene dos pasos: lectura ciega de la foto
-(sin el BCS) y comparación (solo texto, con el BCS).
+Ningún test llama a la API real de OpenAI. Es una sola llamada ciega: la foto, sin el BCS.
 """
 
 from __future__ import annotations
@@ -28,11 +27,13 @@ from bcs.store.sqlite import SqliteStore
 FIXTURES = Path(__file__).parent / "fixtures"
 TOKEN = "test-token"
 FAKE_KEY = "sk-test-fake-key-not-real"
-TRAITS = [
-    {"region": "isquiones", "observation": "marcados, con el borde a la vista"},
-    {"region": "base de la cola y hueco", "observation": "hueco profundo a cada lado"},
-]
-EXPLANATION = "La foto sugiere una condición más baja: hueco de la cola profundo."
+GOOD = {
+    "traits": [
+        {"region": "isquiones", "observation": "sobresalen con el borde a la vista"},
+        {"region": "base de la cola y hueco", "observation": "hueco profundo a cada lado"},
+    ],
+    "summary": "Se ven los isquiones con el borde marcado y huecos profundos junto a la cola.",
+}
 
 Handler = Callable[[httpx.Request], httpx.Response]
 
@@ -49,26 +50,14 @@ def _responses_body(payload: Any, model: str = "gpt-test") -> dict[str, Any]:
     }
 
 
-def _step(req: httpx.Request) -> str:
-    return json.loads(req.content)["text"]["format"]["name"]
-
-
-def answers(estimate: str = "baja", describe: Any = None, compare: Any = None) -> Handler:
-    """OpenAI falso que contesta cada paso según el nombre del schema pedido."""
-    blind = {"traits": TRAITS, "estimate_reason": "hueco profundo", "photo_estimate": estimate}
-
-    def handler(req: httpx.Request) -> httpx.Response:
-        if _step(req) == "bcs_lectura_ciega":
-            return describe or httpx.Response(200, json=_responses_body(blind))
-        return compare or httpx.Response(200, json=_responses_body({"explanation": EXPLANATION}))
-
-    return handler
+def _ok(_req: httpx.Request) -> httpx.Response:
+    return httpx.Response(200, json=_responses_body(GOOD))
 
 
 class FakeOpenAI:
     def __init__(self) -> None:
         self.calls: list[httpx.Request] = []
-        self.handler: Handler = answers()
+        self.handler: Handler = _ok
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.calls.append(request)
@@ -130,8 +119,6 @@ def test_explain_ok_and_cached(api: TestClient, store: Store, fake: FakeOpenAI) 
     assert set(data) == {
         "prediction_id",
         "bcs",
-        "photo_estimate",
-        "agreement",
         "explanation",
         "traits",
         "model",
@@ -141,93 +128,71 @@ def test_explain_ok_and_cached(api: TestClient, store: Store, fake: FakeOpenAI) 
     }
     assert data["prediction_id"] == pred.prediction_id
     assert data["bcs"] == 3.5
-    assert data["photo_estimate"] == "baja"
-    assert data["agreement"] == "sugiere_mas_baja"
-    assert data["explanation"] == EXPLANATION
-    assert data["traits"] == TRAITS
+    assert data["explanation"] == GOOD["summary"]
+    assert data["traits"] == GOOD["traits"]
     assert data["model"] == "gpt-test"
     assert data["prompt_version"] == explain.PROMPT_VERSION
     assert "IA" in data["disclaimer"] and "OpenAI" in data["disclaimer"]
-    assert [_step(c) for c in fake.calls] == ["bcs_lectura_ciega", "bcs_explicacion"]
+    assert len(fake.calls) == 1  # una sola llamada
 
     again = _get(api, pred)
     assert again.status_code == 200
     assert again.json() == data
-    assert len(fake.calls) == 2  # de la cache: no se vuelve a pagar
+    assert len(fake.calls) == 1  # de la cache: no se vuelve a pagar
 
 
-def test_blind_step_does_not_see_the_score(api: TestClient, store: Store, fake: FakeOpenAI) -> None:
+def test_request_is_blind(api: TestClient, store: Store, fake: FakeOpenAI) -> None:
     pred = _saved(store, status="low_confidence", bcs=4.25)
     assert _get(api, pred).status_code == 200
-    describe, compare = (json.loads(c.content) for c in fake.calls)
-    for c in fake.calls:
-        assert str(c.url) == explain.OPENAI_URL
-        assert c.headers["authorization"] == f"Bearer {FAKE_KEY}"
-    for body in (describe, compare):
-        assert body["model"] == explain.DEFAULT_MODEL
-        assert body["reasoning"] == {"effort": "low"}
-        assert body["text"]["format"]["type"] == "json_schema"
-        assert body["text"]["format"]["strict"] is True
-        user = json.dumps(body["input"][1], ensure_ascii=False)
-        assert pred.cow_id not in user  # el cow_id no viaja a OpenAI
-        assert "confianza" not in user and "low_confidence" not in user  # ni el estado
-
-    # paso 1: la foto, sin el BCS
-    user = describe["input"][1]["content"]
-    assert "4.25" not in json.dumps(user)
-    image = next(p["image_url"] for p in user if p["type"] == "input_image")
+    req = fake.calls[0]
+    assert str(req.url) == explain.OPENAI_URL
+    assert req.headers["authorization"] == f"Bearer {FAKE_KEY}"
+    body = json.loads(req.content)
+    assert body["model"] == explain.DEFAULT_MODEL
+    assert body["reasoning"] == {"effort": "low"}
+    assert body["text"]["format"]["type"] == "json_schema"
+    assert body["text"]["format"]["strict"] is True
+    assert list(body["text"]["format"]["schema"]["properties"]) == ["traits", "summary"]
+    user = body["input"][1]
+    dumped = json.dumps(user, ensure_ascii=False)
+    assert pred.cow_id not in dumped  # el cow_id no viaja a OpenAI
+    assert "4.25" not in dumped  # ni el BCS
+    assert "confianza" not in dumped and "low_confidence" not in dumped  # ni el estado
+    image = next(p["image_url"] for p in user["content"] if p["type"] == "input_image")
     prefix = "data:image/jpeg;base64,"
     thumb = store.thumbnail_path(pred.prediction_id)
     assert thumb is not None
     assert base64.b64decode(image[len(prefix) :]) == thumb.read_bytes()
-    schema = describe["text"]["format"]["schema"]
-    assert list(schema["properties"])[0] == "traits"  # describe antes de estimar
-    assert schema["properties"]["photo_estimate"]["enum"] == list(explain.ESTIMATES)
-
-    # paso 2: solo texto, con el BCS y el acuerdo calculado
-    user = compare["input"][1]["content"]
-    assert all(p["type"] == "input_text" for p in user)
-    text = user[0]["text"]
-    assert "4.25" in text and "más baja" in text and TRAITS[1]["observation"] in text
 
 
-@pytest.mark.parametrize(
-    ("estimate", "bcs", "expected"),
-    [
-        ("baja", 3.25, "coincide"),
-        ("baja", 3.5, "sugiere_mas_baja"),
-        ("media", 3.75, "coincide"),
-        ("media", 3.25, "sugiere_mas_alta"),
-        ("media", 4.0, "sugiere_mas_baja"),
-        ("alta", 4.25, "coincide"),
-        ("alta", 3.75, "sugiere_mas_alta"),
-        ("no_se_puede", 3.5, "no_se_puede"),
-    ],
-)
-def test_agreement_is_computed(estimate: str, bcs: float, expected: str) -> None:
-    assert explain.agreement(estimate, bcs) == expected
-
-
-def test_prompts_reference_criteria_and_forbid_system_talk() -> None:
-    assert "Ferguson" in explain.CRITERIA and "Elanco" in explain.CRITERIA
-    for word in ("hueco", "isquiones", "ilíacos", "sacro", "apófisis", "en V", "en U"):
-        assert word in explain.CRITERIA
-    assert explain.CRITERIA in explain.DESCRIBE_PROMPT
-    assert "No sabés qué puntaje" in explain.DESCRIBE_PROMPT
-    assert "verificar a mano" in explain.COMPARE_PROMPT  # como prohibición
-    assert "No lo suavices ni avales" in explain.COMPARE_PROMPT
+def test_prompt_describes_and_does_not_score() -> None:
+    source = Path(explain.__file__).read_text()
+    assert "Ferguson" in source and "Elanco" in source  # la guía cita la escala de referencia
+    for word in ("hueco", "Isquiones", "Ilíacos", "sacro", "apófisis", "en V", "en U"):
+        assert word in explain.GUIDE
+    assert explain.GUIDE in explain.SYSTEM_PROMPT
+    assert "No des ningún puntaje" in explain.SYSTEM_PROMPT
+    assert "BCS" not in explain.GUIDE  # la guía no asocia signos con puntajes
 
 
 def test_stale_cache_is_regenerated(api: TestClient, store: Store, fake: FakeOpenAI) -> None:
     pred = _saved(store)
-    old = {"prediction_id": pred.prediction_id, "bcs": 3.5, "explanation": "vieja", "traits": []}
+    old = {
+        "prediction_id": pred.prediction_id,
+        "bcs": 3.5,
+        "explanation": "La foto sugiere una condición más baja",
+        "traits": [],
+        "agreement": "sugiere_mas_baja",
+        "prompt_version": "2-ciego",
+    }
     store.save_explanation(pred.prediction_id, old)  # type: ignore[attr-defined]
     data = _get(api, pred).json()
-    assert data["explanation"] == EXPLANATION
-    assert len(fake.calls) == 2
+    assert data["explanation"] == GOOD["summary"]
+    assert "agreement" not in data
+    assert len(fake.calls) == 1
     assert store.get_explanation(pred.prediction_id) == data  # type: ignore[attr-defined]
     assert _get(api, pred).json() == data
-    assert len(fake.calls) == 2
+    assert len(fake.calls) == 1
 
 
 def test_model_from_env(
@@ -235,19 +200,10 @@ def test_model_from_env(
 ) -> None:
     monkeypatch.setenv("OPENAI_MODEL", "gpt-otro")
     monkeypatch.setenv("OPENAI_REASONING_EFFORT", "")
-    pred = _saved(store)
-    assert _get(api, pred).status_code == 200
-    for c in fake.calls:
-        body = json.loads(c.content)
-        assert body["model"] == "gpt-otro"
-        assert "reasoning" not in body
-
-
-def test_unreadable_photo_cant_compare(api: TestClient, store: Store, fake: FakeOpenAI) -> None:
-    fake.handler = answers("no_se_puede")
-    data = _get(api, _saved(store)).json()
-    assert data["photo_estimate"] == "no_se_puede"
-    assert data["agreement"] == "no_se_puede"
+    assert _get(api, _saved(store)).status_code == 200
+    body = json.loads(fake.calls[0].content)
+    assert body["model"] == "gpt-otro"
+    assert "reasoning" not in body
 
 
 def test_without_key_is_503(
@@ -260,63 +216,41 @@ def test_without_key_is_503(
     assert fake.calls == []
 
 
-@pytest.mark.parametrize("step", ["bcs_lectura_ciega", "bcs_explicacion"])
-def test_timeout_is_504(api: TestClient, store: Store, fake: FakeOpenAI, step: str) -> None:
-    ok = answers()
-
+def test_timeout_is_504(api: TestClient, store: Store, fake: FakeOpenAI) -> None:
     def slow(req: httpx.Request) -> httpx.Response:
-        if _step(req) == step:
-            raise httpx.ReadTimeout("timeout", request=req)
-        return ok(req)
+        raise httpx.ReadTimeout("timeout", request=req)
 
     fake.handler = slow
     pred = _saved(store)
     assert _get(api, pred).status_code == 504
     # tras un error no queda nada en la cache: el reintento vuelve a llamar
-    fake.handler = ok
-    n = len(fake.calls)
+    fake.handler = _ok
     assert _get(api, pred).status_code == 200
-    assert len(fake.calls) == n + 2
-
-
-def test_both_steps_share_the_deadline(
-    api: TestClient, store: Store, fake: FakeOpenAI, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    clock = iter([0.0, 0.0, explain.MAX_TIMEOUT_S - 0.5])  # el paso 1 se come casi todo
-    monkeypatch.setattr(explain, "_now", lambda: next(clock))
-    assert _get(api, _saved(store)).status_code == 504
-    assert [_step(c) for c in fake.calls] == ["bcs_lectura_ciega"]
-
-
-_INVALID = [
-    httpx.Response(200, json=_responses_body("esto no es json")),
-    httpx.Response(200, json={"status": "incomplete", "output": []}),
-    httpx.Response(200, json={"output": []}),
-    httpx.Response(200, json=[1, 2]),
-    httpx.Response(200, text="<html>"),
-    httpx.Response(200, json={"output": [{"type": "message", "content": [{"type": "refusal"}]}]}),
-    httpx.Response(500, json={"error": {"message": "boom"}}),
-]
-_BAD_DESCRIBE = [
-    {"traits": TRAITS, "estimate_reason": "x"},
-    {"traits": TRAITS, "estimate_reason": "x", "photo_estimate": "3.25"},
-    {"traits": [], "estimate_reason": "x", "photo_estimate": "baja"},
-    {"traits": ["y"], "estimate_reason": "x", "photo_estimate": "baja"},
-    {"traits": TRAITS, "estimate_reason": "", "photo_estimate": "baja"},
-]
+    assert len(fake.calls) == 2
 
 
 @pytest.mark.parametrize(
-    "handler",
-    [answers(describe=r) for r in _INVALID]
-    + [answers(compare=r) for r in _INVALID]
-    + [answers(describe=httpx.Response(200, json=_responses_body(b))) for b in _BAD_DESCRIBE]
-    + [answers(compare=httpx.Response(200, json=_responses_body({"explanation": ""})))],
+    "response",
+    [
+        httpx.Response(200, json=_responses_body("esto no es json")),
+        httpx.Response(200, json=_responses_body({"summary": "x"})),
+        httpx.Response(200, json=_responses_body({"summary": "x", "traits": []})),
+        httpx.Response(200, json=_responses_body({"summary": "", "traits": GOOD["traits"]})),
+        httpx.Response(200, json=_responses_body({"summary": "x", "traits": ["y"]})),
+        httpx.Response(200, json={"status": "incomplete", "output": []}),
+        httpx.Response(200, json={"output": []}),
+        httpx.Response(200, json=[1, 2]),
+        httpx.Response(200, text="<html>"),
+        httpx.Response(
+            200, json={"output": [{"type": "message", "content": [{"type": "refusal"}]}]}
+        ),
+        httpx.Response(500, json={"error": {"message": "boom"}}),
+    ],
 )
 def test_invalid_response_is_502(
-    api: TestClient, store: Store, fake: FakeOpenAI, handler: Handler
+    api: TestClient, store: Store, fake: FakeOpenAI, response: httpx.Response
 ) -> None:
-    fake.handler = handler
+    fake.handler = lambda _req: response
     r = _get(api, _saved(store))
     assert r.status_code == 502, r.text
 
