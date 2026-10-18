@@ -5,7 +5,7 @@ FROM python:3.12-slim
 COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /usr/local/bin/uv
 
 # BCS_PREDICTOR=model: el pipeline de producción de G3 (T12) sobre la grilla dairy_sdb (G1).
-# Los pesos de CLIP quedan en la imagen (BCS_ARTIFACTS_DIR) y en runtime no se consulta el Hub.
+# En runtime no se consulta el Hub.
 ENV UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
     PYTHONUNBUFFERED=1 \
@@ -32,8 +32,7 @@ RUN uv sync --frozen --no-dev --no-install-project --no-cache \
     && uv pip uninstall --python /app/.venv/bin/python datasets pyarrow polars polars-runtime-32 onnx onnxruntime remotezip openpyxl \
     && find /app/.venv -name '__pycache__' -type d -prune -exec rm -rf {} +
 
-# CLIP ViT-B-32 del filtro de calidad (T08), ~580 MB: se baja una vez, en su propia capa.
-RUN python -c "import open_clip; open_clip.create_model_and_transforms('ViT-B-32', pretrained='laion2b_s34b_b79k', cache_dir='/app/artifacts/T08/clip')"
+# Sin CLIP en producción (18/10): no entraba en la RAM de Railway. Filtro = brillo/nitidez + detector.
 ENV HF_HUB_OFFLINE=1
 
 # Código y recursos. `bcs.paths` resuelve config/, models/ y tests/fixtures/ relativos a /app.

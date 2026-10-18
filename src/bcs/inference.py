@@ -163,6 +163,11 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+# Umbral de confianza del detector (el equipo usa 0.1; 0.15 cumple m4 sin CLIP, ver tasks/G3.md). Sin CLIP, el detector es el único filtro de
+# "es una vaca": un umbral más alto rechaza más negativos y también más fotos reales.
+DETECTOR_CONF = float(os.environ.get("BCS_DET_CONF", "0.15"))
+
+
 class CowLocator:
     """Detector YOLO11n del equipo + recorte del README (`prep_yolo.detect_cow`,
     `prep_crops.expand_bbox`, lado mayor `MAX_SIDE`), como `bcs_pipeline.BCSScorer.predict`."""
@@ -181,7 +186,7 @@ class CowLocator:
                 from ultralytics import YOLO
 
                 self._model = YOLO(str(self.weights))
-            bbox = prep_yolo.detect_cow(self._model, image)
+            bbox = prep_yolo.detect_cow(self._model, image, conf=DETECTOR_CONF)
         if bbox is None:
             return None
         crop = image.crop(prep_crops.expand_bbox([int(v) for v in bbox], *image.size))
@@ -222,9 +227,14 @@ def model_version() -> str:
 
 
 def model_pipeline(scale: Scale | None = None) -> Pipeline:
-    """El pipeline de G3. Los pesos (EfficientNet, YOLO, CLIP) se cargan en el primer uso."""
+    """El pipeline de G3. Los pesos (EfficientNet, YOLO) se cargan en el primer uso.
+
+    Filtro de calidad: `BasicQualityChecker` (sin CLIP, decisión del 18/10 por la RAM de Railway);
+    `BCS_QUALITY=clip` vuelve al `ClipQualityChecker` de T08.
+    """
     from bcs.calibration.regression import CalibratedRegression
     from bcs.models.efficientnet import EfficientNetScorer
+    from bcs.quality.basic import BasicQualityChecker
     from bcs.quality.clip_checker import ClipQualityChecker
 
     scale = scale or load_scale(os.environ.get("BCS_SCALE") or MODEL_SCALE)
@@ -237,7 +247,9 @@ def model_pipeline(scale: Scale | None = None) -> Pipeline:
     effnet = EfficientNetScorer(scale.grid, {"model": {"weights": str(WEIGHTS), "tta": True}})
     return Pipeline(
         scale=scale,
-        quality=ClipQualityChecker(),
+        quality=ClipQualityChecker()
+        if os.environ.get("BCS_QUALITY") == "clip"
+        else BasicQualityChecker(),
         scorer=CalibratedEfficientNet(effnet, cal.dist, model_version()),
         calibrator=cal.calibrator,
         interval=cal.conformal,
