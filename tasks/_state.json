@@ -500,9 +500,10 @@
     "T13-fix-1": {
       "task_id": "(ver Orca)",
       "title": "Robustez de la API (R3–R6, R16)",
-      "status": "dispatched",
+      "status": "completed",
       "dispatch_id": "ctx_be1e5362aa7d",
-      "agent": "claude"
+      "agent": "claude",
+      "note": "R3 RSS 80MP: 1.93→0.60 GB (413); R4 422; R5 token redactado + cookie; R6 guard antes del body; mergeado 0118cba; deploy pendiente"
     },
     "T13-R13": {
       "title": "cow_id Unicode (R13)",
