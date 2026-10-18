@@ -327,7 +327,8 @@ class Run:
         )
         self.check(attrs == ["image/*", "environment"], "botón de cámara con capture=environment")
         self.check(
-            "no reemplaza la evaluación de un técnico" in self.text("footer"), "aviso de apoyo"
+            "no diagnostica enfermedades ni indica tratamientos" in self.text("footer"),
+            "aviso del footer",
         )
         self.check("3.25–4.25" in self.text("footer"), "rango validado 3.25–4.25")
         self.check(  # decisión del humano (T18 vuelta 2): el aviso de fotos de celular se sacó
