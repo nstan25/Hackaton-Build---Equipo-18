@@ -374,12 +374,16 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "dispatched",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t11-calib",
-      "terminal": "term_db58fedd-20b6-437d-a30e-1d12bc0b0911",
+      "status": "completed",
+      "worktree": null,
+      "terminal": null,
       "dispatch_id": "ctx_ebec2d1ea595",
       "rounds": 1,
-      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t11-calib"
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t11-calib",
+      "branch": "Mithrandir7/t11-calib",
+      "notes": [
+        "verificada + review: ECE 0.020, cobertura 0.905 cross-fitted; conformal Mondrian por etiqueta válido; m4 falla solo por accept_rear=null; para T12: bcs=argmax, fórmula de confianza, hash del .pt"
+      ]
     },
     "G3": {
       "task_id": "task_258348408e19",
@@ -391,7 +395,7 @@
       ],
       "gate": true,
       "agent": null,
-      "status": "pending",
+      "status": "ready",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
