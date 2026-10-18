@@ -70,6 +70,14 @@
     .spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.4); border-top-color: #fff;
       border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .explain { margin-top: 12px; }
+    .explain .btn { min-height: 44px; font-size: 1rem; }
+    .explain-body { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+    .explain-body p { margin: 0 0 8px; }
+    .explain-body ul { margin: 0 0 8px; padding-left: 20px; font-size: .92rem; }
+    .explain-body li { margin-bottom: 4px; }
+    .spinner.dark { border-color: rgba(31,95,63,.3); border-top-color: var(--brand); }
+    .explain-title { font-weight: 700; margin: 0 0 6px; }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -144,6 +152,15 @@
             <svg class="dist" id="res-dist" role="img" aria-label="Distribución de probabilidad por BCS"></svg>
           </div>
           <p class="note" id="res-range-note"></p>
+          <div class="explain" id="explain">
+            <button class="btn secondary" id="explain-btn" type="button">Ver qué se observa en la foto</button>
+            <div class="explain-body" id="explain-body" hidden>
+              <p class="explain-title">Qué se observa en la foto</p>
+              <p id="explain-text"></p>
+              <ul id="explain-traits"></ul>
+            </div>
+            <p class="err" id="explain-error" hidden></p>
+          </div>
         </div>
       </div>
       <div class="row">
@@ -357,6 +374,7 @@
       chip.className = "chip " + p.status;
       chip.textContent = STATUS_TEXT[p.status] || p.status;
       $("res-thumb").removeAttribute("src");
+      resetExplain();
       loadThumb($("res-thumb"), p.prediction_id);
 
       const rejected = p.status === "rejected";
@@ -387,6 +405,45 @@
         : "";
       $("result").scrollIntoView({ block: "start" });
     }
+
+    // Qué se observa en la foto (T17): GET /predictions/{id}/explain, descripción de OpenAI sin el puntaje.
+    function resetExplain() {
+      const btn = $("explain-btn");
+      btn.disabled = false;
+      btn.textContent = "Ver qué se observa en la foto";
+      btn.hidden = false;
+      $("explain-body").hidden = true;
+      $("explain-error").hidden = true;
+    }
+    $("explain-btn").addEventListener("click", async () => {
+      const id = $("result").dataset.predictionId;
+      const btn = $("explain-btn");
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner dark"></span> Mirando la foto…';
+      $("explain-error").hidden = true;
+      try {
+        const r = await api(`/predictions/${encodeURIComponent(id)}/explain`);
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "error " + r.status);
+        if ($("result").dataset.predictionId !== id) return;  // ya se evaluó otra foto
+        $("explain-text").textContent = data.explanation;
+        const ul = $("explain-traits");
+        ul.replaceChildren();
+        for (const t of data.traits || []) {
+          const li = document.createElement("li");
+          li.appendChild(document.createElement("strong")).textContent = t.region + ": ";
+          li.append(t.observation);
+          ul.appendChild(li);
+        }
+        $("explain-body").hidden = false;
+        btn.hidden = true;
+      } catch (err) {
+        $("explain-error").textContent = err instanceof TypeError ? "Sin conexión con el servidor. Probá de nuevo." : err.message;
+        $("explain-error").hidden = false;
+        btn.disabled = false;
+        btn.textContent = "Ver qué se observa en la foto";
+      }
+    });
 
     function resetPhoto() {
       photo = null;
