@@ -405,7 +405,7 @@
       "resolution": "ver tasks/G3.md (4 puntos aprobados)"
     },
     "T12": {
-      "task_id": "task_001acac2c2eb",
+      "task_id": "task_59dc04e23ed0",
       "title": "Integración + ONNX + deploy",
       "deps": [
         "G3",
@@ -415,14 +415,16 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
-      "worktree": null,
-      "terminal": null,
-      "dispatch_id": null,
-      "rounds": 0
+      "status": "dispatched",
+      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t12-integracion",
+      "terminal": "term_1059e1e7-18b9-462e-82ee-1cb5a6d1653f",
+      "dispatch_id": "ctx_16d9e2dfaaad",
+      "rounds": 1,
+      "replaced_task_id": "task_001acac2c2eb",
+      "worktree_id": "f6147772-3584-432c-bfaa-db964f6b7799::/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/t12-integracion"
     },
     "T13": {
-      "task_id": "task_6abf512267d4",
+      "task_id": "task_7186f972d451",
       "title": "Review adversarial",
       "deps": [
         "T12"
@@ -433,10 +435,11 @@
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "replaced_task_id": "task_6abf512267d4"
     },
     "T14": {
-      "task_id": "task_287e66b2a7fb",
+      "task_id": "task_084f03210fde",
       "title": "README + guion de demo",
       "deps": [
         "T13"
@@ -447,10 +450,11 @@
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "replaced_task_id": "task_287e66b2a7fb"
     },
     "G4": {
-      "task_id": "task_021ed9c12709",
+      "task_id": "task_1c8abf2263b0",
       "title": "GATE humano: make eval-final y deploy final",
       "deps": [
         "T14"
@@ -461,7 +465,8 @@
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0
+      "rounds": 0,
+      "replaced_task_id": "task_021ed9c12709"
     },
     "T01-deploy": {
       "task_id": "task_fe3cc35eac5f",
