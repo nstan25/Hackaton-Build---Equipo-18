@@ -6,8 +6,9 @@ estados, este servidor lo envuelve según la foto de fixture que llega (por sha2
 - `side_cow.jpg` → `low_confidence` (distribución ancha armada a mano, validada contra el contrato);
 - cualquier otra → el dummy de T00 sin cambios.
 
-Uso: `python tests/browser/dummy_server.py <puerto>` con `BCS_APP_TOKEN`, `BCS_DB_PATH` y
+Uso: `python tests/browser/dummy_server.py <puerto> [--model]` con `BCS_APP_TOKEN`, `BCS_DB_PATH` y
 `BCS_MEDIA_DIR` en el entorno. Agrega `/__harness` (sin token, solo acá): un iframe de 390 px.
+Con `--model` (y `BCS_PREDICTOR=model`) no envuelve nada: es la app con el modelo de producción.
 """
 
 from __future__ import annotations
@@ -79,8 +80,9 @@ HARNESS = f"""<!doctype html><meta charset="utf-8"><title>harness</title>
 <iframe id="app" width="{VIEWPORT[0]}" height="{VIEWPORT[1]}"></iframe>"""
 
 
-def make_app():
-    inference.predict = browser_predict
+def make_app(model: bool = False):
+    if not model:
+        inference.predict = browser_predict
     app = create_app()
     app.add_api_route("/__harness", lambda: HTMLResponse(HARNESS), include_in_schema=False)
     # Delante del comodín de `web/` para que no lo tape.
@@ -89,4 +91,5 @@ def make_app():
 
 
 if __name__ == "__main__":
-    uvicorn.run(make_app(), host="127.0.0.1", port=int(sys.argv[1]), log_level="warning")
+    app = make_app(model="--model" in sys.argv[2:])
+    uvicorn.run(app, host="127.0.0.1", port=int(sys.argv[1]), log_level="warning")

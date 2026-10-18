@@ -155,6 +155,7 @@
   <footer>
     <p><strong>Estimación de apoyo; no reemplaza la evaluación de un técnico.</strong></p>
     <p>Rango validado: BCS 3.25–4.25 (escala 1–5, vacas lecheras). Fuera de ese rango el valor es orientativo.</p>
+    <p>Sin evaluación en fotos de celular: el modelo se validó con fotos de cámara fija desde arriba.</p>
   </footer>
 
   <script>
@@ -341,9 +342,12 @@
       const low = $("res-low");
       low.hidden = p.status !== "low_confidence";
       if (!low.hidden) {
+        // G3: un BCS en una punta del rango validado sale low_confidence.
         low.textContent = p.bcs != null && p.bcs <= VALID_MIN + 1e-9
           ? "Confianza baja: posible condición baja, verificar a mano."
-          : "Confianza baja: el resultado es dudoso, verificalo a mano o sacá otra foto.";
+          : p.bcs != null && p.bcs >= VALID_MAX - 1e-9
+            ? "Confianza baja: posible condición alta, verificar a mano."
+            : "Confianza baja: el resultado es dudoso, verificalo a mano o sacá otra foto.";
       }
       $("retry").textContent = rejected ? "Sacar otra foto" : "Otra foto";
       if (rejected) { $("result").scrollIntoView({ block: "start" }); return; }
