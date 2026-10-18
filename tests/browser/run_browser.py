@@ -330,7 +330,9 @@ class Run:
             "no diagnostica enfermedades ni indica tratamientos" in self.text("footer"),
             "aviso del footer",
         )
-        self.check("3.25–4.25" in self.text("body"), "rango validado 3.25–4.25 visible en la página")
+        self.check(
+            "3.25–4.25" in self.text("body"), "rango validado 3.25–4.25 visible en la página"
+        )
         self.check(  # decisión del humano (T18 vuelta 2): el aviso de fotos de celular se sacó
             "fotos de celular" not in self.text("body"),
             "sin el aviso de fotos de celular",
