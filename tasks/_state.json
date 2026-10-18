@@ -513,14 +513,23 @@
     "T17": {
       "title": "Explicación del puntaje con OpenAI",
       "agent": "claude",
-      "status": "dispatched",
+      "status": "v2 entregada, esperando decisión del humano (worker retenido)",
       "rounds": 2,
       "dispatch_id": "ctx_6c5afb770bc0",
       "branch": "agregar-explicacion-texto",
       "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/agregar-explicacion-texto",
       "notes": [
-        "v1: endpoint+cache+UI+41 tests OK; prueba orquestador 6 fotos val: explicaciones complacientes (3.25 descrita como redondeada); v2: descripción ciega + comparación, criterios de referencia, sin textos de confianza"
+        "v1: endpoint+cache+UI+41 tests OK; prueba orquestador 6 fotos val: explicaciones complacientes (3.25 descrita como redondeada); v2: descripción ciega + comparación, criterios de referencia, sin textos de confianza",
+        "v2 verificada por el orquestador (mismas 6 fotos): ya no avala; descripciones distinguen 3.25 de 4.25; acuerdo con BCS real 3/6 (YM oblicua 3.75 → 'baja'); ~14–18 s, ~US$0,01"
       ]
+    },
+    "T18": {
+      "title": "Rediseño integral de la UI (ARGOS)",
+      "status": "dispatched",
+      "dispatch_id": "ctx_ce8d0a1e8de1",
+      "branch": "rediseño-ui",
+      "agent": "claude",
+      "note": "humano: deployar la rama a Railway para que el equipo la vea antes de mergear"
     }
   }
 }
