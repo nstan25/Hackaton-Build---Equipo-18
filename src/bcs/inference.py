@@ -163,8 +163,9 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-# Umbral de confianza del detector (el equipo usa 0.1; 0.15 cumple m4 sin CLIP, ver tasks/G3.md). Sin CLIP, el detector es el único filtro de
-# "es una vaca": un umbral más alto rechaza más negativos y también más fotos reales.
+# Umbral de confianza del detector: el equipo usa 0.1; 0.15 cumple m4 sin CLIP (tasks/G3.md).
+# Sin CLIP, el detector es el único filtro de "es una vaca": más alto rechaza más negativos
+# y también más fotos reales.
 DETECTOR_CONF = float(os.environ.get("BCS_DET_CONF", "0.15"))
 
 
