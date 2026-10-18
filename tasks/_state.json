@@ -457,11 +457,11 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "pending",
+      "status": "dispatched",
       "worktree": null,
       "terminal": null,
       "dispatch_id": null,
-      "rounds": 0,
+      "rounds": 1,
       "replaced_task_id": "task_287e66b2a7fb",
       "note": "sin guion de demo (18/10)"
     },
