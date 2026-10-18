@@ -22,8 +22,12 @@ from bcs.contract import Prediction
 
 OPENAI_URL = "https://api.openai.com/v1/responses"
 # Default: modelo multimodal vigente de la familia GPT-6 (docs de OpenAI, 18/10/2026). Se pisa con
-# OPENAI_MODEL; p. ej. `gpt-6-luna` es ~20 veces más barato.
+# OPENAI_MODEL; p. ej. `gpt-6-luna` es ~20 veces más barato. Con razonamiento "low" responde en
+# ~12 s en vez de ~20 s (medido con fotos de val), lejos del timeout de 30 s.
 DEFAULT_MODEL = "gpt-6.1-sol"
+DEFAULT_REASONING_EFFORT = (
+    "low"  # OPENAI_REASONING_EFFORT; vacío = no se manda (modelos sin razonamiento)
+)
 MAX_TIMEOUT_S = 30.0
 MAX_OUTPUT_TOKENS = 4000  # incluye el razonamiento interno del modelo, si lo tiene
 MAX_TRAITS = 12
@@ -101,6 +105,10 @@ def model_name() -> str:
     return os.environ.get("OPENAI_MODEL", "").strip() or DEFAULT_MODEL
 
 
+def reasoning_effort() -> str:
+    return os.environ.get("OPENAI_REASONING_EFFORT", DEFAULT_REASONING_EFFORT).strip()
+
+
 def timeout_s() -> float:
     try:
         value = float(os.environ.get("OPENAI_TIMEOUT", MAX_TIMEOUT_S))
@@ -130,7 +138,7 @@ def user_prompt(pred: Prediction) -> str:
 
 def build_request(pred: Prediction, thumbnail: bytes, model: str) -> dict[str, Any]:
     image_url = "data:image/jpeg;base64," + base64.b64encode(thumbnail).decode("ascii")
-    return {
+    body: dict[str, Any] = {
         "model": model,
         "input": [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -153,6 +161,9 @@ def build_request(pred: Prediction, thumbnail: bytes, model: str) -> dict[str, A
         "max_output_tokens": MAX_OUTPUT_TOKENS,
         "store": False,
     }
+    if effort := reasoning_effort():
+        body["reasoning"] = {"effort": effort}
+    return body
 
 
 def _output_text(body: dict[str, Any]) -> str:

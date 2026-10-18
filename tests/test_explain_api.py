@@ -84,6 +84,7 @@ def api(store: Store, fake: FakeOpenAI, monkeypatch: pytest.MonkeyPatch) -> Iter
     monkeypatch.setenv("BCS_APP_TOKEN", TOKEN)
     monkeypatch.setenv("OPENAI_API_KEY", FAKE_KEY)
     monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    monkeypatch.delenv("OPENAI_REASONING_EFFORT", raising=False)
     app = create_app(store=store)
 
     def client() -> Iterator[httpx.Client]:
@@ -137,6 +138,7 @@ def test_request_to_openai(api: TestClient, store: Store, fake: FakeOpenAI) -> N
     assert req.headers["authorization"] == f"Bearer {FAKE_KEY}"
     body = json.loads(req.content)
     assert body["model"] == explain.DEFAULT_MODEL
+    assert body["reasoning"] == {"effort": "low"}
     assert body["text"]["format"]["type"] == "json_schema"
     assert body["text"]["format"]["strict"] is True
     user = body["input"][1]["content"]
@@ -155,9 +157,12 @@ def test_model_from_env(
     api: TestClient, store: Store, fake: FakeOpenAI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("OPENAI_MODEL", "gpt-otro")
+    monkeypatch.setenv("OPENAI_REASONING_EFFORT", "")
     pred = _saved(store)
     assert api.get(f"/predictions/{pred.prediction_id}/explain").status_code == 200
-    assert json.loads(fake.calls[0].content)["model"] == "gpt-otro"
+    body = json.loads(fake.calls[0].content)
+    assert body["model"] == "gpt-otro"
+    assert "reasoning" not in body
 
 
 def test_without_key_is_503(
