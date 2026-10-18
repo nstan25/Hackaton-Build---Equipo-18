@@ -6,8 +6,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /usr/local/bin/uv
 
 # BCS_PREDICTOR=model: el pipeline de producción de G3 (T12) sobre la grilla dairy_sdb (G1).
 # Los pesos de CLIP quedan en la imagen (BCS_ARTIFACTS_DIR) y en runtime no se consulta el Hub.
-ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy \
+ENV UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
     PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH" \
@@ -28,7 +27,10 @@ RUN apt-get update \
 
 # Capa de dependencias (cambia poco): torch CPU desde el lock.
 COPY pyproject.toml uv.lock .python-version README.md ./
-RUN uv sync --frozen --no-dev --no-install-project --no-cache
+RUN uv sync --frozen --no-dev --no-install-project --no-cache \
+    # Solo entrenamiento/datos: la app no los importa (~400 MB menos).
+    && uv pip uninstall --python /app/.venv/bin/python datasets pyarrow polars polars-runtime-32 onnx onnxruntime remotezip openpyxl \
+    && find /app/.venv -name '__pycache__' -type d -prune -exec rm -rf {} +
 
 # CLIP ViT-B-32 del filtro de calidad (T08), ~580 MB: se baja una vez, en su propia capa.
 RUN python -c "import open_clip; open_clip.create_model_and_transforms('ViT-B-32', pretrained='laion2b_s34b_b79k', cache_dir='/app/artifacts/T08/clip')"
@@ -42,7 +44,7 @@ COPY src/ src/
 COPY config/ config/
 COPY web/ web/
 COPY tests/fixtures/prediction_example.json tests/fixtures/prediction_example.json
-RUN uv sync --frozen --no-dev --no-cache
+RUN uv sync --frozen --no-dev --no-cache --no-install-package datasets --no-install-package pyarrow --no-install-package polars --no-install-package polars-runtime-32 --no-install-package onnx --no-install-package onnxruntime --no-install-package remotezip --no-install-package openpyxl
 
 # /data es el volumen de Railway (base SQLite + miniaturas). BCS_APP_TOKEN va en sus variables.
 # Al importar la app arranca la precarga de los modelos en un thread (`inference.start_warmup`).
