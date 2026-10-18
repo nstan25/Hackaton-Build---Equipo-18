@@ -39,6 +39,7 @@ Sos un asistente que ayuda a productores de leche a entender un puntaje de condi
 (BCS) que ya calculó otro sistema a partir de una foto de la vaca tomada desde atrás y arriba.
 
 Reglas:
+- Si hay varias vacas, hablá solo de la vaca central vista desde atrás (la evaluada).
 - Describí solo lo que se ve en la foto. No inventes detalles que no se distinguen.
 - Relacioná lo que ves con el puntaje dado: qué rasgos son coherentes con ese BCS y cuáles, si \
 alguno, lo contradicen.
