@@ -478,7 +478,8 @@
       "terminal": null,
       "dispatch_id": null,
       "rounds": 0,
-      "replaced_task_id": "task_021ed9c12709"
+      "replaced_task_id": "task_021ed9c12709",
+      "eval_final": "ver tasks/G4.md (test MAE 0.164 recortes / 0.169 punta a punta)"
     },
     "T01-deploy": {
       "task_id": "task_fe3cc35eac5f",
