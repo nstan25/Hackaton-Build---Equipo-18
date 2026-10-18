@@ -415,7 +415,7 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "merged, deploy pendiente (OK humano)",
+      "status": "completed",
       "worktree": null,
       "terminal": null,
       "dispatch_id": "ctx_d4449448c499",
@@ -425,7 +425,8 @@
       "notes": [
         "Re-despachado tras cuarto reinicio (22:18); causa de los reinicios: open-vm-tools (órdenes del host VMware)",
         "v1: pipeline G3 OK, review aprobada; software render OK; v2 por EXIF en _to_image y carga doble de modelos en run_browser --model. Hallazgo: detector rechaza ~4-5% de val; MAE punta a punta 0.179 (190 fotos)",
-        "v2 verificada (EXIF, runner sin modelos); mergeada 4b73647; Makefile smoke-model/browser-model"
+        "v2 verificada (EXIF, runner sin modelos); mergeada 4b73647; Makefile smoke-model/browser-model",
+        "Deploy en Railway OK (sin CLIP por RAM; detector 0.15): health con model_version efficientnet_b0-5a5b28d6+cal-b69ad635+det-babe59e5; predict real ~1.0 s (primera 7 s); RAM local 500 MB"
       ],
       "branch": "Mithrandir7/t12-integracion"
     },
