@@ -102,6 +102,7 @@
   <footer>
     <p><strong>Estimación de apoyo; no reemplaza la evaluación de un técnico.</strong></p>
     <p>Rango validado: BCS 3.25–4.25. Fuera de ese rango el valor es orientativo.</p>
+    <p>BCS 3.25 o 4.25: posible condición baja/alta, verificar a mano. Sin evaluación en fotos de celular.</p>
   </footer>
 
   <script>
@@ -150,14 +151,16 @@
       renderList();
     }
 
-    // Mismas reglas que `low_confidence` (SPEC §2.2) sobre el último BCS válido: conf. < 0.5 o
-    // intervalo de más de 4 pasos (paso 0.25 de la escala 1–5 validada en G0).
+    // Mismas reglas que `low_confidence` (SPEC §2.2) sobre el último BCS válido: conf. < 0.5,
+    // intervalo de más de 4 pasos (paso 0.25 de la escala 1–5 validada en G0) o, desde G3, BCS en
+    // un extremo del rango validado (posible condición baja/alta).
     const STEP = 0.25;
     function isLowConfidence(c) {
       if (c.last_status === "low_confidence") return true;
       if (c.bcs == null) return false;
       return (c.confidence != null && c.confidence < 0.5)
-        || (c.interval != null && Math.round((c.interval[1] - c.interval[0]) / STEP) > 4);
+        || (c.interval != null && Math.round((c.interval[1] - c.interval[0]) / STEP) > 4)
+        || Math.abs(c.bcs - VALID_MIN) < STEP / 2 || Math.abs(c.bcs - VALID_MAX) < STEP / 2;
     }
 
     function renderList() {

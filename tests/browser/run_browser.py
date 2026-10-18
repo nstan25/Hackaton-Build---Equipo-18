@@ -7,6 +7,11 @@ los media queries y el layout ven 390 px. Las capturas quedan en `runs/T07/`.
 Recorrido: dos vacas con IDs distintos (una foto ok, una low_confidence, el perro rechazado y otra
 ok), el rodeo con las dos y su miniatura, filtros y búsqueda, y el historial de cada una con solo
 sus fotos.
+
+`--model` (T12): la misma recorrida contra el modelo de producción (`BCS_PREDICTOR=model`). Las
+fotos salen en runtime de val de `$BCS_DATA_DIR` (nunca test, nunca se commitean), con semilla fija:
+una de clase 3.75 que da `ok` y una de clase 3.25 que da `low_confidence` en el extremo (G3). Lo que
+muestra la UI se compara con la `Prediction` que guardó la API. Capturas en `runs/T12/browser/`.
 """
 
 from __future__ import annotations
@@ -24,12 +29,24 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures"
 TOKEN = "browser-token"
 ELEMENT = "element-6066-11e4-a52e-4f735466cecf"
 WIDTH, HEIGHT = 390, 844
+SEED = 42
+PICK_TRIES = 25
+# Render por software: con aceleración, Firefox headless cuelga la VM de VMware (vmwgfx/ttm).
+SOFTWARE_ENV = {"MOZ_WEBRENDER": "0", "MOZ_ACCELERATED": "0", "LIBGL_ALWAYS_SOFTWARE": "1"}
+SOFTWARE_PREFS = {
+    "layers.acceleration.disabled": True,
+    "gfx.webrender.software": True,
+    "gfx.webrender.all": False,
+    "webgl.disabled": True,
+    "media.hardware-video-decoding.enabled": False,
+}
 
 
 def _free_port() -> int:
@@ -61,7 +78,13 @@ class Browser:
 
     def __init__(self, base: str) -> None:
         self.http = httpx.Client(base_url=base, timeout=60)
-        caps = {"moz:firefoxOptions": {"args": ["-headless", "--width=600", "--height=1000"]}}
+        caps = {
+            "moz:firefoxOptions": {
+                "args": ["-headless", "--width=600", "--height=1000"],
+                "prefs": SOFTWARE_PREFS,
+                "env": SOFTWARE_ENV,
+            }
+        }
         self.sid = self._call("POST", "/session", {"capabilities": {"alwaysMatch": caps}})[
             "sessionId"
         ]
@@ -123,11 +146,54 @@ class Browser:
             time.sleep(0.1)
 
 
+DUMMY_PHOTOS = {
+    "central": FIXTURES / "rear_cow.jpg",
+    "extreme": FIXTURES / "side_cow.jpg",
+    "dog": FIXTURES / "dog.jpg",
+}
+
+
+def pick_val_photos(base: str) -> dict[str, Path]:
+    """Dos fotos de val (`splits.csv`) para `--model`, por clase real de `labels.csv` y en un orden
+    barajado con semilla fija: la primera de clase 3.75 que da `ok` y la primera de clase 3.25 que
+    da `low_confidence` con BCS 3.25 (G3). Se verifican con `/__probe` del servidor: este proceso
+    no carga ningún modelo (ni importa `bcs.inference`)."""
+    import pandas as pd
+
+    from bcs.paths import data_dir
+
+    d = data_dir()
+    labels = pd.read_csv(d / "labels.csv", usecols=["image_id", "path", "bcs"])
+    splits = pd.read_csv(d / "splits.csv")
+    val = labels.merge(splits.loc[splits["split"] == "val"], on="image_id")
+
+    def first(cls: float, want: Any) -> Path:
+        rows = val.loc[np.isclose(val["bcs"], cls)].sample(frac=1.0, random_state=SEED)
+        for rel in rows["path"].head(PICK_TRIES):
+            path = d / rel
+            r = httpx.post(f"{base}/__probe", content=path.read_bytes(), timeout=180)
+            r.raise_for_status()
+            if want(r.json()):
+                return path
+            print(f"  descarto {path.name} (clase {cls}): {r.json()}")
+        raise RuntimeError(f"ninguna foto de val de clase {cls} cumple en {PICK_TRIES} intentos")
+
+    return {
+        "central": first(3.75, lambda p: p["status"] == "ok" and p["bcs"] > 3.25 + 1e-9),
+        "extreme": first(3.25, lambda p: p["status"] == "low_confidence" and p["bcs"] == 3.25),
+        "dog": FIXTURES / "dog.jpg",
+    }
+
+
 class Run:
-    def __init__(self, browser: Browser, base: str, out: Path) -> None:
+    def __init__(
+        self, browser: Browser, base: str, out: Path, photos: dict[str, Path], model: bool = False
+    ) -> None:
         self.b = browser
         self.base = base
         self.out = out
+        self.photos = photos
+        self.model = model
         self.fails: list[str] = []
         self.shots: list[str] = []
 
@@ -188,12 +254,38 @@ class Run:
 
     # --- evaluar -----------------------------------------------------------------------------
 
-    def evaluate(self, cow_typed: str, fixture: str, shot: str | None = None) -> dict[str, str]:
+    def api(self, path: str) -> dict[str, Any]:
+        return httpx.get(f"{self.base}{path}", headers={"X-App-Token": TOKEN}, timeout=30).json()
+
+    def shows_prediction(self, pid: str, what: str) -> dict[str, Any]:
+        """`--model`: BCS, confianza (texto y barra) e intervalo en pantalla = la `Prediction`."""
+        p = self.api(f"/predictions/{pid}")
+        conf = int(np.floor(p["confidence"] * 100 + 0.5))  # Math.round de JS
+        self.check(self.text("#res-bcs") == f"{p['bcs']:.2f}", f"{what}: BCS {p['bcs']:.2f}")
+        self.check(self.text("#res-conf") == f"{conf}%", f"{what}: confianza {conf}%")
+        lo, hi = p["interval"]
+        self.check(
+            self.text("#res-interval") == f"{lo:.2f} – {hi:.2f}", f"{what}: intervalo {lo}–{hi}"
+        )
+        width = self.b.js(
+            "return parseFloat(document.getElementById('res-conf-bar').firstElementChild"
+            ".style.width)"
+        )
+        self.check(abs(width - p["confidence"] * 100) < 0.1, f"{what}: barra de confianza")
+        self.check(
+            self.b.js("return document.querySelectorAll('#res-dist rect').length")
+            >= len(p["distribution"]),
+            f"{what}: distribución dibujada",
+        )
+        return p
+
+    def evaluate(self, cow_typed: str, photo: str, shot: str | None = None) -> dict[str, str]:
+        fixture = self.photos[photo].name
         self.b.type("#cow-id", cow_typed)
         self.b.cmd(
             "POST",
             f"/element/{self.b.find('#photo-camera')[ELEMENT]}/value",
-            {"text": str(FIXTURES / fixture)},
+            {"text": str(self.photos[photo])},
         )
         self.b.wait("return !document.getElementById('confirm').hidden", "confirmación")
         cow = cow_typed.strip().upper()
@@ -205,7 +297,7 @@ class Run:
             "const r = document.getElementById('result');"
             "return !r.hidden && r.dataset.predictionId",
             f"resultado de {fixture}",
-            timeout=30,
+            timeout=120 if self.model else 30,  # el modelo puede estar terminando de cargar
         )
         res = self.b.js(
             "const r = document.getElementById('result');"
@@ -239,6 +331,10 @@ class Run:
         )
         self.check("3.25–4.25" in self.text("footer"), "rango validado 3.25–4.25")
         self.check(
+            "Sin evaluación en fotos de celular" in self.text("footer"),
+            "aviso: sin fotos de celular",
+        )
+        self.check(
             TOKEN not in httpx.get(f"{self.base}/index.html?token={TOKEN}").text
             and TOKEN not in httpx.get(f"{self.base}/rodeo.html?token={TOKEN}").text,
             "el token no está escrito en el HTML",
@@ -263,30 +359,38 @@ class Run:
         self.b.click("#change")
 
         ids: dict[str, list[str]] = {"UY-101": [], "UY-202": []}
-        r = self.evaluate(" uy-101 ", "rear_cow.jpg", shot="02")
+        central = self.photos["central"].name
+        r = self.evaluate(" uy-101 ", "central", shot="02")
         ids["UY-101"].append(r["id"])
-        self.check(r["status"] == "ok", "rear_cow → ok")
-        self.check(self.text("#res-bcs") == "3.50", "BCS grande 3.50")
-        self.check(self.text("#res-conf") == "92%", "confianza 92%")
-        self.check(self.text("#res-interval") == "3.25 – 3.75", "intervalo 3.25 – 3.75")
-        self.check(
-            self.b.js("return document.querySelectorAll('#res-dist rect').length") >= 17,
-            "distribución dibujada",
-        )
-        self.check(
-            self.b.js(
-                "return parseFloat(document.getElementById('res-conf-bar').firstElementChild"
-                ".style.width)"
+        self.check(r["status"] == "ok", f"{central} → ok")
+        if self.model:
+            self.central_bcs = self.shows_prediction(r["id"], central)["bcs"]
+        else:
+            self.central_bcs = 3.5
+            self.check(self.text("#res-bcs") == "3.50", "BCS grande 3.50")
+            self.check(self.text("#res-conf") == "92%", "confianza 92%")
+            self.check(self.text("#res-interval") == "3.25 – 3.75", "intervalo 3.25 – 3.75")
+            self.check(
+                self.b.js("return document.querySelectorAll('#res-dist rect').length") >= 17,
+                "distribución dibujada",
             )
-            == 92,
-            "barra de confianza al 92%",
-        )
+            self.check(
+                self.b.js(
+                    "return parseFloat(document.getElementById('res-conf-bar').firstElementChild"
+                    ".style.width)"
+                )
+                == 92,
+                "barra de confianza al 92%",
+            )
         self.no_hscroll("resultado")
         self.next_cow()
 
-        r = self.evaluate("UY-202", "side_cow.jpg")
+        extreme = self.photos["extreme"].name
+        r = self.evaluate("UY-202", "extreme")
         ids["UY-202"].append(r["id"])
-        self.check(r["status"] == "low_confidence", "side_cow → low_confidence")
+        self.check(r["status"] == "low_confidence", f"{extreme} → low_confidence")
+        if self.model:
+            self.shows_prediction(r["id"], extreme)
         self.check(self.visible("#res-low"), "aviso de confianza baja visible")
         self.check(
             "posible condición baja" in self.text("#res-low"), "low_confidence en 3.25 → verificar"
@@ -294,7 +398,7 @@ class Run:
         self.shot("03-confianza-baja")
         self.next_cow()
 
-        r = self.evaluate("UY-202", "dog.jpg")
+        r = self.evaluate("UY-202", "dog")
         ids["UY-202"].append(r["id"])
         self.check(r["status"] == "rejected", "fixture del perro → rejected")
         self.check(
@@ -308,7 +412,7 @@ class Run:
         self.shot("04-rechazo")
         self.next_cow()
 
-        r = self.evaluate("uy-101", "rear_cow.jpg")
+        r = self.evaluate("uy-101", "central")
         ids["UY-101"].append(r["id"])
 
         self.open("index.html")
@@ -371,8 +475,8 @@ class Run:
         self.toggle("#f-low")
         self.toggle("#f-bcs")
         self.check(self.cards() == ["UY-202"], "filtro BCS ≤ 3.25")
-        self.b.type("#f-bcs-max", "3.5")
-        self.check(self.cards() == ["UY-202", "UY-101"], "filtro BCS ≤ 3.5")
+        self.b.type("#f-bcs-max", f"{self.central_bcs:g}")
+        self.check(self.cards() == ["UY-202", "UY-101"], f"filtro BCS ≤ {self.central_bcs:g}")
         self.toggle("#f-bcs")
 
         for cow, n_valid, shot in (
@@ -415,13 +519,19 @@ class Run:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="make browser: la UI a 390 px contra la API dummy")
-    parser.add_argument("--out", type=Path, default=ROOT / "runs" / "T07")
+    parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument(
+        "--model", action="store_true", help="contra el modelo de producción, con fotos de val"
+    )
     args = parser.parse_args()
+    args.out = args.out or ROOT / "runs" / ("T12/browser" if args.model else "T07")
     gecko = shutil.which("geckodriver")
     if gecko is None:
         print("FAIL falta geckodriver (y Firefox) en el PATH", file=sys.stderr)
         return 1
     args.out.mkdir(parents=True, exist_ok=True)
+    model_env = {"BCS_PREDICTOR": "model", "BCS_SCALE": "dairy_sdb"} if args.model else {}
+    photos = DUMMY_PHOTOS
 
     with tempfile.TemporaryDirectory(prefix="bcs-browser-") as tmp:
         api_port, wd_port = _free_port(), _free_port()
@@ -430,11 +540,16 @@ def main() -> int:
             "BCS_APP_TOKEN": TOKEN,
             "BCS_DB_PATH": f"{tmp}/bcs.sqlite",
             "BCS_MEDIA_DIR": f"{tmp}/media",
+            **model_env,
         }
         server = Path(__file__).with_name("dummy_server.py")
-        api = subprocess.Popen([sys.executable, str(server), str(api_port)], env=env)
+        api = subprocess.Popen(
+            [sys.executable, str(server), str(api_port), *(["--model"] if args.model else [])],
+            env=env,
+        )
         wd = subprocess.Popen(
             [gecko, "--port", str(wd_port), "--log", "error"],
+            env={**os.environ, **SOFTWARE_ENV},
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -444,10 +559,13 @@ def main() -> int:
         run: Run | None = None
         try:
             _wait_http(f"{base}/health", api, "la API dummy")
+            if args.model:
+                photos = pick_val_photos(base)
+                print("fotos de val:", *(str(p) for p in photos.values()), sep="\n  ")
             _wait_http(f"http://127.0.0.1:{wd_port}/status", wd, "geckodriver")
             browser = Browser(f"http://127.0.0.1:{wd_port}")
             browser.go(f"{base}/__harness")
-            run = Run(browser, base, args.out)
+            run = Run(browser, base, args.out, photos, model=args.model)
             try:
                 run.flow()
             except (AssertionError, WebDriverError) as e:
