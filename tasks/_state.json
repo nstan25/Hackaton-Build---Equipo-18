@@ -513,27 +513,29 @@
     "T17": {
       "title": "Explicación del puntaje con OpenAI",
       "agent": "claude",
-      "status": "dispatched",
+      "status": "completed (rama agregar-explicacion-texto, sin mergear a main)",
       "rounds": 3,
       "dispatch_id": "ctx_b24578dcb83b",
       "branch": "agregar-explicacion-texto",
-      "worktree": "/home/hackaton/orca/workspaces/Hackaton-Build---Equipo-18/agregar-explicacion-texto",
+      "worktree": null,
       "notes": [
         "v1: endpoint+cache+UI+41 tests OK; prueba orquestador 6 fotos val: explicaciones complacientes (3.25 descrita como redondeada); v2: descripción ciega + comparación, criterios de referencia, sin textos de confianza",
         "v2 verificada por el orquestador (mismas 6 fotos): ya no avala; descripciones distinguen 3.25 de 4.25; acuerdo con BCS real 3/6 (YM oblicua 3.75 → 'baja'); ~14–18 s, ~US$0,01",
-        "humano eligió (b): sin acuerdo visible; v3 = solo 'Qué se observa en la foto', resumen neutral, posiblemente una sola llamada"
+        "humano eligió (b): sin acuerdo visible; v3 = solo 'Qué se observa en la foto', resumen neutral, posiblemente una sola llamada",
+        "v3 verificada: una llamada ciega, panel 'Qué se observa en la foto', sin etiqueta de IA; ~13,6 s, ~US$0,0067"
       ]
     },
     "T18": {
       "title": "Rediseño integral de la UI (ARGOS)",
-      "status": "v1 entregada (worker retenido para integrar T17)",
-      "dispatch_id": "ctx_ce8d0a1e8de1",
+      "status": "dispatched",
+      "dispatch_id": "ctx_cc09681f7201",
       "branch": "rediseño-ui",
       "agent": "claude",
       "note": "humano: deployar la rama a Railway para que el equipo la vea antes de mergear",
-      "rounds": 1,
+      "rounds": 2,
       "notes": [
-        "verificada: check+smoke OK, solo web/ y docs/rediseno; web/img 656 KB; sin textos de G3 p.7; make browser no corrido (VM)"
+        "verificada: check+smoke OK, solo web/ y docs/rediseno; web/img 656 KB; sin textos de G3 p.7; make browser no corrido (VM)",
+        "v2: merge de agregar-explicacion-texto en rediseño-ui; sin 'Sin evaluación en fotos de celular'; sin nombre de hackatón"
       ]
     }
   }
