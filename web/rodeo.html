@@ -67,7 +67,6 @@
     .explain-body p { margin: 0 0 4px; }
     .hist-item .explain-body ul { color: var(--ink); margin: 0 0 4px; }
     .explain-title { font-weight: 700; }
-    .ai-label { color: var(--muted); font-size: .76rem; font-style: italic; }
     .hist-item .explain-err { color: var(--bad); font-size: .82rem; margin: 4px 0 0; }
     [hidden] { display: none !important; }
     @media (min-width: 640px) { .cows { grid-template-columns: 1fr 1fr; } }
@@ -333,8 +332,7 @@
             traits.append(li);
           }
           body.replaceChildren(h("p", "explain-title", "Qué se observa en la foto"),
-            h("p", "", data.explanation), traits,
-            h("p", "ai-label", "Texto generado por IA (OpenAI) a partir de la foto; puede equivocarse."));
+            h("p", "", data.explanation), traits);
           body.hidden = false;
           btn.hidden = true;
         } catch (e) {

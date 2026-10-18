@@ -1,4 +1,4 @@
-"""La web ofrece "Qué se observa en la foto" (T17): botón, endpoint y etiqueta de texto de IA."""
+"""La web ofrece "Qué se observa en la foto" (T17): botón, título, resumen y regiones."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ def test_page_has_explain_button(client: TestClient, page: str) -> None:
     assert "Ver qué se observa en la foto" in html
     assert "Qué se observa en la foto</p>" in html or '"Qué se observa en la foto")' in html
     assert "/explain`" in html
-    assert LABEL in html
+    assert LABEL not in html and "ai-label" not in html  # el humano sacó la etiqueta de IA
     # decisión del humano (vuelta 3): no se muestra ningún acuerdo ni rango de la foto
     for word in ("agreement", "photo_estimate", "sugiere", "¿Por qué este puntaje?"):
         assert word not in html
