@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import base64
 import json
+import threading
+import time
 import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import replace
@@ -17,7 +19,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from bcs import explain
+from bcs import api_explain, explain, inference
 from bcs.api_explain import openai_client
 from bcs.contract import Prediction
 from bcs.store.base import Store
@@ -282,3 +284,125 @@ def test_requires_token(api: TestClient, store: Store, fake: FakeOpenAI) -> None
     r = api.get(f"/predictions/{pred.prediction_id}/explain", headers={"X-App-Token": ""})
     assert r.status_code == 401
     assert fake.calls == []
+
+
+# ---------------------------------------------------------------- T19: en paralelo con /predict
+
+
+def _predict(api: TestClient) -> dict[str, Any]:
+    files = {"image": ("foto.jpg", (FIXTURES / "rear_cow.jpg").read_bytes(), "image/jpeg")}
+    r = api.post("/predict", data={"cow_id": "UY-19"}, files=files)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def _settle() -> None:
+    """Espera a que terminen las observaciones lanzadas por `/predict` (y sus callbacks)."""
+    deadline = time.monotonic() + 5
+    while api_explain._pending and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert not api_explain._pending
+
+
+def test_predict_starts_blind_explanation(api: TestClient, store: Store, fake: FakeOpenAI) -> None:
+    pred = _predict(api)
+    _settle()
+    assert len(fake.calls) == 1  # arrancó con la foto, sin esperar el GET
+    dumped = json.dumps(json.loads(fake.calls[0].content)["input"][1], ensure_ascii=False)
+    assert "UY-19" not in dumped and str(pred["bcs"]) not in dumped  # sigue siendo ciega
+    saved = store.get_explanation(pred["prediction_id"])  # type: ignore[attr-defined]
+    assert saved is not None and saved["bcs"] == pred["bcs"]
+    data = api.get(f"/predictions/{pred['prediction_id']}/explain").json()
+    assert data == saved and data["explanation"] == GOOD["summary"]
+    assert len(fake.calls) == 1  # el GET no vuelve a pagar
+
+
+def test_explain_waits_for_the_one_in_flight(
+    api: TestClient, store: Store, fake: FakeOpenAI
+) -> None:
+    release = threading.Event()
+
+    def slow(req: httpx.Request) -> httpx.Response:
+        release.wait(5)
+        return _ok(req)
+
+    fake.handler = slow
+    t0 = time.monotonic()
+    pred = _predict(api)
+    assert time.monotonic() - t0 < 2  # /predict no espera a OpenAI
+    assert pred["prediction_id"] in api_explain._pending
+    threading.Timer(0.3, release.set).start()
+    r = api.get(f"/predictions/{pred['prediction_id']}/explain")
+    assert r.status_code == 200 and r.json()["explanation"] == GOOD["summary"]
+    assert len(fake.calls) == 1  # esperó la que estaba en curso: una sola llamada
+    _settle()
+
+
+def test_failed_background_is_reported_and_retried(
+    api: TestClient, store: Store, fake: FakeOpenAI
+) -> None:
+    def slow(req: httpx.Request) -> httpx.Response:
+        time.sleep(0.3)  # sigue en curso cuando llega el GET
+        raise httpx.ReadTimeout("timeout", request=req)
+
+    fake.handler = slow
+    pred = _predict(api)
+    path = f"/predictions/{pred['prediction_id']}/explain"
+    assert api.get(path).status_code == 504  # el error de la de fondo, sin otra llamada
+    assert len(fake.calls) == 1
+    _settle()
+    fake.handler = _ok
+    assert api.get(path).status_code == 200  # "Reintentar" genera una nueva
+    assert len(fake.calls) == 2
+
+
+def test_rejected_prediction_discards_explanation(
+    api: TestClient, store: Store, fake: FakeOpenAI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = inference.predict_raw
+
+    def rejected(raw: bytes, cow_id: str) -> tuple[Prediction, Any]:
+        pred, img = real(raw, cow_id)
+        return replace(pred, status="rejected", bcs=None, interval=None, confidence=None), img
+
+    monkeypatch.setattr(inference, "predict_raw", rejected)
+    pred = _predict(api)
+    assert pred["status"] == "rejected"
+    time.sleep(0.2)
+    assert pred["prediction_id"] not in api_explain._pending
+    assert store.get_explanation(pred["prediction_id"]) is None  # type: ignore[attr-defined]
+    assert api.get(f"/predictions/{pred['prediction_id']}/explain").status_code == 409
+
+
+def test_no_key_no_background(
+    api: TestClient, store: Store, fake: FakeOpenAI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY")
+    pred = _predict(api)
+    assert pred["prediction_id"] not in api_explain._pending
+    time.sleep(0.1)
+    assert fake.calls == []
+
+
+def test_at_most_two_calls_at_once(fake: FakeOpenAI, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", FAKE_KEY)
+    lock, now, peak = threading.Lock(), [0], [0]
+
+    def counting(req: httpx.Request) -> httpx.Response:
+        with lock:
+            now[0] += 1
+            peak[0] = max(peak[0], now[0])
+        time.sleep(0.1)
+        with lock:
+            now[0] -= 1
+        return _ok(req)
+
+    fake.handler = counting
+    thumb = (FIXTURES / "rear_cow.jpg").read_bytes()
+    with httpx.Client(transport=httpx.MockTransport(fake)) as c:
+        threads = [threading.Thread(target=explain.observe, args=(thumb, c)) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+    assert len(fake.calls) == 5 and peak[0] == explain.MAX_CONCURRENT_CALLS == 2

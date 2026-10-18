@@ -50,6 +50,7 @@ def spy(tmp_path: Path) -> SpyStore:
 @pytest.fixture
 def client(spy: SpyStore, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     monkeypatch.setenv("BCS_APP_TOKEN", TOKEN)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)  # sin explicación en segundo plano (T19)
     from bcs.api import create_app
 
     with TestClient(create_app(spy), headers={"X-App-Token": TOKEN}) as c:
