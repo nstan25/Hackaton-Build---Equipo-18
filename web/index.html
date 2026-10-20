@@ -417,6 +417,41 @@
                       </div>
                     </div>
                   </div>
+                  <!-- Calculadora de pérdidas (web/perdidas.js): leche y preñez según el BCS y el momento. -->
+                  <div class="res-slot" data-slot="perdidas">
+                    <section class="explain-body" id="loss" aria-labelledby="loss-title">
+                      <p class="explain-title" id="loss-title">¿Cuánto te cuesta esta condición?</p>
+                      <div class="loss-form">
+                        <label>Momento
+                          <select class="input" id="loss-stage">
+                            <option value="lact">En lactancia</option>
+                            <option value="pre">Antes del parto</option>
+                          </select></label>
+                        <label><span id="loss-days-label">Días en leche</span>
+                          <input class="input" id="loss-days" type="number" min="0" max="305" step="1" value="30" inputmode="numeric"></label>
+                        <label class="wide">Estado reproductivo
+                          <select class="input" id="loss-preg">
+                            <option value="open">Vacía o sin confirmar</option>
+                            <option value="pregnant">Preñada</option>
+                          </select></label>
+                      </div>
+                      <details class="loss-more">
+                        <summary>Supuestos del tambo</summary>
+                        <div class="loss-form">
+                          <label>Producción por lactancia (L)
+                            <input class="input" id="loss-milk" type="number" min="1000" max="15000" step="100" inputmode="numeric"></label>
+                          <label>Precio de la leche (US$/L)
+                            <input class="input" id="loss-price" type="number" min="0" max="2" step="0.01" inputmode="decimal"></label>
+                          <label class="wide">Costo de un día abierto (US$/día)
+                            <input class="input" id="loss-dayopen" type="number" min="0" max="20" step="0.1" inputmode="decimal"></label>
+                        </div>
+                      </details>
+                      <dl class="loss-out" id="loss-out"></dl>
+                      <p class="loss-total" id="loss-total"></p>
+                      <p class="loss-warn" id="loss-warn" hidden></p>
+                      <p class="loss-src" id="loss-src"></p>
+                    </section>
+                  </div>
                 </div>
               </div>
             </div>
@@ -778,6 +813,9 @@
           ? `Fuera del rango validado (${fmt(VALID_MIN)}–${fmt(VALID_MAX)}): tomalo como orientativo.`
           : "";
       }
+      lossCow = rejected || p.bcs == null ? null : { bcs: p.bcs, interval: p.interval };
+      $("loss").hidden = !lossCow;
+      renderLoss();
       $("live").textContent = rejected ? "Foto rechazada." : `Condición corporal estimada: ${fmt(p.bcs)} de 5.`;
       $("result").focus({ preventScroll: true });
       scrollToEl($("analizar"));
@@ -827,6 +865,89 @@
       }
     }
     $("explain-btn").addEventListener("click", () => loadExplain($("result").dataset.predictionId));
+
+    // Calculadora de pérdidas (web/perdidas.js, módulo compartido con el rodeo). Los supuestos del
+    // tambo se recuerdan en este navegador; el momento y el estado reproductivo son de cada vaca.
+    let lossCow = null, perdidas = null;
+    const LOSS_KEY = "bcs.lossAssumptions";
+    const usd = (x) => "US$ " + Math.round(x).toLocaleString("es-UY");
+    const litros = (x) => Math.round(x).toLocaleString("es-UY") + " L";
+    import("./perdidas.js").then((m) => {
+      perdidas = m;
+      let saved = {};
+      try { saved = JSON.parse(store.get(LOSS_KEY) || "{}"); } catch { /* valor viejo: se ignora */ }
+      const d = { ...m.DEFAULTS, ...saved };
+      $("loss-milk").value = d.produccion;
+      $("loss-price").value = d.precio;
+      $("loss-dayopen").value = d.costoDia;
+      $("loss-src").textContent = m.FUENTES_TEXTO;
+      renderLoss();
+    }).catch(() => { $("loss-total").textContent = "No se pudo cargar la calculadora."; });
+
+    function lossInputs() {
+      const num = (id, def) => { const v = parseFloat($(id).value); return Number.isFinite(v) && v >= 0 ? v : def; };
+      const pre = $("loss-stage").value === "pre";
+      const days = Math.round(num("loss-days", 0));
+      return {
+        dias: pre ? -days : days,
+        prenada: $("loss-preg").value === "pregnant",
+        produccion: num("loss-milk", perdidas.DEFAULTS.produccion),
+        precio: num("loss-price", perdidas.DEFAULTS.precio),
+        costoDia: num("loss-dayopen", perdidas.DEFAULTS.costoDia),
+      };
+    }
+
+    function renderLoss() {
+      if (!perdidas || !lossCow) return;
+      const pre = $("loss-stage").value === "pre";
+      $("loss-days-label").textContent = pre ? "Días que faltan para el parto" : "Días en leche";
+      $("loss-days").max = pre ? 120 : 305;
+      $("loss-preg").disabled = pre;  // antes del parto ya está preñada: se evalúa el próximo servicio
+      const inp = lossInputs();
+      const e = perdidas.estimar({ ...inp, bcs: lossCow.bcs, interval: lossCow.interval });
+      const out = $("loss-out");
+      out.replaceChildren();
+      const fact = (dt, dd, small) => {
+        const div = document.createElement("div");
+        div.appendChild(document.createElement("dt")).textContent = dt;
+        const ddEl = div.appendChild(document.createElement("dd"));
+        ddEl.textContent = dd;
+        if (small) ddEl.appendChild(document.createElement("small")).textContent = small;
+        out.appendChild(div);
+      };
+      const rango = (lo, hi, f) => (Math.round(lo) === Math.round(hi) ? "" : `entre ${f(lo)} y ${f(hi)}`);
+      fact("Meta para este momento", fmt(e.objetivo), e.brecha > 0 ? `le faltan ${fmt(e.brecha)}` : "la cumple");
+      fact("Leche perdida", litros(e.leche.litros), rango(e.leche.lo, e.leche.hi, litros) || e.leche.cuando);
+      fact("En dinero (leche)", usd(e.usdLeche), `a US$ ${inp.precio.toFixed(2)}/L`);
+      if (e.prenez) {
+        fact(pre ? "Preñez en el próximo servicio" : "Prob. de preñez por servicio", Math.round(e.prenez.p * 100) + "%",
+          `con la meta: ${Math.round(e.prenez.pRef * 100)}%`);
+        fact("Días abiertos de más", Math.round(e.prenez.diasExtra) + " días", usd(e.usdRepro));
+      } else {
+        fact("Preñez", "Ya preñada", "sin costo reproductivo");
+      }
+      const total = $("loss-total");
+      total.className = "loss-total" + (e.total < 1 ? " ok" : "");
+      total.replaceChildren();
+      if (e.total < 1) {
+        total.textContent = "Con esta condición no estimamos pérdidas: está en el rango recomendado para este momento.";
+      } else {
+        total.append("Pérdida total estimada: ");
+        total.appendChild(document.createElement("strong")).textContent = usd(e.total);
+        total.append(pre ? " en la próxima lactancia." : " en lo que queda de la lactancia.");
+      }
+      $("loss-warn").textContent = e.avisos.join(" ");
+      $("loss-warn").hidden = !e.avisos.length;
+    }
+    for (const id of ["loss-stage", "loss-days", "loss-preg"]) $(id).addEventListener("input", renderLoss);
+    for (const id of ["loss-milk", "loss-price", "loss-dayopen"]) {
+      $(id).addEventListener("input", () => {
+        if (!perdidas) return;
+        const { produccion, precio, costoDia } = lossInputs();
+        store.set(LOSS_KEY, JSON.stringify({ produccion, precio, costoDia }));
+        renderLoss();
+      });
+    }
 
     function resetPhoto() {
       resetExplain();
