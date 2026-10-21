@@ -186,3 +186,21 @@ a { color: var(--forest); }
 .dist-state.err { color: var(--bad); font-weight: 600; margin: 0; }
 .dist-note { color: var(--muted); font-size: .82rem; margin-top: 8px; }
 @media (min-width: 680px) { .dist { padding: 22px 22px 16px; } .dist-stats { max-width: 420px; } }
+
+/* ---------- calculadora de pérdidas (perdidas.js): resultado de una vaca y total del rodeo ---------- */
+.loss-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.loss-form label { display: grid; gap: 4px; font-size: .82rem; font-weight: 700; color: var(--muted); min-width: 0; }
+.loss-form .input { font-size: 1rem; min-height: 44px; padding: 8px 10px; }
+.loss-form .wide { grid-column: 1 / -1; }
+.loss-out { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 0; }
+.loss-out > div { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; min-width: 0; }
+.loss-out dt { font-size: .8rem; font-weight: 700; color: var(--muted); }
+.loss-out dd { margin: 2px 0 0; font-weight: 700; font-size: 1.2rem; color: var(--ink); overflow-wrap: anywhere; }
+.loss-out dd small { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); }
+.loss-total { margin-top: 12px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--sun-soft); color: var(--ink); }
+.loss-total strong { font-family: var(--font-display); font-size: 1.5rem; color: var(--forest); }
+.loss-total.ok { background: var(--sage-soft); }
+.loss-warn { color: var(--warn); font-size: .9rem; font-weight: 600; margin-top: 10px; }
+.loss-src { color: var(--muted); font-size: .8rem; margin-top: 10px; }
+details.loss-more { margin-top: 10px; }
+details.loss-more summary { font-weight: 600; color: var(--forest); cursor: pointer; min-height: 44px; display: flex; align-items: center; }

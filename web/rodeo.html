@@ -141,6 +141,39 @@
         <p class="dist-note" id="dist-note">Solo animales evaluados: cada vaca cuenta una vez, en la barra más cercana al promedio de sus
           evaluaciones válidas (las fotos rechazadas no cuentan). Eje: valores que usa el modelo, 3.25 a 4.25 de la escala 1–5.</p>
       </section>
+      <!-- Calculadora de pérdidas del rodeo (web/perdidas.js): suma la estimación de cada vaca con su último BCS. -->
+      <section class="card dist" id="loss" aria-labelledby="loss-title" hidden>
+        <div class="dist-head">
+          <h2 id="loss-title">¿Cuánto le cuesta la condición corporal al rodeo?</h2>
+          <p class="dist-sub">Leche y preñez que se pierden por vacas por debajo del objetivo, con el último BCS de cada una</p>
+        </div>
+        <div class="loss-form">
+          <label>Momento del rodeo
+            <select class="input" id="loss-stage">
+              <option value="lact">En lactancia</option>
+              <option value="pre">Antes del parto</option>
+            </select></label>
+          <label><span id="loss-days-label">Días en leche (promedio)</span>
+            <input class="input" id="loss-days" type="number" min="0" max="305" step="1" value="30" inputmode="numeric"></label>
+          <label class="wide">Vacas ya preñadas (%)
+            <input class="input" id="loss-pregpct" type="number" min="0" max="100" step="5" value="0" inputmode="numeric"></label>
+        </div>
+        <details class="loss-more">
+          <summary>Supuestos del tambo</summary>
+          <div class="loss-form">
+            <label>Producción por lactancia (L)
+              <input class="input" id="loss-milk" type="number" min="1000" max="15000" step="100" inputmode="numeric"></label>
+            <label>Precio de la leche (US$/L)
+              <input class="input" id="loss-price" type="number" min="0" max="2" step="0.01" inputmode="decimal"></label>
+            <label class="wide">Costo de un día abierto (US$/día)
+              <input class="input" id="loss-dayopen" type="number" min="0" max="20" step="0.1" inputmode="decimal"></label>
+          </div>
+        </details>
+        <dl class="loss-out" id="loss-out"></dl>
+        <p class="loss-total" id="loss-total"></p>
+        <p class="loss-warn" id="loss-warn" hidden></p>
+        <p class="loss-src" id="loss-src"></p>
+      </section>
       <div class="card filters">
         <div class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
@@ -303,11 +336,106 @@
         li.append(a);
         ul.append(li);
       }
-      $("count").textContent = cows.length ? `${rows.length} de ${cows.length} vacas · ordenadas por BCS (más bajo primero)` : "";
+      renderLoss();
+      $("count").textContent = cows.length ?`${rows.length} de ${cows.length} vacas · ordenadas por BCS (más bajo primero)` : "";
       if (!$("empty").classList.contains("err")) {
         $("empty").textContent = cows.length ? "Ninguna vaca cumple los filtros." : "Todavía no hay evaluaciones. Empezá desde “+ Analizar”.";
       }
       $("empty").hidden = rows.length > 0;
+    }
+
+    // ---------- Pérdidas del rodeo (web/perdidas.js, el mismo módulo que el resultado de una vaca) ----------
+    // Cuenta todas las vacas con BCS válido (no solo las filtradas). Momento y días son del rodeo, no
+    // de cada vaca: el registro todavía no guarda la fecha de parto. Los supuestos del tambo se
+    // comparten con la página de análisis (mismo localStorage).
+    let perdidas = null;
+    const LOSS_KEY = "bcs.lossAssumptions";
+    const storeGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+    const storeSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sin storage */ } };
+    const usd = (x) => "US$ " + Math.round(x).toLocaleString("es-UY");
+    const litros = (x) => Math.round(x).toLocaleString("es-UY") + " L";
+    import("./perdidas.js").then((m) => {
+      perdidas = m;
+      let saved = {};
+      try { saved = JSON.parse(storeGet(LOSS_KEY) || "{}"); } catch { /* valor viejo: se ignora */ }
+      const d = { ...m.DEFAULTS, ...saved };
+      $("loss-milk").value = d.produccion;
+      $("loss-price").value = d.precio;
+      $("loss-dayopen").value = d.costoDia;
+      $("loss-src").textContent = m.FUENTES_TEXTO;
+      renderLoss();
+    }).catch(() => { /* sin calculadora: el rodeo sigue funcionando */ });
+
+    function lossInputs() {
+      const num = (id, def) => { const v = parseFloat($(id).value); return Number.isFinite(v) && v >= 0 ? v : def; };
+      const days = Math.round(num("loss-days", 0));
+      return {
+        dias: $("loss-stage").value === "pre" ? -days : days,
+        produccion: num("loss-milk", perdidas.DEFAULTS.produccion),
+        precio: num("loss-price", perdidas.DEFAULTS.precio),
+        costoDia: num("loss-dayopen", perdidas.DEFAULTS.costoDia),
+        prenadas: Math.min(100, num("loss-pregpct", 0)) / 100,
+      };
+    }
+
+    function renderLoss() {
+      const scored = cows.filter((c) => c.bcs != null);
+      $("loss").hidden = !perdidas || !scored.length;
+      if ($("loss").hidden) return;
+      const pre = $("loss-stage").value === "pre";
+      $("loss-days-label").textContent = pre ? "Días al parto (promedio)" : "Días en leche (promedio)";
+      $("loss-days").max = pre ? 120 : 305;
+      $("loss-pregpct").disabled = pre;
+      const inp = lossInputs();
+      const base = { dias: inp.dias, produccion: inp.produccion, precio: inp.precio, costoDia: inp.costoDia };
+      // Cada vaca: costo de leche + costo reproductivo ponderado por la proporción de vacías.
+      let leche = 0, usdLeche = 0, usdRepro = 0, conPerdida = 0;
+      const avisos = new Set();
+      for (const c of scored) {
+        const vacia = perdidas.estimar({ ...base, bcs: c.bcs, interval: c.interval, prenada: false });
+        const share = pre ? 1 : 1 - inp.prenadas;
+        leche += vacia.leche.litros;
+        usdLeche += vacia.usdLeche;
+        usdRepro += vacia.usdRepro * share;
+        if (vacia.usdLeche + vacia.usdRepro * share >= 1) conPerdida++;
+        vacia.avisos.forEach((a) => avisos.add(a));
+      }
+      const out = $("loss-out");
+      out.replaceChildren();
+      const fact = (dt, dd, small) => {
+        const div = h("div");
+        div.append(h("dt", null, dt));
+        const ddEl = h("dd", null, dd);
+        if (small) ddEl.append(h("small", null, small));
+        div.append(ddEl);
+        out.append(div);
+      };
+      fact("Vacas con pérdida", `${conPerdida} de ${scored.length}`, "por debajo del objetivo");
+      fact("Leche perdida", litros(leche), usd(usdLeche));
+      fact("Costo reproductivo", usd(usdRepro), "días abiertos de más");
+      fact("Por vaca evaluada", usd((usdLeche + usdRepro) / scored.length), "promedio");
+      const total = $("loss-total");
+      const sum = usdLeche + usdRepro;
+      total.className = "loss-total" + (sum < 1 ? " ok" : "");
+      total.replaceChildren();
+      if (sum < 1) {
+        total.textContent = "No estimamos pérdidas: todas las vacas evaluadas están en el rango recomendado para este momento.";
+      } else {
+        total.append("Pérdida total estimada del rodeo: ");
+        total.append(h("strong", null, usd(sum)));
+        total.append(pre ? " en la próxima lactancia." : " en lo que queda de la lactancia.");
+      }
+      $("loss-warn").textContent = [...avisos].join(" ");
+      $("loss-warn").hidden = !avisos.size;
+    }
+    for (const id of ["loss-stage", "loss-days", "loss-pregpct"]) $(id).addEventListener("input", renderLoss);
+    for (const id of ["loss-milk", "loss-price", "loss-dayopen"]) {
+      $(id).addEventListener("input", () => {
+        if (!perdidas) return;
+        const { produccion, precio, costoDia } = lossInputs();
+        storeSet(LOSS_KEY, JSON.stringify({ produccion, precio, costoDia }));
+        renderLoss();
+      });
     }
 
     for (const id of ["q", "f-bcs", "f-low", "f-rej"]) $(id).addEventListener("input", renderList);
