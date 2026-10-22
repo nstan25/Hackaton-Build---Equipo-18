@@ -593,6 +593,13 @@
       "status": "deployado a producción para prueba; sin mergear",
       "branch": "deploy-serverless",
       "commit": "0d4e22a"
+    },
+    "T23": {
+      "title": "Investigación de datasets de BCS (extremos)",
+      "status": "dispatched",
+      "dispatch_id": "ctx_0b80b7385541",
+      "branch": "investigacion-datasets",
+      "agent": "claude"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
