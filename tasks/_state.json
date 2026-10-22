@@ -580,6 +580,19 @@
       "notes": [
         "verificada: check + 6 tests; prueba del orquestador con 30 fotos de val: recortes MAE 0.183, punta a punta 0.167, 0 rechazos; nunca sobre test"
       ]
+    },
+    "T22": {
+      "title": "Investigación de cámaras para el tambo",
+      "status": "dispatched",
+      "dispatch_id": "ctx_d99e269ead16",
+      "branch": "investigacion-camaras",
+      "agent": "claude"
+    },
+    "deploy-serverless": {
+      "title": "Railway Serverless (sleepApplication)",
+      "status": "deployado a producción para prueba; sin mergear",
+      "branch": "deploy-serverless",
+      "commit": "0d4e22a"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
