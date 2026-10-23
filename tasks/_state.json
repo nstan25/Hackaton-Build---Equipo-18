@@ -594,7 +594,7 @@
     },
     "deploy-serverless": {
       "title": "Railway Serverless (sleepApplication)",
-      "status": "deployado; Serverless activado desde el panel (sleepApplication=True); medición en frío en curso",
+      "status": "merged a main (railway.json sleepApplication=true, igual que el panel)",
       "branch": "deploy-serverless",
       "commit": "0d4e22a"
     },
@@ -618,7 +618,8 @@
       "status": "dispatched",
       "dispatch_id": "ctx_eeba4ffc562d",
       "branch": "T25-reentrenamiento-zen",
-      "agent": "claude"
+      "agent": "claude",
+      "note": "no sobreescribir models/bcs_efficientnet_b0.pt ni relacionados; modelo nuevo con otro nombre (p. ej. bcs_efficientnet_b0_zen.pt) en artifacts/T25"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
