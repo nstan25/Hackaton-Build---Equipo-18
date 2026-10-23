@@ -98,13 +98,16 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "reactivado y despachado",
+      "status": "entregado (rama sin mergear; worker retenido)",
       "worktree": null,
       "terminal": null,
       "dispatch_id": "ctx_06b2ccb408bb",
       "rounds": 0,
       "result": "G0: solo sdb_bcs",
-      "branch": "T04-reactivado-ampliacion-dataset"
+      "branch": "T04-reactivado-ampliacion-dataset",
+      "notes": [
+        "3.705 img / 1.021 animales; 630 img / 208 anim fuera de 3.25–4.25; split por animal sin fuga; review: 06.12.2024 recortes dudosos en 2.75–3.25, atajos fecha/pelaje/deriva (ALTA)"
+      ]
     },
     "T05": {
       "task_id": "task_a753dc2dee6b",
