@@ -98,7 +98,7 @@
       ],
       "gate": false,
       "agent": "claude",
-      "status": "entregado (rama sin mergear; worker retenido)",
+      "status": "merged a main (ingesta zen_rgbd)",
       "worktree": null,
       "terminal": null,
       "dispatch_id": "ctx_06b2ccb408bb",
@@ -612,6 +612,13 @@
       "branch": "investigacion-datasets-2",
       "agent": "claude",
       "note": "nuevo candidato a pedido: Shriramulu/Pushpadass 2024 (India); sdb_bcs CC BY 4.0; nada público <2.75"
+    },
+    "T25": {
+      "title": "Reentrenamiento experimental en CPU (sdb+zen, 3.0–5.0)",
+      "status": "dispatched",
+      "dispatch_id": "ctx_eeba4ffc562d",
+      "branch": "T25-reentrenamiento-zen",
+      "agent": "claude"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
