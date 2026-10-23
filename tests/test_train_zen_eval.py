@@ -2,11 +2,22 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
+import pytest
 from PIL import Image
 
-from bcs.models.train_zen import Letterbox, _contrast, metrics, red_coat_fraction
+from bcs.models.train_zen import (
+    Letterbox,
+    _contrast,
+    build_report,
+    load_config,
+    metrics,
+    red_coat_fraction,
+    render_tables,
+)
 
 GRID = (3.0, 3.25, 3.5, 3.75, 4.0, 4.25, 4.5, 4.75, 5.0)
 
@@ -56,3 +67,43 @@ def test_contrast_auc() -> None:
     assert np.isclose(c["true_delta"], 4.75 - np.mean([4.0, 4.25, 4.0]))
     assert np.isclose(c["auc"], 5 / 6)  # 4.4 pierde contra 4.5
     assert _contrast(hi.iloc[:0], mid) == {}
+
+
+def test_build_report_and_tables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BCS_ARTIFACTS_DIR", str(tmp_path))
+    d = tmp_path / "T25"
+    d.mkdir()
+    recs = [  # (source, animal, fecha, y)
+        ("sdb_bcs", "s1", "", 3.25),
+        ("sdb_bcs", "s1", "", 3.25),
+        ("sdb_bcs", "s2", "", 4.0),
+        ("zen_rgbd", "z1", "2025-03-27", 4.5),
+        ("zen_rgbd", "z2", "2025-03-27", 4.0),
+        ("zen_rgbd", "z3", "2025-02-20", 3.0),
+    ]
+    val = pd.DataFrame(
+        [
+            {"image_id": f"i{k}", "path": f"/no/{k}.jpg", "source": s, "group_id": g,
+             "date": dt, "bcs": y, "y": y}
+            for k, (s, g, dt, y) in enumerate(recs)
+        ]
+    )  # fmt: skip
+    val.to_csv(d / "manifest_val.csv", index=False)
+    pd.DataFrame({"image_id": val["image_id"], "red_frac": [0, 0, 0, 0.9, 0.1, 0]}).to_csv(
+        d / "coat_val.csv", index=False
+    )
+    for name, shift in (("prod", 0.0), ("A", 0.25)):
+        p = val.drop(columns="path").assign(pred=val["y"] + shift)
+        p.to_csv(d / f"preds_val_{name}.csv", index=False)
+    rep = build_report(load_config(), ["prod", "A"])
+    assert rep["by_source"]["prod"]["sdb_bcs"]["mae"] == 0.0
+    assert np.isclose(rep["by_source"]["A"]["zen_rgbd"]["bias"], 0.25)
+    assert rep["by_class"]["prod"]["sdb_bcs"]["3.25"]["animals"] == 1
+    assert rep["sdb_animal"]["prod"]["n"] == 2
+    assert set(rep["by_date"]["A"]) == {"2025-03-27", "2025-02-20"}
+    assert rep["contrast_2703"]["prod"]["auc"] == 1.0
+    coat = rep["coat_4.0-4.25"]["prod"]
+    assert set(coat) == {"zen_rgbd"} and coat["zen_rgbd"]["no colorada"]["n"] == 1
+    md = render_tables(rep)
+    assert "### zen_rgbd val, por fecha" in md and "| 2025-03-27 |" in md
+    assert "Contraste dentro del 2025-03-27" in md

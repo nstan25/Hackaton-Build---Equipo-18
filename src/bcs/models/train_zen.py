@@ -18,6 +18,7 @@ reanudar a mitad de época sigue con las mismas muestras.
     python -m bcs.models.train_zen train --variant A [--max-steps N] [--epochs E]
     python -m bcs.models.train_zen predict --model prod|A|B
     python -m bcs.models.train_zen report
+    python -m bcs.models.train_zen export --model A|B
 """
 
 from __future__ import annotations
@@ -40,7 +41,7 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset, Sampler
 from torchvision import transforms as T
 
-from bcs.models.efficientnet import team_module
+from bcs.models.efficientnet import sha256_file, team_module
 from bcs.paths import REPO_ROOT, artifacts_dir, config_dir, data_dir, runs_dir
 from bcs.scale import load_scale
 
@@ -603,6 +604,95 @@ def _contrast(hi: pd.DataFrame, mid: pd.DataFrame) -> dict[str, Any]:
     }
 
 
+def _row(m: dict[str, Any]) -> str:
+    if not m.get("n"):
+        return "– | – | – | – | –"
+    return (
+        f"{m['mae']:.3f} | {100 * m['exact']:.0f}% | {100 * m['pm1']:.0f}% | {m['bias']:+.3f} | "
+        f"{m['mean_pred']:.2f}"
+    )
+
+
+def render_tables(rep: dict[str, Any]) -> str:
+    """Tablas Markdown del reporte: para cada corte, una fila por modelo (mismas imágenes)."""
+    models = rep["models"]
+    head = "| corte | n img / animales | modelo | MAE | exacta | ±1 paso | sesgo | pred. media |"
+    sep = "|---|---|---|---|---|---|---|---|"
+    out: list[str] = []
+
+    def block(title: str, cuts: list[tuple[str, dict[str, dict[str, Any]]]]) -> None:
+        out.extend([f"### {title}", "", head, sep])
+        for label, per_model in cuts:
+            for i, m in enumerate(models):
+                mm = per_model.get(m, {})
+                n = f"{mm.get('n', 0)} / {mm.get('animals', 0)}" if i == 0 else ""
+                out.append(f"| {label if i == 0 else ''} | {n} | {m} | {_row(mm)} |")
+        out.append("")
+
+    srcs = ["sdb_bcs", "zen_rgbd", "all"]
+    block(
+        "Por fuente (val)", [(s, {m: rep["by_source"][m].get(s, {}) for m in models}) for s in srcs]
+    )
+    block("sdb_bcs val, por animal (promedio de sus frames)", [("sdb", rep["sdb_animal"])])
+    for src in ("sdb_bcs", "zen_rgbd"):
+        classes = sorted({c for m in models for c in rep["by_class"][m].get(src, {})})
+        block(
+            f"{src} val, por clase",
+            [(c, {m: rep["by_class"][m].get(src, {}).get(c, {}) for m in models}) for c in classes],
+        )
+    dates = sorted({d for m in models for d in rep["by_date"][m]})
+    block(
+        "zen_rgbd val, por fecha",
+        [(d, {m: rep["by_date"][m].get(d, {}) for m in models}) for d in dates],
+    )
+    coat = ["colorada", "no colorada"]
+    block(
+        "zen_rgbd val 4.0–4.25, por pelaje (heurística)",
+        [
+            (c, {m: rep["coat_4.0-4.25"][m].get("zen_rgbd", {}).get(c, {}) for m in models})
+            for c in coat
+        ],
+    )
+    out.extend(
+        [
+            f"### Contraste dentro del {CONTRAST_DATE}: ≥ 4.5 vs. 4.0–4.25 (zen val)",
+            "",
+            "| modelo | n ≥4.5 (anim.) | n 4.0–4.25 (anim.) | Δ real | Δ predicho | AUC |",
+            "|---|---|---|---|---|---|",
+        ]
+    )
+    for m in models:
+        c = rep["contrast_2703"].get(m) or {}
+        if c:
+            out.append(
+                f"| {m} | {c['n_hi']} ({c['animals_hi']}) | {c['n_mid']} ({c['animals_mid']}) | "
+                f"{c['true_delta']:.3f} | {c['pred_delta']:.3f} | {c['auc']:.3f} |"
+            )
+    out.append("")
+    return "\n".join(out)
+
+
+EXPORT_NAME = "bcs_efficientnet_b0_zen.pt"
+
+
+def export(cfg: dict[str, Any], model_name: str) -> Path:
+    """Copia el `best.pt` elegido a `T25/bcs_efficientnet_b0_zen.pt` (+ `.json` con metadatos).
+    Nunca escribe en `models/`: producción sigue con su modelo."""
+    src = out_dir() / model_name / "best.pt"
+    ck = torch.load(src, map_location="cpu")
+    dest = out_dir() / EXPORT_NAME
+    torch.save(ck, dest)
+    meta = {k: v for k, v in ck.items() if k != "state_dict"} | {
+        "weights": str(dest),
+        "weights_sha256": sha256_file(dest),
+        "init_weights": cfg["init_weights"],
+        "init_sha256": sha256_file(REPO_ROOT / cfg["init_weights"]),
+        "config": cfg,
+    }
+    dest.with_suffix(".json").write_text(json.dumps(meta, indent=2, default=str))
+    return dest
+
+
 # ---------------------------------------------------------------- CLI
 
 
@@ -620,6 +710,8 @@ def main(argv: list[str] | None = None) -> int:
     tr.add_argument("--dest", default=None, help="subcarpeta de T25/ (por defecto, la variante)")
     pr = sub.add_parser("predict")
     pr.add_argument("--model", required=True, help="prod o el nombre de la subcarpeta (A, B)")
+    ex = sub.add_parser("export")
+    ex.add_argument("--model", required=True, help="variante elegida (A o B)")
     rp = sub.add_parser("report")
     rp.add_argument("--models", default="prod,A,B")
     args = ap.parse_args(argv)
@@ -647,11 +739,14 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({k: v for k, v in st.items() if k != "log"}, default=str))
     elif args.cmd == "predict":
         run_predict(cfg, args.model)
+    elif args.cmd == "export":
+        print(f"→ {export(cfg, args.model)}")
     elif args.cmd == "report":
         rep = build_report(cfg, args.models.split(","))
         dest = report_dir()
         dest.mkdir(parents=True, exist_ok=True)
         (dest / "metrics.json").write_text(json.dumps(rep, indent=2))
+        (dest / "tables.md").write_text(render_tables(rep))
         print(f"→ {dest / 'metrics.json'}")
     return 0
 

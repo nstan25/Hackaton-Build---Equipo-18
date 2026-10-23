@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +13,7 @@ import pytest
 import torch
 from PIL import Image
 
-from bcs.models.train_zen import epoch_indices, load_candidate, load_config, train
+from bcs.models.train_zen import epoch_indices, export, load_candidate, load_config, train
 
 
 def _tiny_cfg() -> dict[str, Any]:
@@ -82,3 +83,25 @@ def test_epoch_indices_deterministic_and_weighted() -> None:
     a, b = epoch_indices(w, 400, 42, 1), epoch_indices(w, 400, 42, 1)
     assert a == b and a != epoch_indices(w, 400, 42, 2)
     assert set(a) <= {1, 3} and a.count(3) > 2 * a.count(1)
+
+
+def test_export_new_name_outside_models(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, rows: tuple[pd.DataFrame, pd.DataFrame]
+) -> None:
+    monkeypatch.setenv("BCS_ARTIFACTS_DIR", str(tmp_path / "art"))
+    tr, va = rows
+    cfg = _tiny_cfg()
+    train(
+        cfg,
+        "A",
+        train_rows=tr,
+        val_rows=va,
+        dest=tmp_path / "art" / "T25" / "A",
+        log=lambda s: None,
+    )
+    cfg["init_weights"] = "models/bcs_efficientnet_b0.pt"  # solo se lee para el sha256
+    dest = export(cfg, "A")
+    assert dest == tmp_path / "art" / "T25" / "bcs_efficientnet_b0_zen.pt"
+    meta = json.loads(dest.with_suffix(".json").read_text())
+    assert meta["variant"] == "A" and meta["weights_sha256"] and meta["init_sha256"]
+    load_candidate(dest)
