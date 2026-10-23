@@ -604,10 +604,11 @@
     },
     "T24": {
       "title": "Datasets de BCS: búsqueda complementaria",
-      "status": "dispatched",
+      "status": "merged a main",
       "dispatch_id": "ctx_7043cf916d56",
       "branch": "investigacion-datasets-2",
-      "agent": "claude"
+      "agent": "claude",
+      "note": "nuevo candidato a pedido: Shriramulu/Pushpadass 2024 (India); sdb_bcs CC BY 4.0; nada público <2.75"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
