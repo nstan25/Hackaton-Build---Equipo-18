@@ -110,8 +110,13 @@ def test_split_matches_readme(files: Files) -> None:
 
 
 def test_sources_lock_merged(files: Files) -> None:
+    # Solo las fuentes unidas en labels.csv: una fuente nueva (p. ej. zen_rgbd, T04) puede tener su
+    # lock en la carpeta compartida antes de que `make labels` la incorpore.
     lock = json.loads((files.root / "sources.lock.json").read_text())
-    for p in files.root.glob("sources.lock.*.json"):
+    merged = set(pd.read_csv(files.root / "labels.csv", usecols=["source"])["source"])
+    assert merged, "labels.csv sin fuentes"
+    for source in merged:
+        p = files.root / f"sources.lock.{source}.json"
         for k, v in json.loads(p.read_text()).items():
             assert lock[k] == v
 

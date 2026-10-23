@@ -91,19 +91,20 @@
       ]
     },
     "T04": {
-      "task_id": "task_a2b504dda583",
+      "task_id": "task_6033d0762c3c",
       "title": "Fuente zen_rgbd",
       "deps": [
         "G0"
       ],
       "gate": false,
       "agent": "claude",
-      "status": "cancelled",
+      "status": "reactivado y despachado",
       "worktree": null,
       "terminal": null,
-      "dispatch_id": null,
+      "dispatch_id": "ctx_06b2ccb408bb",
       "rounds": 0,
-      "result": "G0: solo sdb_bcs"
+      "result": "G0: solo sdb_bcs",
+      "branch": "T04-reactivado-ampliacion-dataset"
     },
     "T05": {
       "task_id": "task_a753dc2dee6b",
@@ -583,23 +584,31 @@
     },
     "T22": {
       "title": "Investigación de cámaras para el tambo",
-      "status": "completed (rama investigacion-camaras, sin mergear)",
+      "status": "merged a main",
       "dispatch_id": "ctx_d99e269ead16",
       "branch": "investigacion-camaras",
       "agent": "claude"
     },
     "deploy-serverless": {
       "title": "Railway Serverless (sleepApplication)",
-      "status": "deployado; sleepApplication ignorado por Railway (manifest False); falta activarlo desde el panel",
+      "status": "deployado; Serverless activado desde el panel (sleepApplication=True); medición en frío en curso",
       "branch": "deploy-serverless",
       "commit": "0d4e22a"
     },
     "T23": {
       "title": "Investigación de datasets de BCS (extremos)",
-      "status": "completed (rama investigacion-datasets, sin mergear)",
+      "status": "merged a main",
       "dispatch_id": "ctx_0b80b7385541",
       "branch": "investigacion-datasets",
       "agent": "claude"
+    },
+    "T24": {
+      "title": "Datasets de BCS: búsqueda complementaria",
+      "status": "merged a main",
+      "dispatch_id": "ctx_7043cf916d56",
+      "branch": "investigacion-datasets-2",
+      "agent": "claude",
+      "note": "nuevo candidato a pedido: Shriramulu/Pushpadass 2024 (India); sdb_bcs CC BY 4.0; nada público <2.75"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
