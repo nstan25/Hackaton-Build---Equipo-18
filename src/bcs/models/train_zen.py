@@ -560,6 +560,8 @@ def build_report(cfg: dict[str, Any], models: Sequence[str]) -> dict[str, Any]:
         "by_class": {},
         "by_date": {},
         "contrast_2703": {},
+        "contrast_2703_no_red": {},
+        "delta_vs_prod": {},
         "coat_4.0-4.25": {},
         "sdb_animal": {},
     }
@@ -573,6 +575,7 @@ def build_report(cfg: dict[str, Any], models: Sequence[str]) -> dict[str, Any]:
         d27 = zen[zen["date"] == CONTRAST_DATE]
         hi, mid = d27[d27["y"] >= 4.5], d27[d27["y"].isin([4.0, 4.25])]
         rep["contrast_2703"][m] = _contrast(hi, mid)
+        rep["contrast_2703_no_red"][m] = _contrast(hi[~hi["red"]], mid[~mid["red"]])
         # solo zen: en sdb la heurística marca la pintura de la cola y la luz cálida, no el pelaje
         band = df[df["y"].isin([4.0, 4.25]) & (df["source"] == "zen_rgbd")]
         rep["coat_4.0-4.25"][m] = {
@@ -587,11 +590,45 @@ def build_report(cfg: dict[str, Any], models: Sequence[str]) -> dict[str, Any]:
         rep["sdb_animal"][m] = metrics(
             sdb["y"].to_numpy(), sdb["pred"].to_numpy(), sdb.index.to_numpy(), grid
         )
+    if PROD in preds:
+        base = preds[PROD]
+        for m in models:
+            if m == PROD:
+                continue
+            if not (preds[m]["image_id"].to_numpy() == base["image_id"].to_numpy()).all():
+                raise ValueError(f"las predicciones de {m} y {PROD} no son las mismas imágenes")
+            cuts = {
+                "sdb_bcs": base["source"] == "sdb_bcs",
+                "zen_rgbd": base["source"] == "zen_rgbd",
+            }
+            cuts |= {f"sdb_bcs {c:.2f}": (base["source"] == "sdb_bcs") & (base["y"] == c)
+                     for c in (3.25, 3.5, 3.75, 4.0, 4.25)}  # fmt: skip
+            rep["delta_vs_prod"][m] = {
+                k: paired_delta(base[mask], preds[m][mask]) for k, mask in cuts.items()
+            }
     rep["coat_counts"] = {
         s: {f"{c:.2f}": float(np.mean(g2["red"].to_numpy(dtype=float))) for c, g2 in g.groupby("y")}
         for s, g in val.merge(coat, on="image_id").groupby("source")
     }
     return rep
+
+
+def paired_delta(base: pd.DataFrame, cand: pd.DataFrame, reps: int = 1000) -> dict[str, Any]:
+    """MAE(candidato) − MAE(actual) sobre las mismas imágenes, con IC 95% por bootstrap de animales
+    (se remuestrean `group_id`, no imágenes: los frames de un animal no son independientes)."""
+    if len(base) == 0:
+        return {}
+    e0 = np.abs(base["pred"].to_numpy(dtype=float) - base["y"].to_numpy(dtype=float))
+    e1 = np.abs(cand["pred"].to_numpy(dtype=float) - cand["y"].to_numpy(dtype=float))
+    codes, groups = pd.factorize(base["group_id"])
+    k = len(groups)
+    sums = np.bincount(codes, weights=e1 - e0, minlength=k)
+    counts = np.bincount(codes, minlength=k).astype(float)
+    rng = np.random.default_rng(0)
+    draws = rng.integers(0, k, size=(reps, k))
+    boot = sums[draws].sum(1) / counts[draws].sum(1)
+    lo, hi = np.percentile(boot, [2.5, 97.5])
+    return {"delta": float((e1 - e0).mean()), "lo": float(lo), "hi": float(hi), "animals": k}
 
 
 def _contrast(hi: pd.DataFrame, mid: pd.DataFrame) -> dict[str, Any]:
@@ -661,6 +698,25 @@ def render_tables(rep: dict[str, Any]) -> str:
             for c in coat
         ],
     )
+    deltas = rep.get("delta_vs_prod") or {}
+    if deltas:
+        out.extend(
+            [
+                "### Δ MAE vs. producción (mismas imágenes; IC 95% bootstrap por animal)",
+                "",
+                "| corte | modelo | Δ MAE | IC 95% | animales |",
+                "|---|---|---|---|---|",
+            ]
+        )
+        for m, cuts in deltas.items():
+            for k, d in cuts.items():
+                if not d:
+                    continue
+                out.append(
+                    f"| {k} | {m} | {d['delta']:+.3f} | [{d['lo']:+.3f}, {d['hi']:+.3f}] | "
+                    f"{d['animals']} |"
+                )
+        out.append("")
     out.extend(
         [
             f"### Contraste dentro del {CONTRAST_DATE}: ≥ 4.5 vs. 4.0–4.25 (zen val)",
@@ -669,8 +725,9 @@ def render_tables(rep: dict[str, Any]) -> str:
             "|---|---|---|---|---|---|",
         ]
     )
-    for m in models:
-        c = rep["contrast_2703"].get(m) or {}
+    rows = [(m, rep["contrast_2703"].get(m)) for m in models]
+    rows += [(f"{m} (sin coloradas)", rep["contrast_2703_no_red"].get(m)) for m in models]
+    for m, c in rows:
         if c:
             out.append(
                 f"| {m} | {c['n_hi']} ({c['animals_hi']}) | {c['n_mid']} ({c['animals_mid']}) | "

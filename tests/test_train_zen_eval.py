@@ -15,6 +15,7 @@ from bcs.models.train_zen import (
     build_report,
     load_config,
     metrics,
+    paired_delta,
     red_coat_fraction,
     render_tables,
 )
@@ -107,3 +108,18 @@ def test_build_report_and_tables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     md = render_tables(rep)
     assert "### zen_rgbd val, por fecha" in md and "| 2025-03-27 |" in md
     assert "Contraste dentro del 2025-03-27" in md
+    d = rep["delta_vs_prod"]["A"]["sdb_bcs"]
+    assert np.isclose(d["delta"], 0.25) and d["animals"] == 2
+    assert "| sdb_bcs 3.25 | A | +0.250 |" in md
+
+
+def test_paired_delta_bootstrap_by_animal() -> None:
+    y = np.repeat([3.5, 4.0, 3.25, 3.75], 5)
+    groups = np.repeat(["a", "b", "c", "d"], 5)
+    base = pd.DataFrame({"y": y, "pred": y + 0.2, "group_id": groups})
+    same = paired_delta(base, base)
+    assert same == {"delta": 0.0, "lo": 0.0, "hi": 0.0, "animals": 4}
+    better = base.assign(pred=y + np.repeat([0.0, 0.1, 0.2, 0.0], 5))
+    d = paired_delta(base, better)
+    assert np.isclose(d["delta"], np.mean([-0.2, -0.1, 0.0, -0.2]))
+    assert d["lo"] <= d["delta"] <= d["hi"] <= 0.0
