@@ -10,6 +10,7 @@ step: 0.25
 
 data:
   sdb_max_per_group: 5           # sdb train: ≤ 5 frames por grupo, tomados parejos en la secuencia
+  select_sdb_max_per_group: 5    # val para early stopping: sdb ≤ 5 por grupo + todo zen (el reporte usa todo val)
   source_mix: {sdb_bcs: 0.5, zen_rgbd: 0.5}
   # dentro de cada fuente, peso de muestreo ∝ 1 / n_clase^power (1 = balanceado como train_cnn.py;
   # 0.5 en zen para no repetir 30 veces las 87 imágenes de 5.0)
@@ -22,7 +23,7 @@ variants:
 train:
   epochs: 5
   patience: 2                    # early stopping en val (épocas sin mejorar)
-  epoch_samples: 12000           # muestras por época (con reposición, 50/50 por fuente)
+  epoch_samples: 9600            # muestras por época (con reposición, 50/50 por fuente); ~20 min a 8 img/s
   batch_size: 32
   lr: 2.0e-4
   weight_decay: 1.0e-4

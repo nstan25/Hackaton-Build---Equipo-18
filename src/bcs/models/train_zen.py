@@ -114,6 +114,16 @@ def build_manifests(
     return pd.DataFrame(train).reset_index(drop=True), pd.DataFrame(val).reset_index(drop=True)
 
 
+def selection_rows(val: pd.DataFrame, cfg: dict[str, Any]) -> pd.DataFrame:
+    """Val para elegir época: `sdb_bcs` a ≤ k frames por grupo (es 15× más grande) + todo zen."""
+    k = int(cfg["data"]["select_sdb_max_per_group"])
+    v = val.assign(frame=[_frame_no(i) for i in val["image_id"]])
+    v = v.sort_values(["source", "group_id", "frame", "image_id"])
+    sdb = [_even_take(g, k) for _, g in v.loc[v["source"] == "sdb_bcs"].groupby("group_id")]
+    out = pd.concat([*sdb, v[v["source"] != "sdb_bcs"]]).drop(columns="frame")
+    return pd.DataFrame(out).reset_index(drop=True)
+
+
 def variant_rows(train: pd.DataFrame, cfg: dict[str, Any], variant: str) -> pd.DataFrame:
     """Filas de train de la variante, con la columna `w` (peso de muestreo).
 
@@ -627,7 +637,7 @@ def main(argv: list[str] | None = None) -> int:
             cfg,
             args.variant,
             train_rows=rows,
-            val_rows=val,
+            val_rows=selection_rows(val, cfg),
             dest=d / (args.dest or args.variant),
             max_steps=args.max_steps,
             log=lambda s: print(s, flush=True),
