@@ -3,7 +3,8 @@
 Sala rotativa, cámara fija desde atrás y arriba, **tres vacas por frame** (trampa 2 de §1.2). La
 etiquetada es la del puesto central: se confirmó mirando el mismo `animal_id` en dos fechas (la
 central coincide en pelaje y las vecinas cambian; ver el reporte de T04). El recorte usa YOLO11m
-COCO (clase `cow`) y elige la caja plausible más cercana al centro. `models/cow_det.pt`
+COCO y elige la caja plausible más cercana al centro (cualquier clase: desde arriba, una vaca
+colorada sale como `dog` o `hot dog`; la geometría filtra el resto). `models/cow_det.pt`
 (entrenado en recortes de `sdb_bcs`) no sirve en este dominio: en 16/25 frames no da caja central
 y las que da toman solo la grupa; YOLO11m encontró la vaca central entera en 25/25.
 
@@ -62,12 +63,13 @@ FRAMES_PER_VISIT = 3
 SEED = 42
 SPLIT_FRACS = (("train", 0.70), ("val", 0.15), ("test", 0.15))
 
-# Detector: YOLO11m COCO, clase 19 = cow (AGPL-3.0, pesos de ultralytics; viven en artifacts/T04,
-# nunca en el repo).
+# Detector: YOLO11m COCO (AGPL-3.0, pesos de ultralytics; viven en artifacts/T04, nunca en el
+# repo). Todas las clases con conf baja: la clase `cow` sola pierde ~6% de las vacas centrales,
+# casi todas coloradas y gordas (justo las colas que se buscan).
 DET_URL = "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11m.pt"
 DET_SHA256 = "d5ffc1a674953a08e11a8d21e022781b1b23a19b730afc309290bd9fb5305b95"
-COCO_COW = 19
-DET_CONF = 0.2
+DET_CONF = 0.1
+DET_TAG = "yolo11m-all-c010"  # cambia el nombre del cache si cambia el detector
 # Caja de una vaca entera: alta (≥ 40% del frame) y no más ancha que ~2 puestos.
 MIN_BOX_H, MAX_BOX_W = 0.40, 0.45
 MAX_SIDE = 320
@@ -314,7 +316,7 @@ def yolo_detector(weights: Path) -> Detector:
 
     def detect(img: Image.Image) -> list[Box]:
         with lock:
-            r: Any = list(model.predict(img, verbose=False, conf=DET_CONF, classes=[COCO_COW]))[0]
+            r: Any = list(model.predict(img, verbose=False, conf=DET_CONF))[0]
         out: list[Box] = []
         for b in r.boxes:
             x0, y0, x1, y1 = (int(round(v)) for v in b.xyxy[0].tolist())
@@ -444,8 +446,8 @@ class ZenRgbdSource:
         return self._detector
 
     def _detections(self, plan: pd.DataFrame) -> dict[str, dict[str, Any]]:
-        """Cajas por image_id, cacheadas en images/zen_rgbd/.detections.json."""
-        cache_path = self.images_dir / ".detections.json"
+        """Cajas por image_id, cacheadas en images/zen_rgbd/.detections.<DET_TAG>.json."""
+        cache_path = self.images_dir / f".detections.{DET_TAG}.json"
         cache: dict[str, dict[str, Any]] = (
             json.loads(cache_path.read_text()) if cache_path.exists() else {}
         )
@@ -612,7 +614,7 @@ def raw_sheet(src: ZenRgbdSource, out: Path, n: int = 25, seed: int = SEED) -> P
     """25 frames crudos al azar (train + val) con todas las cajas y la central elegida en verde."""
     plan = pd.read_csv(src.raw_dir / "plan.csv")
     split_of = split_animals(_select(plan, slice(None), ["animal_id", "bcs"]))
-    dets = json.loads((src.images_dir / ".detections.json").read_text())
+    dets = json.loads((src.images_dir / f".detections.{DET_TAG}.json").read_text())
     keep = [
         split_of[int(a)] != "test" and i in dets
         for a, i in zip(plan["animal_id"], plan["image_id"], strict=True)
