@@ -620,6 +620,13 @@
       "branch": "T25-reentrenamiento-zen",
       "agent": "claude",
       "note": "no sobreescribir models/bcs_efficientnet_b0.pt ni relacionados; modelo nuevo con otro nombre (p. ej. bcs_efficientnet_b0_zen.pt) en artifacts/T25"
+    },
+    "T26": {
+      "title": "Datasets de BCS 1.0–2.75 (flacas)",
+      "status": "dispatched",
+      "dispatch_id": "ctx_d7707d4d3463",
+      "branch": "investigacion-datasets-3",
+      "agent": "claude"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
