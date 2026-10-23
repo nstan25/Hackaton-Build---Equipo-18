@@ -457,15 +457,16 @@ def train(
 
 
 def red_coat_fraction(im: Image.Image) -> float:
-    """Heurística de pelaje colorado: fracción de píxeles rojizo-marrones (tono 0–25° o ≥ 340°,
-    saturación ≥ 0,30, valor 0,12–0,90) en el centro del recorte (40% del ancho, del 20% al 80% del
-    alto), donde está la grupa y no el brete ni las vecinas."""
+    """Heurística de pelaje colorado: fracción de píxeles marrón-rojizos (tono 8–45°, saturación
+    ≥ 0,12, valor 0,20–0,95) en el centro del recorte (40% del ancho, 20–80% del alto), donde
+    está la grupa y no el brete ni las vecinas. Umbrales medidos en zen val: las coloradas dan tono
+    18–35° y saturación 0,12–0,36; las negras de la sala salen azuladas (~200°, sat. < 0,12)."""
     w, h = im.size
     c = im.convert("RGB").crop((int(0.3 * w), int(0.2 * h), int(0.7 * w), int(0.8 * h)))
     hsv = np.asarray(c.convert("HSV"), dtype=float)
     hue = hsv[..., 0] * 360 / 255
     s, v = hsv[..., 1] / 255, hsv[..., 2] / 255
-    m = ((hue <= 25) | (hue >= 340)) & (s >= 0.30) & (v >= 0.12) & (v <= 0.90)
+    m = (hue >= 8) & (hue <= 45) & (s >= 0.12) & (v >= 0.20) & (v <= 0.95)
     return float(m.mean()) if m.size else 0.0
 
 
@@ -563,7 +564,8 @@ def build_report(cfg: dict[str, Any], models: Sequence[str]) -> dict[str, Any]:
         d27 = zen[zen["date"] == CONTRAST_DATE]
         hi, mid = d27[d27["y"] >= 4.5], d27[d27["y"].isin([4.0, 4.25])]
         rep["contrast_2703"][m] = _contrast(hi, mid)
-        band = df[df["y"].isin([4.0, 4.25])]
+        # solo zen: en sdb la heurística marca la pintura de la cola y la luz cálida, no el pelaje
+        band = df[df["y"].isin([4.0, 4.25]) & (df["source"] == "zen_rgbd")]
         rep["coat_4.0-4.25"][m] = {
             s: {("colorada" if r else "no colorada"): mt(g2) for r, g2 in g.groupby("red")}
             for s, g in band.groupby("source")

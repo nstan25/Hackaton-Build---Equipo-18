@@ -41,4 +41,4 @@ augment:                         # las de train_cnn.py + más tono/saturación y
   grayscale_p: 0.2
 
 coat:                            # heurística "colorada" (ver `red_coat_fraction`)
-  threshold: 0.20
+  threshold: 0.30
