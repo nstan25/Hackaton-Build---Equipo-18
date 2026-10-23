@@ -1,0 +1,43 @@
+# T25 (experimento): fine-tuning en CPU de la EfficientNet-B0 de producción con sdb_bcs + zen_rgbd.
+# Lo lee `python -m bcs.models.train_zen`. No toca producción: todo sale a $BCS_ARTIFACTS_DIR/T25/.
+seed: 42
+scale: dairy_zen                 # grilla 3.0–5.0 (config/scale.yaml); 2.75 se lleva a 3.0
+init_weights: models/bcs_efficientnet_b0.pt
+arch: efficientnet_b0
+size: [224, 320]                 # alto, ancho (el de producción)
+center: 3.75                     # igual a producción: la cabeza arranca calibrada; 3.0 → -3, 5.0 → +5
+step: 0.25
+
+data:
+  sdb_max_per_group: 5           # sdb train: ≤ 5 frames por grupo, tomados parejos en la secuencia
+  source_mix: {sdb_bcs: 0.5, zen_rgbd: 0.5}
+  # dentro de cada fuente, peso de muestreo ∝ 1 / n_clase^power (1 = balanceado como train_cnn.py;
+  # 0.5 en zen para no repetir 30 veces las 87 imágenes de 5.0)
+  class_balance_power: {sdb_bcs: 1.0, zen_rgbd: 0.5}
+
+variants:
+  A: {drop_dates: ["2024-12-06"], date_weight: {}}          # sin la toma diagonal
+  B: {drop_dates: [], date_weight: {"2024-12-06": 0.25}}    # todas las fechas, 06.12 con peso bajo
+
+train:
+  epochs: 5
+  patience: 2                    # early stopping en val (épocas sin mejorar)
+  epoch_samples: 12000           # muestras por época (con reposición, 50/50 por fuente)
+  batch_size: 32
+  lr: 2.0e-4
+  weight_decay: 1.0e-4
+  warmup_steps: 100
+  huber_delta: 1.0               # en pasos de 0.25
+  num_workers: 3
+  torch_threads: 8
+  ckpt_every_steps: 100          # además del checkpoint de fin de época, para reanudar a mitad
+  val_batch_size: 64
+
+augment:                         # las de train_cnn.py + más tono/saturación y gris contra el pelaje
+  hflip: true
+  affine: {degrees: 7, translate: 0.04, scale: [0.92, 1.08]}
+  color_jitter: {brightness: 0.25, contrast: 0.25, saturation: 0.4, hue: 0.08}
+  grayscale_p: 0.2
+
+coat:                            # heurística "colorada" (ver `red_coat_fraction`)
+  threshold: 0.20
