@@ -623,10 +623,11 @@
     },
     "T26": {
       "title": "Datasets de BCS 1.0–2.75 (flacas)",
-      "status": "dispatched",
+      "status": "merged a main",
       "dispatch_id": "ctx_d7707d4d3463",
       "branch": "investigacion-datasets-3",
-      "agent": "claude"
+      "agent": "claude",
+      "note": "nuevo a pedido: Grecheneva 2026 (Moscú, BCS 1–2 en clases enteras), Moreira/Dórea 2022 (iPhone, test celular); nada público <2.75"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
