@@ -496,7 +496,16 @@ def predictions_path(model: str) -> Path:
     return out_dir() / f"preds_val_{model}.csv"
 
 
-def run_predict(cfg: dict[str, Any], model_name: str) -> Path:
+def run_predict(cfg: dict[str, Any], model_name: str, force: bool = False) -> Path:
+    dest = predictions_path(model_name)
+    weights = out_dir() / model_name / "best.pt"
+    # pesos más nuevos que las predicciones → se rehacen
+    fresh = dest.exists() and not (
+        weights.exists() and weights.stat().st_mtime > dest.stat().st_mtime
+    )
+    if fresh and not force:
+        print(f"{model_name}: ya están las predicciones ({dest})")
+        return dest
     val = pd.read_csv(out_dir() / "manifest_val.csv", dtype={"date": str}).fillna({"date": ""})
     torch.set_num_threads(int(cfg["train"]["torch_threads"]))
     t0 = time.time()
@@ -511,7 +520,6 @@ def run_predict(cfg: dict[str, Any], model_name: str) -> Path:
         pred = predict_values(model, val["path"].tolist(), eval_tf, meta["center"], meta["scale"])
     out = val[["image_id", "source", "group_id", "date", "bcs", "y"]].copy()
     out["pred"] = pred
-    dest = predictions_path(model_name)
     out.to_csv(dest, index=False)
     print(f"{model_name}: {len(out)} predicciones en {time.time() - t0:.0f}s → {dest}")
     return dest
@@ -710,6 +718,7 @@ def main(argv: list[str] | None = None) -> int:
     tr.add_argument("--dest", default=None, help="subcarpeta de T25/ (por defecto, la variante)")
     pr = sub.add_parser("predict")
     pr.add_argument("--model", required=True, help="prod o el nombre de la subcarpeta (A, B)")
+    pr.add_argument("--force", action="store_true", help="rehacer aunque ya existan")
     ex = sub.add_parser("export")
     ex.add_argument("--model", required=True, help="variante elegida (A o B)")
     rp = sub.add_parser("report")
@@ -738,7 +747,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps({k: v for k, v in st.items() if k != "log"}, default=str))
     elif args.cmd == "predict":
-        run_predict(cfg, args.model)
+        run_predict(cfg, args.model, force=args.force)
     elif args.cmd == "export":
         print(f"→ {export(cfg, args.model)}")
     elif args.cmd == "report":
