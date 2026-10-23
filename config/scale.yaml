@@ -16,6 +16,12 @@ presets:
     step: 0.25
     collapse_below: 3.25
     collapse_above: 4.25
+  dairy_zen:          # T25 (experimento): sdb_bcs + zen_rgbd; 2.75 se colapsa a 3.0 (solo 10 imágenes)
+    min: 1.0
+    max: 5.0
+    step: 0.25
+    collapse_below: 3.0
+    collapse_above: 5.0
   beef_1_8:           # Cría vacuna en Uruguay
     min: 1
     max: 8
