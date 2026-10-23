@@ -242,7 +242,7 @@ class OffsetSampler(Sampler[int]):
 
 def epoch_indices(weights: np.ndarray, n: int, seed: int, epoch: int) -> list[int]:
     g = torch.Generator().manual_seed(seed * 1000 + epoch)
-    w = torch.as_tensor(weights, dtype=torch.double)
+    w = torch.tensor(np.array(weights, dtype=float))
     return torch.multinomial(w, n, replacement=True, generator=g).tolist()
 
 
