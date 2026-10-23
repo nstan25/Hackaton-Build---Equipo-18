@@ -583,20 +583,20 @@
     },
     "T22": {
       "title": "Investigación de cámaras para el tambo",
-      "status": "dispatched",
+      "status": "completed (rama investigacion-camaras, sin mergear)",
       "dispatch_id": "ctx_d99e269ead16",
       "branch": "investigacion-camaras",
       "agent": "claude"
     },
     "deploy-serverless": {
       "title": "Railway Serverless (sleepApplication)",
-      "status": "deployado a producción para prueba; sin mergear",
+      "status": "deployado; sleepApplication ignorado por Railway (manifest False); falta activarlo desde el panel",
       "branch": "deploy-serverless",
       "commit": "0d4e22a"
     },
     "T23": {
       "title": "Investigación de datasets de BCS (extremos)",
-      "status": "dispatched",
+      "status": "completed (rama investigacion-datasets, sin mergear)",
       "dispatch_id": "ctx_0b80b7385541",
       "branch": "investigacion-datasets",
       "agent": "claude"
