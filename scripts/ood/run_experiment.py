@@ -153,6 +153,10 @@ def prod_errors(meta: pd.DataFrame) -> np.ndarray:
     return np.array([m[i] for i in meta["image_id"]], dtype=float)
 
 
+def _mean(x: np.ndarray) -> float:
+    return float(x.mean()) if len(x) else float("nan")
+
+
 def ood_metrics(id_s: pd.DataFrame, ood_s: pd.DataFrame, tpr: float) -> dict[str, dict]:
     return {
         c: {
@@ -239,31 +243,57 @@ def run() -> dict[str, Any]:
         "n_reach": int(pipe_reach.sum()),
     }
 
-    # ---- umbrales (percentiles de calibración, fotos de val que pasan el pipeline)
+    pipe_err = np.abs(pipe_val.meta["value"] - pipe_val.meta["bcs"]).to_numpy()
+
+    # ---- umbrales: percentiles de val sdb (calibración, fotos que pasan el pipeline) y, como
+    # umbral "tolerante al dominio", percentiles de val_zen (vacas reales de otra granja/cámara)
+    def rejection(c: str, t: float) -> dict[str, float]:
+        rej = {
+            "val_sdb (eval)": float((id_sdb_eval[c] > t).mean()),
+            "pipe_val reach (eval)": float((id_pipe_reach[c] > t).mean()),
+            "val_zen": float((s_zen[c] > t).mean()),
+        }
+        for name, (s, sc) in sets.items():
+            r = s.reach
+            rej[f"{name} reach"] = float((sc[c][r] > t).mean()) if r.any() else float("nan")
+            # lo que deja pasar el sistema entero (filtro + detector + OOD) sobre todas
+            rej[f"{name} pasa todo"] = float((r & (sc[c] <= t).to_numpy()).mean())
+        return rej
+
     thr: dict[str, Any] = {}
-    for q in cfg["thresholds"]:
-        key = f"p{round(100 * q)}"
-        thr[key] = {}
-        for c in [*SHOW, "combo"]:
-            t = float(np.quantile(cal_reach[c], q))
-            rej = {
-                "val_sdb (eval)": float((id_sdb_eval[c] > t).mean()),
-                "pipe_val reach (eval)": float((id_pipe_reach[c] > t).mean()),
-                "val_zen": float((s_zen[c] > t).mean()),
-            }
-            for name, (s, sc) in sets.items():
-                r = s.reach
-                rej[f"{name} reach"] = float((sc[c][r] > t).mean()) if r.any() else float("nan")
-                # lo que deja pasar el sistema entero (filtro + detector + OOD) sobre todas
-                rej[f"{name} pasa todo"] = float((r & (sc[c] <= t).to_numpy()).mean())
-            thr[key][c] = {"threshold": t, "rejected": rej}
+    for ref, ref_scores in (("val", cal_reach), ("zen", s_zen)):
+        for q in cfg["thresholds"]:
+            key = f"{ref}_p{round(100 * q)}"
+            thr[key] = {}
+            for c in [*SHOW, "maha_l2", "combo"]:
+                t = float(np.quantile(ref_scores[c], q))
+                thr[key][c] = {"threshold": t, "rejected": rejection(c, t)}
     res["thresholds"] = thr
+
+    # ---- error del modelo en los degradados que llegan al modelo, aceptados vs. rechazados
+    deg: dict[str, Any] = {}
+    for name, (s, sc) in sets.items():
+        if not name.startswith("deg_"):
+            continue
+        r = s.reach
+        err = np.abs(s.meta["value"] - s.meta["bcs"]).to_numpy()
+        row: dict[str, Any] = {"n_reach": int(r.sum()), "mae_reach": _mean(err[r])}
+        for key in ("val_p99", "zen_p99"):
+            t = thr[key]["maha"]["threshold"]
+            acc = r & (sc["maha"] <= t).to_numpy()
+            row[f"maha_{key}"] = {
+                "mae_accepted": _mean(err[acc]),
+                "mae_rejected": _mean(err[r & ~acc]),
+            }
+        deg[name] = row
+    clean = pipe_eval & pipe_reach
+    deg["pipe_val (limpias)"] = {"n_reach": int(clean.sum()), "mae_reach": _mean(pipe_err[clean])}
+    res["degraded_mae"] = deg
 
     # ---- predicción selectiva
     fr = [float(f) for f in cfg["selective_fractions"]]
     err_sdb, err_zen = prod_errors(val_sdb.meta), prod_errors(val_zen.meta)
     deg_parts = [(s, sc) for n, (s, sc) in sets.items() if n.startswith("deg_")]
-    pipe_err = np.abs(pipe_val.meta["value"] - pipe_val.meta["bcs"]).to_numpy()
     pool_sc = pd.concat(
         [s_pipe[pipe_eval & pipe_reach]] + [sc[s.reach] for s, sc in deg_parts], ignore_index=True
     )
@@ -280,6 +310,13 @@ def run() -> dict[str, Any]:
         ),
         "pipe_val + degradados que llegan al modelo": (pool_sc, pool_err),
     }
+    if "zen_raw" in sets:
+        zs, zsc = sets["zen_raw"]
+        zerr = np.abs(zs.meta["value"] - zs.meta["bcs"]).to_numpy()
+        pools["zen_raw que llega al modelo (sin TTA)"] = (
+            zsc[zs.reach].reset_index(drop=True),
+            zerr[zs.reach],
+        )
     sel: dict[str, Any] = {}
     for pname, (sc, err) in pools.items():
         sel[pname] = {"n": len(err), "mae_all": float(err.mean())}
