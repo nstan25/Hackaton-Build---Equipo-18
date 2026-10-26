@@ -631,11 +631,12 @@
     },
     "T27": {
       "title": "Detección OOD: Mahalanobis vs. kNN",
-      "status": "despachado",
+      "status": "worker_done verificado; gate G6 abierto (integrar/mergear código/archivar)",
       "branch": "ood-detection",
       "agent": "claude",
       "task_id": "task_d8ec7fe818c4",
-      "dispatch_id": "ctx_4836f7004cc4"
+      "dispatch_id": "ctx_4836f7004cc4",
+      "note": "Mahalanobis 1 gaussiana gana (COCO AUROC 0,99 FPR95 3,7%; kNN 50%); zen real puntúa raro (42% con p99) → 2 niveles"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)",
