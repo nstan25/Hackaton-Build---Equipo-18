@@ -638,5 +638,12 @@
       "dispatch_id": "ctx_4836f7004cc4"
     }
   },
-  "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
+  "deployed": "main 607aa06+ (rediseño, explicación, gráfico)",
+  "deployed_dev": {
+    "url": "https://bcs-dev.up.railway.app",
+    "railway_env": "dev (duplicado de production, serverless)",
+    "token": "propio; ~/.config/bcs/dev_app_token (fuera del repo)",
+    "deployed_from": "main 1e52832",
+    "date": "2026-10-26"
+  }
 }
