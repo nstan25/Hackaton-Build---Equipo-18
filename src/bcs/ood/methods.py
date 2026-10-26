@@ -45,10 +45,11 @@ def subsample_bank(
     perm = rng.permutation(m)
     rank = np.empty(m, dtype=np.int64)
     seen: dict[str, int] = {}
-    for i in perm:
+    for i in perm.tolist():
         k = str(g[i])
-        rank[i] = seen.get(k, 0)
-        seen[k] = rank[i] + 1
+        r = seen.get(k, 0)
+        rank[i] = r
+        seen[k] = r + 1
     order = np.lexsort((rng.random(m), rank))
     return np.sort(order[:n])
 
@@ -98,6 +99,8 @@ class MahalanobisScore:
     `per_class=False`: una sola gaussiana. `per_class=True`: medias por clase (`y` en `fit`) y
     covarianza compartida (intra-clase); el puntaje es la distancia a la clase más cercana.
     `relative=True` (solo por clase): resta la distancia a la gaussiana de fondo (Ren et al.).
+    Ojo: un corrimiento en direcciones donde fondo y clases tienen la misma varianza se cancela
+    (la versión relativa solo mira lo que separa a las clases del fondo).
     `normalize=True` normaliza las features a norma 1 antes de todo.
     """
 
