@@ -615,7 +615,7 @@
     },
     "T25": {
       "title": "Reentrenamiento experimental en CPU (sdb+zen, 3.0–5.0)",
-      "status": "dispatched",
+      "status": "worker_done verificado; gate G5 abierto (integrar/iterar/archivar)",
       "dispatch_id": "ctx_eeba4ffc562d",
       "branch": "T25-reentrenamiento-zen",
       "agent": "claude",
@@ -628,6 +628,12 @@
       "branch": "investigacion-datasets-3",
       "agent": "claude",
       "note": "nuevo a pedido: Grecheneva 2026 (Moscú, BCS 1–2 en clases enteras), Moreira/Dórea 2022 (iPhone, test celular); nada público <2.75"
+    },
+    "T27": {
+      "title": "Detección OOD: Mahalanobis vs. kNN",
+      "status": "despachado",
+      "branch": "ood-detection",
+      "agent": "claude"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
