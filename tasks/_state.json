@@ -633,7 +633,9 @@
       "title": "Detección OOD: Mahalanobis vs. kNN",
       "status": "despachado",
       "branch": "ood-detection",
-      "agent": "claude"
+      "agent": "claude",
+      "task_id": "task_d8ec7fe818c4",
+      "dispatch_id": "ctx_4836f7004cc4"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)"
