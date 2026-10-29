@@ -662,7 +662,7 @@
     "token": "propio; ~/.config/bcs/dev_app_token (fuera del repo)",
     "deployed_from": "main 1e52832",
     "date": "2026-10-26",
-    "git_branch": "dev (GitHub; conexión de Railway pendiente en la UI)",
+    "git_branch": "dev (GitHub). Sin auto-deploy: dev y production se deployan solo con railway up explícito a pedido del humano (29/10)",
     "note": "G5/G6 se implementan en dev, no en main"
   }
 }
