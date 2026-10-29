@@ -7,7 +7,6 @@ todas detrás del token. Trabajan contra el `Store` montado en `app.state.store`
 from __future__ import annotations
 
 import math
-import os
 from collections.abc import Sequence
 from dataclasses import asdict
 from typing import Any, Protocol, runtime_checkable
@@ -17,7 +16,7 @@ from fastapi.responses import FileResponse
 
 from bcs.auth import require_token
 from bcs.contract import InvalidCowId, Status, normalize_cow_id
-from bcs.inference import MODEL_SCALE
+from bcs.inference import model_scale
 from bcs.scale import Scale, grid_key, load_scale
 from bcs.store.base import CowFilters, Store
 from bcs.store.memory import CowMean
@@ -93,7 +92,7 @@ def cows_distribution(request: Request, since: str | None = None) -> dict[str, A
     if not isinstance(store, _CowMeans):
         raise HTTPException(status_code=501, detail="el registro no agrega promedios por vaca")
     # La grilla del modelo de producción (la misma que usa `model_pipeline`), no la `active`.
-    scale = load_scale(os.environ.get("BCS_SCALE") or MODEL_SCALE)
+    scale = load_scale(model_scale())
     return bcs_distribution(store.mean_bcs_by_cow(since), scale)
 
 

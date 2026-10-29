@@ -11,6 +11,13 @@ El `cow_id` solo viaja con la predicción: nunca se le pasa al `Scorer` ni a nin
   conformal de T11 (`models/calibration_efficientnet_b0.json`) → reglas de status con la
   de extremos de G3.
 
+T28 (rama `dev`): `BCS_MODEL` elige el modelo (`MODELS`). `zen` (default) es el de T25
+(`models/bcs_efficientnet_b0_zen.pt`, letterbox, grilla `dairy_zen` 3.0–5.0) con su calibración
+(`models/calibration_efficientnet_b0_zen.json`) y la detección OOD de T27 en dos niveles
+(`models/ood_mahalanobis_zen.npz`, sobre el pooling de la misma pasada, después del detector y
+antes de `decide_status`): aviso → `low_confidence` con `ISSUE_OOD_WARN`, rechazo → `rejected`
+con `ISSUE_NOT_COW_REAR`. `sdb` es el de producción (`main`), sin OOD, en `dairy_sdb`.
+
 `predict_raw` es lo mismo que `predict` pero devuelve también la foto decodificada, para que la API
 arme la miniatura sin decodificar la original otra vez (R3 de eval/review.md).
 """
@@ -37,9 +44,18 @@ from PIL import Image, ImageOps
 
 from bcs.calibration.base import Calibrator, IntervalPredictor
 from bcs.calibration.stub import FullGridInterval, IdentityCalibrator
-from bcs.contract import Prediction, QualityReport, decide_status, is_edge, normalize_cow_id
+from bcs.contract import (
+    ISSUE_NOT_COW_REAR,
+    ISSUE_OOD_WARN,
+    Prediction,
+    QualityReport,
+    decide_status,
+    is_edge,
+    normalize_cow_id,
+)
 from bcs.models.base import Scorer
 from bcs.models.stub import UniformScorer
+from bcs.ood.gate import LEVEL_REJECT, LEVEL_WARN, FeatureScorer, MahalanobisGate
 from bcs.paths import REPO_ROOT, fixtures_dir
 from bcs.quality.base import QualityChecker
 from bcs.quality.stub import AcceptAllChecker
@@ -50,10 +66,45 @@ ImageInput = bytes | Image.Image
 Locator = Callable[[Image.Image], Image.Image | None]
 
 PREDICTOR_ENV = "BCS_PREDICTOR"
+MODEL_ENV = "BCS_MODEL"
+OOD_ENV = "BCS_OOD"  # "off" apaga la detección OOD (comparaciones); default prendida
 DETECTOR = REPO_ROOT / "models" / "cow_det.pt"
 WEIGHTS = REPO_ROOT / "models" / "bcs_efficientnet_b0.pt"
 CALIBRATION = REPO_ROOT / "models" / "calibration_efficientnet_b0.json"
-MODEL_SCALE = "dairy_sdb"
+WEIGHTS_ZEN = REPO_ROOT / "models" / "bcs_efficientnet_b0_zen.pt"
+CALIBRATION_ZEN = REPO_ROOT / "models" / "calibration_efficientnet_b0_zen.json"
+OOD_ZEN = REPO_ROOT / "models" / "ood_mahalanobis_zen.npz"
+
+
+@dataclass(frozen=True)
+class ModelSpec:
+    name: str  # prefijo de `model_version`
+    weights: Path
+    calibration: Path
+    scale: str  # preset de config/scale.yaml (la grilla de la calibración)
+    ood: Path | None = None
+
+
+MODELS: dict[str, ModelSpec] = {
+    "sdb": ModelSpec("efficientnet_b0", WEIGHTS, CALIBRATION, "dairy_sdb"),
+    "zen": ModelSpec("efficientnet_b0_zen", WEIGHTS_ZEN, CALIBRATION_ZEN, "dairy_zen", OOD_ZEN),
+}
+DEFAULT_MODEL = "zen"
+
+
+def model_spec(model: str | None = None) -> ModelSpec:
+    """El modelo pedido, o el de `BCS_MODEL` (default `DEFAULT_MODEL`)."""
+    key = (model or os.environ.get(MODEL_ENV) or DEFAULT_MODEL).strip().lower()
+    if key not in MODELS:
+        raise ValueError(f"{MODEL_ENV} debe ser uno de {sorted(MODELS)}, no {key!r}")
+    return MODELS[key]
+
+
+def model_scale(model: str | None = None) -> str:
+    """La grilla del modelo de producción: `BCS_SCALE` si está, si no la del modelo."""
+    return os.environ.get("BCS_SCALE") or model_spec(model).scale
+
+
 ISSUE_NO_COW = "no se encontró la vaca en la foto"
 # Texto de G3 para `low_confidence` en una punta de la grilla (lo muestra la UI).
 EDGE_LOW = "posible condición baja, verificar a mano"
@@ -68,6 +119,7 @@ class Pipeline:
     calibrator: Calibrator
     interval: IntervalPredictor
     locate: Locator | None = None  # sin locator, el scorer ve la foto entera
+    ood: MahalanobisGate | None = None  # T28: requiere un scorer `FeatureScorer`
 
 
 def stub_pipeline(scale: Scale | None = None) -> Pipeline:
@@ -185,7 +237,7 @@ def _run_decoded(pipeline: Pipeline, img: Image.Image, raw: bytes, cow_id: str) 
     version = pipeline.scorer.model_version
     if not quality.passed:
         if not quality.issues:
-            quality = replace(quality, issues=["no parece una vaca de atrás"])
+            quality = replace(quality, issues=[ISSUE_NOT_COW_REAR])
         return _rejected(raw, cow_id, scale, quality, version)
 
     crop = pipeline.locate(img) if pipeline.locate is not None else img
@@ -193,7 +245,22 @@ def _run_decoded(pipeline: Pipeline, img: Image.Image, raw: bytes, cow_id: str) 
         quality = replace(quality, issues=[*quality.issues, ISSUE_NO_COW])
         return _rejected(raw, cow_id, scale, quality, version)
 
-    probs = pipeline.calibrator.transform(pipeline.scorer.predict_proba([crop]))[0]
+    if pipeline.ood is None:
+        raw_probs = pipeline.scorer.predict_proba([crop])
+    else:
+        # OOD sobre el pooling de la misma pasada (vista sin flip), sin correr el modelo otra vez
+        if not isinstance(pipeline.scorer, FeatureScorer):
+            raise TypeError("la detección OOD necesita un scorer con predict_proba_features")
+        raw_probs, feats = pipeline.scorer.predict_proba_features([crop])
+        level = pipeline.ood.level(feats[0])
+        if level == LEVEL_REJECT:
+            quality = replace(
+                quality, is_cow_rear=False, issues=[*quality.issues, ISSUE_NOT_COW_REAR]
+            )
+            return _rejected(raw, cow_id, scale, quality, version)
+        if level == LEVEL_WARN:
+            quality = replace(quality, issues=[*quality.issues, ISSUE_OOD_WARN])
+    probs = pipeline.calibrator.transform(raw_probs)[0]
     top = int(np.argmax(probs))
     confidence = float(probs[max(top - 1, 0) : top + 2].sum())
     interval = pipeline.interval.interval(probs[None, :])[0]
@@ -273,6 +340,13 @@ class CalibratedEfficientNet:
     def predict_proba(self, images: Sequence[Image.Image]) -> np.ndarray:
         return self.dist.predict_proba(self.effnet.predict_value(images))
 
+    def predict_proba_features(
+        self, images: Sequence[Image.Image]
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """`predict_proba` y el pooling de la vista sin flip, de la misma pasada (T28, OOD)."""
+        values, feats = self.effnet.predict_value_features(images)
+        return self.dist.predict_proba(values), feats
+
     def save(self, path: Path) -> None:
         raise NotImplementedError
 
@@ -280,17 +354,31 @@ class CalibratedEfficientNet:
         raise NotImplementedError
 
 
+def ood_enabled() -> bool:
+    return os.environ.get(OOD_ENV, "on").strip().lower() not in ("off", "0", "false", "no")
+
+
 @cache
-def model_version() -> str:
-    """`efficientnet_b0-<sha .pt>+cal-<sha calibration.json>+det-<sha cow_det.pt>` (8 hex c/u)."""
-    return (
-        f"efficientnet_b0-{_sha256(WEIGHTS)[:8]}"
-        f"+cal-{_sha256(CALIBRATION)[:8]}+det-{_sha256(DETECTOR)[:8]}"
+def _model_version(spec: ModelSpec, ood: bool) -> str:
+    version = (
+        f"{spec.name}-{_sha256(spec.weights)[:8]}"
+        f"+cal-{_sha256(spec.calibration)[:8]}+det-{_sha256(DETECTOR)[:8]}"
     )
+    if spec.ood is not None and ood:
+        version += f"+ood-{_sha256(spec.ood)[:8]}"
+    return version
 
 
-def model_pipeline(scale: Scale | None = None) -> Pipeline:
-    """El pipeline de G3. Los pesos (EfficientNet, YOLO) se cargan en el primer uso.
+def model_version(model: str | None = None) -> str:
+    """`<modelo>-<sha .pt>+cal-<sha calibración>+det-<sha cow_det.pt>[+ood-<sha banco>]` (8 hex
+    c/u), p. ej. `efficientnet_b0-5a5b28d6+cal-…+det-…` (sdb) o `efficientnet_b0_zen-bd938c68+…`."""
+    return _model_version(model_spec(model), ood_enabled())
+
+
+def model_pipeline(scale: Scale | None = None, model: str | None = None) -> Pipeline:
+    """El pipeline de G3 con el modelo `model` (default `BCS_MODEL`, ver `MODELS`). Los pesos
+    (EfficientNet, YOLO) se cargan en el primer uso; el banco OOD, acá (se niega si es de otro
+    `.pt`).
 
     Filtro de calidad: `BasicQualityChecker` (sin CLIP, decisión del 18/10 por la RAM de Railway);
     `BCS_QUALITY=clip` vuelve al `ClipQualityChecker` de T08.
@@ -300,23 +388,31 @@ def model_pipeline(scale: Scale | None = None) -> Pipeline:
     from bcs.quality.basic import BasicQualityChecker
     from bcs.quality.clip_checker import ClipQualityChecker
 
-    scale = scale or load_scale(os.environ.get("BCS_SCALE") or MODEL_SCALE)
-    cal = CalibratedRegression.load(CALIBRATION)
+    spec = model_spec(model)
+    scale = scale or load_scale(model_scale(model))
+    cal = CalibratedRegression.load(spec.calibration)
     if tuple(scale.grid) != cal.grid:
         raise ValueError(
             f"la escala {scale.name} {scale.grid} no es la grilla de la calibración {cal.grid}"
-            f" (usá BCS_SCALE={MODEL_SCALE})"
+            f" (usá BCS_SCALE={spec.scale})"
         )
-    effnet = EfficientNetScorer(scale.grid, {"model": {"weights": str(WEIGHTS), "tta": True}})
+    effnet = EfficientNetScorer(scale.grid, {"model": {"weights": str(spec.weights), "tta": True}})
+    use_ood = spec.ood is not None and ood_enabled()
+    ood = (
+        MahalanobisGate.load(spec.ood, model_sha256=_sha256(spec.weights))
+        if spec.ood is not None and use_ood
+        else None
+    )
     return Pipeline(
         scale=scale,
         quality=ClipQualityChecker()
         if os.environ.get("BCS_QUALITY") == "clip"
         else BasicQualityChecker(),
-        scorer=CalibratedEfficientNet(effnet, cal.dist, model_version()),
+        scorer=CalibratedEfficientNet(effnet, cal.dist, model_version(model)),
         calibrator=cal.calibrator,
         interval=cal.conformal,
         locate=CowLocator(),
+        ood=ood,
     )
 
 

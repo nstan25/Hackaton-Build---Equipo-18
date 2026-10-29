@@ -16,6 +16,13 @@ COW_ID_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9._-]{0,63}$")
 LOW_CONFIDENCE_THRESHOLD = 0.5
 MAX_INTERVAL_STEPS = 4
 
+# T28 (G6): motivos de la detección OOD. El de rechazo es el de siempre. El de aviso es el único
+# "issue" que no rechaza: la foto sigue con BCS pero queda `low_confidence` (sin campos nuevos, así
+# que un cliente viejo lee igual el JSON y muestra el texto en la lista de motivos).
+ISSUE_NOT_COW_REAR = "no parece una vaca de atrás"
+ISSUE_OOD_WARN = "la foto no se parece a las del entrenamiento; verificá encuadre y luz"
+WARNING_ISSUES: frozenset[str] = frozenset({ISSUE_OOD_WARN})
+
 
 class InvalidCowId(ValueError):
     """`cow_id` ausente o con formato inválido. La API lo traduce a 422."""
@@ -29,7 +36,13 @@ class QualityReport:
 
     @property
     def passed(self) -> bool:
-        return self.is_cow_rear and not self.issues
+        """Es una vaca de atrás y no hay ningún motivo de rechazo (los avisos no rechazan)."""
+        return self.is_cow_rear and all(i in WARNING_ISSUES for i in self.issues)
+
+    @property
+    def warned(self) -> bool:
+        """Trae algún aviso (`WARNING_ISSUES`): la predicción es a lo sumo `low_confidence`."""
+        return any(i in WARNING_ISSUES for i in self.issues)
 
 
 @dataclass
@@ -112,9 +125,12 @@ def decide_status(
 
     G3: si se pasan `bcs` y `edges` (extremos de la grilla del modelo), un BCS en un extremo
     también es `low_confidence` (SPEC §1.2: posible condición baja/alta, verificar a mano).
+    T28: un aviso en `quality.issues` (`WARNING_ISSUES`, la detección OOD) también.
     """
     if not quality.passed:
         return "rejected"
+    if quality.warned:
+        return "low_confidence"
     if confidence is None or confidence < LOW_CONFIDENCE_THRESHOLD:
         return "low_confidence"
     if interval is None or interval_steps(interval, step) > MAX_INTERVAL_STEPS:

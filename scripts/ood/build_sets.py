@@ -8,6 +8,8 @@ recalcula (borrá su `.npz` para rehacerlo).
 Conjuntos (nunca test ni holdout; solo `train` y `val` de `splits*.csv`):
 
 - `bank`: recortes de `sdb_bcs` train (texto tapado), ≤ `bank.per_group` frames por grupo.
+- `bank_zen` (T28): todos los recortes de `zen_rgbd` train (fuente de entrenamiento del modelo
+  nuevo; ~3 por animal).
 - `val_sdb`: todos los recortes de `sdb_bcs` val (ID de prueba, mismos recortes que T09/T25).
 - `val_zen`: recortes de `zen_rgbd` val (cambio de dominio, MAE 0,48 con el modelo de producción).
 - `pipe_val`: frames completos de `sdb_bcs` val → filtro de calidad → detector → recorte, como en
@@ -21,6 +23,8 @@ En los conjuntos por pipeline, si el detector no encuentra vaca se embebe la fot
 como un recorte) para poder puntuarla igual; `detected` y `quality_ok` dicen qué hubiera pasado.
 
     uv run python scripts/ood/build_sets.py [--only bank,val_sdb]
+    # T28: el modelo de T25 (letterbox) → $BCS_ARTIFACTS_DIR/T28/emb/
+    uv run python scripts/ood/build_sets.py --task T28 --weights models/bcs_efficientnet_b0_zen.pt
 """
 
 from __future__ import annotations
@@ -43,10 +47,11 @@ from bcs.paths import REPO_ROOT, artifacts_dir, data_dir, fixtures_dir
 
 CHUNK = 512
 MAX_SIDE = 320
+TASK = "T27"  # carpeta de salida en $BCS_ARTIFACTS_DIR (--task); COCO siempre sale de T27
 
 
 def emb_dir() -> Path:
-    return artifacts_dir() / "T27" / "emb"
+    return artifacts_dir() / TASK / "emb"
 
 
 def load_cfg() -> dict:
@@ -237,11 +242,11 @@ def embed_set(
     print(f"[{name}] listo: {len(meta)} imágenes", file=sys.stderr)
 
 
-def build(only: set[str] | None) -> None:
+def build(only: set[str] | None, weights: str | None = None) -> None:
     cfg = load_cfg()
     seed = int(cfg["seed"])
     emb_dir().mkdir(parents=True, exist_ok=True)
-    fe = FeatureExtractor()
+    fe = FeatureExtractor(weights) if weights else FeatureExtractor()
 
     def want(name: str) -> bool:
         return only is None or name in only or name.split("_")[0] + "_*" in only
@@ -254,6 +259,8 @@ def build(only: set[str] | None) -> None:
     if want("bank"):
         bank = per_group(sdb_rows("train"), int(cfg["bank"]["per_group"]), seed)
         embed_set("bank", bank[keep], by_path, fe)
+    if want("bank_zen") and TASK != "T27":
+        embed_set("bank_zen", zen_rows("train")[keep], by_path, fe)
     if want("val_sdb"):
         embed_set("val_sdb", sdb_rows("val")[keep], by_path, fe)
     zen = zen_rows("val")
@@ -308,10 +315,14 @@ def build(only: set[str] | None) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    global TASK
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--only", default=None, help="conjuntos separados por coma (p. ej. bank,deg_*)")
+    ap.add_argument("--task", default=TASK, help="carpeta de salida en $BCS_ARTIFACTS_DIR")
+    ap.add_argument("--weights", default=None, help="`.pt` a embeber (default: producción)")
     args = ap.parse_args(argv)
-    build(set(args.only.split(",")) if args.only else None)
+    TASK = args.task
+    build(set(args.only.split(",")) if args.only else None, args.weights)
     return 0
 
 
