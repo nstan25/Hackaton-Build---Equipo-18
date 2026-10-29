@@ -640,11 +640,12 @@
     },
     "T28": {
       "title": "Integración en dev: modelo T25 + OOD T27",
-      "status": "despachado",
+      "status": "verificado y mergeado a dev (no deployado; deploy a dev a pedido)",
       "branch": "integracion-zen-ood (desde dev)",
       "agent": "claude",
       "task_id": "task_d6fbbb3146f4",
-      "dispatch_id": "ctx_cba44e314fa2"
+      "dispatch_id": "ctx_cba44e314fa2",
+      "note": "zen recortes MAE 0,48→0,16; punta a punta zen no mejora (detector elige otra vaca 78% / recorta solo grupa, sesgo +0,44); OOD aviso 4700 / rechazo 8036; RAM ~510 MiB, 0,80 s"
     },
     "T29": {
       "title": "Railway IaC (.railway/)",
