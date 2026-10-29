@@ -294,6 +294,23 @@ def source_auc(model: str, views: tuple[str, str] = ("sdb_uso", "uso"), seed: in
     return res
 
 
+def framing_gap(model: str, a: str = "uso", b: str = "t04") -> dict[str, Any]:
+    """Sensibilidad al encuadre: la misma vaca de zen val vista como grupa (`a`) y como vaca entera
+    (`b`). Si el modelo leyera la condición y no el encuadre/fuente, la diferencia sería ~0."""
+    m = load_preds(model, a).merge(load_preds(model, b), on="image_id", suffixes=("_a", "_b"))
+    m = m.loc[(m["kind_a"] != "rejected") & (m["kind_b"] != "rejected")]
+    d = m["pred_a"].to_numpy(dtype=float) - m["pred_b"].to_numpy(dtype=float)
+    ya, pb = m["y_a"].to_numpy(dtype=float), m["pred_b"].to_numpy(dtype=float)
+    pa = m["pred_a"].to_numpy(dtype=float)
+    return {
+        "n": len(m),
+        "mean_diff": float(d.mean()),
+        "mean_abs_diff": float(np.abs(d).mean()),
+        "corr": float(np.corrcoef(pa, pb)[0, 1]),
+        "corr_y_a": float(np.corrcoef(pa, ya)[0, 1]),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="scripts/zen_crops/evaluate.py")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -319,7 +336,7 @@ def main(argv: list[str] | None = None) -> int:
         (d / f"{a.name}.md").write_text(tables_md(rep, a.base))
         print(tables_md(rep, a.base))
     elif a.cmd == "source":
-        res = {m: source_auc(m) for m in a.models.split(",")}
+        res = {m: {"probe": source_auc(m), "framing": framing_gap(m)} for m in a.models.split(",")}
         d = runs_dir() / zc.TASK
         (d / "source_auc.json").write_text(json.dumps(res, indent=2))
         print(json.dumps(res, indent=2))
