@@ -16,3 +16,12 @@ coco:
 tpr: 0.95
 thresholds: [0.95, 0.99]  # percentiles de val ID (calibración) para el umbral propuesto
 selective_fractions: [0.0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5]
+
+# T28 · integración en `dev` (G6 opción 1) con el modelo de T25: `python -m bcs.ood.fit_zen`.
+# Embeddings con `scripts/ood/build_sets.py --task T28 --weights <weights>`.
+integration:
+  task: T28
+  weights: models/bcs_efficientnet_b0_zen.pt
+  artifact: models/ood_mahalanobis_zen.npz
+  warn_quantile: 0.99     # aviso: p99 de la mitad de calibración de val, por fuente; el mayor
+  reject_margin: 1.25     # rechazo: máximo de todas las vacas reales de val × margen
