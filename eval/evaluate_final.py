@@ -562,6 +562,17 @@ def report_markdown(report: dict[str, Any]) -> str:
         "de test pueden estar levemente infladas.",
         "- Recortes: el recorte del XML va directo al modelo (sin filtro ni detector), como en "
         "T09/T11. Punta a punta: foto cruda por el pipeline de producción de G3.",
+        *(
+            [
+                "- `zen_rgbd` punta a punta: el frame es la sala rotativa con varias vacas y la "
+                "etiqueta es la de la vaca central. En val (T28) el detector no ve vaca en el 22% "
+                "y elige otra vaca en el 78% de las que ve; en la correcta recorta solo la grupa. "
+                "Esa fila mide sobre todo al detector: la calidad del modelo en zen es la de "
+                "«recortes».",
+            ]
+            if "zen_rgbd" in report.get("by_source", {})
+            else []
+        ),
         "",
         f"Gráficos: {', '.join(report['plots'].values())}.",
         "",
