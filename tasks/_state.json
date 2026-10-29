@@ -648,7 +648,7 @@
     },
     "T29": {
       "title": "Railway IaC (.railway/)",
-      "status": "mergeado a main y dev; falta railway config apply (dev, luego production) y borrar railway.json",
+      "status": "apply hecho en dev y production (29/10, redeploy OK); pendiente: borrar railway.json antes del 1/12; plan residual restartPolicyType null→ON_FAILURE (default, cosmético)",
       "branch": "railway-iac",
       "agent": "claude",
       "task_id": "task_eb01abd4296a",
