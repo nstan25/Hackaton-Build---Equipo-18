@@ -177,6 +177,7 @@
     #explain-btn { margin-top: 10px; }
     .banner { border-radius: var(--radius-sm); padding: 14px 16px; margin-top: 10px; }
     .banner.bad { background: var(--bad-soft); color: var(--bad); }
+    .banner.warn { background: var(--sun-soft); color: var(--warn); }
     .banner strong { display: block; font-size: 1.05rem; }
     .banner ul { margin: 6px 0 0; padding-left: 20px; font-weight: 600; }
     .banner p { color: var(--ink); margin-top: 8px; font-size: .93rem; }
@@ -377,6 +378,10 @@
                   <p>Probá con otra: vaca de atrás, cámara por encima de la cadera, buena luz y sin movimiento.</p>
                 </div>
                 <div id="res-score">
+                  <div class="banner warn" id="res-warn" hidden>
+                    <strong>Tomá este resultado con cuidado.</strong>
+                    <ul id="res-warn-issues"></ul>
+                  </div>
                   <p class="bcs"><span class="value" id="res-bcs">—</span><span class="of">/ 5</span></p>
                   <p class="interp" id="res-text"></p>
                   <div class="scale-box">
@@ -384,7 +389,7 @@
                       <span class="band"></span><span class="iv"></span><span class="mark"></span>
                     </div>
                     <div class="ticks" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
-                    <p class="scale-legend"><span><i style="background:#769b56;opacity:.6"></i>Rango validado 3.25–4.25</span><span><i style="background:#365e3c;opacity:.7"></i>Intervalo (90%)</span></p>
+                    <p class="scale-legend"><span><i style="background:#769b56;opacity:.6"></i>Rango del modelo 3.0–5.0</span><span><i style="background:#365e3c;opacity:.7"></i>Intervalo (90%)</span></p>
                   </div>
                   <dl class="facts-grid">
                     <div><dt>Intervalo (90%)</dt><dd id="res-interval">—</dd></div>
@@ -394,7 +399,7 @@
                   <details class="model">
                     <summary>Ver distribución del modelo</summary>
                     <svg class="dist" id="res-dist" role="img" aria-label="Distribución de probabilidad por BCS"></svg>
-                    <p class="res-meta">Probabilidad por valor de BCS; la franja verde es el rango validado.</p>
+                    <p class="res-meta">Probabilidad por valor de BCS; la franja verde es el rango del modelo (3.00 agrupa todo lo que esté por debajo).</p>
                   </details>
                   <!-- T17/T19: qué se observa en la foto. Se abre solo con el resultado: la explicación
                        arrancó en el servidor junto con el BCS (GET /predictions/{id}/explain la espera). -->
@@ -510,7 +515,7 @@
           <ul>
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg><span><b>Historial por vaca.</b> Cada análisis queda con su ID, la foto y la fecha, y el rodeo muestra la evolución.</span></li>
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg><span><b>Rechaza las fotos que no sirven.</b> Si no detecta una vaca o la imagen está oscura o borrosa, lo dice en vez de inventar un número.</span></li>
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Claro con sus límites.</b> Entrenado con fotos de vacas lecheras desde atrás y arriba; validado entre BCS 3.25 y 4.25.</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Claro con sus límites.</b> Entrenado con fotos de vacas lecheras desde atrás y arriba; mide entre BCS 3.0 y 5.0 (por debajo de 3.0 marca «≤ 3.00»). Si la foto no se parece a las del entrenamiento, avisa.</span></li>
           </ul>
         </div>
       </div>
@@ -533,8 +538,11 @@
 
   <script>
     "use strict";
-    // Rango validado por G0: el modelo solo vio BCS 3.25–4.25 (sdb_bcs), dentro de la escala 1–5.
-    const VALID_MIN = 3.25, VALID_MAX = 4.25;
+    // T28 (rama dev): el modelo de T25 vio BCS 3.0–5.0 (sdb_bcs + zen_rgbd), dentro de la escala 1–5.
+    // 3.0 es el piso de la grilla: agrupa todo lo que esté por debajo (se muestra "≤ 3.00").
+    const VALID_MIN = 3.0, VALID_MAX = 5.0;
+    // Avisos que no rechazan (= contract.WARNING_ISSUES): la detección OOD.
+    const WARNING_ISSUES = ["la foto no se parece a las del entrenamiento; verificá encuadre y luz"];
     const SCALE_MIN = 1, SCALE_MAX = 5;
     const MAX_BYTES = 20 * 1024 * 1024;  // = api_predict.MAX_IMAGE_BYTES
     const COW_RE = /^[A-Z0-9][A-Z0-9._-]{0,63}$/;
@@ -715,16 +723,20 @@
     });
 
     const fmt = (x) => Number(x).toFixed(2);
+    // El piso de la grilla agrupa las colas: un 3.00 puede ser una vaca más flaca.
+    const fmtBcs = (x) => (Number(x) <= VALID_MIN + 1e-9 ? "≤ " : "") + fmt(x);
     const STATUS_TEXT = { ok: "OK", low_confidence: "Confianza baja", rejected: "Rechazada" };
     const pct = (v) => (100 * (Math.min(SCALE_MAX, Math.max(SCALE_MIN, v)) - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)).toFixed(2) + "%";
 
-    // Lectura relativa al rango validado, sin juzgar: el BCS adecuado depende de la etapa productiva.
+    // Lectura relativa al rango del modelo, sin juzgar: el BCS adecuado depende de la etapa productiva.
     function interpretation(bcs) {
       let where;
       if (bcs < VALID_MIN - 1e-9) where = "Por debajo del rango que Argos sabe medir.";
       else if (bcs > VALID_MAX + 1e-9) where = "Por encima del rango que Argos sabe medir.";
+      else if (bcs <= VALID_MIN + 1e-9) where = "En el piso del rango que Argos sabe medir: puede estar todavía más flaca, verificala a mano.";
+      else if (bcs >= VALID_MAX - 1e-9) where = "En el techo del rango que Argos sabe medir: verificala a mano.";
       else if (bcs <= 3.25 + 1e-9) where = "Condición en la parte baja del rango que Argos sabe medir.";
-      else if (bcs < 4 - 1e-9) where = "Condición en la zona media del rango que Argos sabe medir.";
+      else if (bcs < 4.25 - 1e-9) where = "Condición en la zona media del rango que Argos sabe medir.";
       else where = "Condición en la parte alta del rango que Argos sabe medir.";
       return where + " Qué valor conviene depende de la etapa productiva (lactancia, secado, preparto).";
     }
@@ -735,7 +747,7 @@
       iv.hidden = !interval;
       if (interval) iv.style.cssText = `left:${pct(interval[0])};width:calc(${pct(interval[1])} - ${pct(interval[0])})`;
       el.querySelector(".mark").style.left = pct(bcs);
-      el.setAttribute("aria-label", `BCS ${fmt(bcs)} en la escala ${SCALE_MIN} a ${SCALE_MAX}; rango validado ${fmt(VALID_MIN)} a ${fmt(VALID_MAX)}` +
+      el.setAttribute("aria-label", `BCS ${fmt(bcs)} en la escala ${SCALE_MIN} a ${SCALE_MAX}; rango del modelo ${fmt(VALID_MIN)} a ${fmt(VALID_MAX)}` +
         (interval ? `; intervalo ${fmt(interval[0])} a ${fmt(interval[1])}` : ""));
     }
 
@@ -766,7 +778,7 @@
         const v = parseFloat(k);
         if (Math.abs(v - Math.round(v)) < 1e-9 || isTop) {
           el("text", { x: i * slot + slot / 2, y: H - 4, "text-anchor": "middle", "font-size": 11,
-                       fill: isTop ? "#2e5134" : "#4f5c52", "font-weight": isTop ? 700 : 400 }, isTop ? fmt(v) : v.toFixed(0));
+                       fill: isTop ? "#2e5134" : "#4f5c52", "font-weight": isTop ? 700 : 400 }, isTop ? fmtBcs(v) : (i === 0 && v <= VALID_MIN + 1e-9 ? "≤" : "") + v.toFixed(0));
         }
       });
       el("line", { x1: 0, x2: W, y1: base, y2: base, stroke: "#8a958c" });
@@ -788,19 +800,23 @@
       const rejected = p.status === "rejected";
       $("res-rejected").hidden = !rejected;
       $("res-score").hidden = rejected;
-      const issues = $("res-issues");
+      const issues = $("res-issues"), warns = $("res-warn-issues");
       issues.replaceChildren();
+      warns.replaceChildren();
       for (const msg of (p.quality && p.quality.issues) || []) {
-        issues.appendChild(document.createElement("li")).textContent = msg;
+        const warn = !rejected && WARNING_ISSUES.includes(msg);
+        (warn ? warns : issues).appendChild(document.createElement("li")).textContent = msg;
       }
+      $("res-warn").hidden = rejected || !warns.childElementCount;
       if (rejected && !issues.childElementCount) issues.appendChild(document.createElement("li")).textContent = "no parece una vaca de atrás";
 
       if (!rejected) loadExplain(p.prediction_id);
-      // G3 punto 7: sin aviso de texto para low_confidence (el estado se ve en la etiqueta).
+      // G3 punto 7: sin aviso de texto para low_confidence (el estado se ve en la etiqueta), salvo el
+      // motivo de la detección OOD (T28), que va en el recuadro amarillo de arriba.
       $("retry").textContent = rejected ? "Sacar otra foto" : "Analizar otra foto";
       $("next").textContent = "Siguiente vaca";
       if (!rejected) {
-        $("res-bcs").textContent = p.bcs != null ? fmt(p.bcs) : "—";
+        $("res-bcs").textContent = p.bcs != null ? fmtBcs(p.bcs) : "—";
         $("res-text").textContent = p.bcs != null ? interpretation(p.bcs) : "";
         if (p.bcs != null) drawScale($("res-scale"), p.bcs, p.interval);
         const conf = p.confidence;
@@ -810,13 +826,13 @@
         drawDistribution($("res-dist"), p.distribution || {}, p.bcs);
         const out = p.bcs != null && (p.bcs < VALID_MIN - 1e-9 || p.bcs > VALID_MAX + 1e-9);
         $("res-range-note").textContent = out
-          ? `Fuera del rango validado (${fmt(VALID_MIN)}–${fmt(VALID_MAX)}): tomalo como orientativo.`
+          ? `Fuera del rango del modelo (${fmt(VALID_MIN)}–${fmt(VALID_MAX)}): tomalo como orientativo.`
           : "";
       }
       lossCow = rejected || p.bcs == null ? null : { bcs: p.bcs, interval: p.interval };
       $("loss").hidden = !lossCow;
       renderLoss();
-      $("live").textContent = rejected ? "Foto rechazada." : `Condición corporal estimada: ${fmt(p.bcs)} de 5.`;
+      $("live").textContent = rejected ? "Foto rechazada." : `Condición corporal estimada: ${fmtBcs(p.bcs)} de 5.`;
       $("result").focus({ preventScroll: true });
       scrollToEl($("analizar"));
     }

@@ -23,6 +23,15 @@ la medida de T06/T09) y la comparación con val (predicciones cross-fitted de T1
 Salida: `runs/<task>/<ts>/` (default `runs/G4/`) con `report.json`, `report.md`, `config.json`
 y los PNG de confusión y fiabilidad de cada modo. Exit 0 si escribió el reporte (el veredicto
 contra los umbrales está en el reporte), 2 si la entrada es inválida.
+
+T28 (rama `dev`): el modelo es el de `BCS_MODEL` (default `zen`, el de T25 en `dairy_zen`) y por
+defecto se evalúan **las dos fuentes**: `holdout_labels_sdb_bcs.csv` + `holdout_labels_zen_rgbd.csv`
+(`--labels` acepta varios CSV). Mismas métricas, además **por fuente** (`by_source` en el reporte y
+una tabla en `report.md`). La foto cruda de `zen_rgbd` es el frame entero de la sala
+(`raw/zen_rgbd/rgb/<rgb_path>` de `plan.csv`). Val de referencia: las predicciones cross-fitted de
+la calibración del modelo (`T28/predictions_val.csv` para `zen`, `T11/` para `sdb`); el filtro de
+m4 del modelo nuevo (detector + OOD) sale de `$BCS_ARTIFACTS_DIR/efficientnet_b0_zen/
+quality_metrics.json` si existe.
 """
 
 from __future__ import annotations
@@ -51,6 +60,8 @@ from bcs.scale import Scale
 
 THRESHOLDS = Path(__file__).with_name("thresholds.yaml")
 HOLDOUT_LABELS = "holdout_labels_sdb_bcs.csv"
+HOLDOUT_LABELS_ZEN = "holdout_labels_zen_rgbd.csv"
+ZEN = "zen_rgbd"
 TASK = "G4"
 SEED = 42
 CHUNK = 64
@@ -92,20 +103,47 @@ def load_labels(path: Path, limit: int | None = None, data: Path | None = None) 
         raise FinalEvalError(f"{path} no tiene filas")
     if bool(df["image_id"].duplicated().any()):
         raise FinalEvalError("image_id duplicado")
-    sp = (data or data_dir()) / "splits.csv"
-    if sp.exists():
+    # `splits.csv` (sdb_bcs) y `splits_<fuente>.csv` (T28: zen_rgbd)
+    for sp in sorted((data or data_dir()).glob("splits*.csv")):
         splits = pd.read_csv(sp, dtype=str)
         train = set(splits.loc[splits["split"] == "train", "image_id"])
         n_train = int(df["image_id"].isin(train).sum())
         if n_train:
             raise FinalEvalError(f"{n_train} imágenes de train en {path}")
+    if "source" not in df.columns:
+        df["source"] = SOURCE
     if limit is not None and limit < len(df):
         df = df.sample(n=limit, random_state=SEED).sort_index()
     return df.reset_index(drop=True)
 
 
+def load_all_labels(
+    paths: Sequence[Path], limit: int | None = None, data: Path | None = None
+) -> pd.DataFrame:
+    """`load_labels` de cada CSV, juntos (con `limit`, N filas al azar del total)."""
+    df = pd.concat([load_labels(p, None, data) for p in paths], ignore_index=True)
+    if bool(df["image_id"].duplicated().any()):
+        raise FinalEvalError("image_id duplicado entre los CSV de etiquetas")
+    if limit is not None and limit < len(df):
+        df = df.sample(n=limit, random_state=SEED).sort_index()
+    return df.reset_index(drop=True)
+
+
+def _zen_raw_paths(data: Path) -> dict[str, str]:
+    plan = data / "raw" / ZEN / "plan.csv"
+    if not plan.exists():
+        return {}
+    df = pd.read_csv(plan, usecols=["image_id", "rgb_path"], dtype=str)
+    return dict(zip(df["image_id"], df["rgb_path"], strict=True))
+
+
 def raw_path(data: Path, image_id: str) -> Path | None:
-    """La foto cruda de `image_id`, buscada por nombre en todas las carpetas de clase."""
+    """La foto cruda de `image_id`: en `sdb_bcs`, buscada por nombre en todas las carpetas de
+    clase; en `zen_rgbd`, el frame de `plan.csv` (sin mirar la etiqueta)."""
+    if image_id.startswith(f"{ZEN}_"):
+        rel = _zen_raw_paths(data).get(image_id)
+        path = data / "raw" / ZEN / "rgb" / rel if rel else None
+        return path if path is not None and path.exists() else None
     name = f"{image_id.removeprefix(f'{SOURCE}_')}.jpg"
     root = data / RAW_DIR
     dirs = sorted(d for d in root.iterdir() if d.is_dir()) if root.is_dir() else []
@@ -119,12 +157,22 @@ def paint_fraction(img: Image.Image) -> float:
 # ---------------------------------------------------------------- predicción
 
 
+def _origin(image_ids: pd.Series, sources: pd.Series) -> np.ndarray:
+    """GS / YM / L-R en `sdb_bcs`; el nombre de la fuente en las demás."""
+    src = sources.astype(str).to_numpy()
+    return np.where(src == SOURCE, origin(image_ids), src).astype(str)
+
+
 def _prob_frame(df: pd.DataFrame, scale: Scale) -> pd.DataFrame:
     out = pd.DataFrame(
         {
             "image_id": df["image_id"],
             "group_id": df["group_id"],
-            "origin": origin(df["image_id"]),
+            "source": df["source"] if "source" in df.columns else SOURCE,
+            "origin": _origin(
+                df["image_id"],
+                df["source"] if "source" in df.columns else pd.Series(SOURCE, df.index),
+            ),
             "bcs": df["bcs"].astype(float),
         }
     )
@@ -267,12 +315,20 @@ def paint_metrics(
 
 
 def val_reference(path: Path, scale: Scale) -> dict[str, Any] | None:
-    """Métricas de val con las predicciones cross-fitted de T11 (las de `make eval` m4)."""
+    """Métricas de val con las predicciones cross-fitted de la calibración (las de `make eval`
+    m4); con `source`, también por fuente (`by_dataset`)."""
     if not path.exists():
         return None
     df = pd.read_csv(path, dtype={"image_id": str, "group_id": str})
-    df["origin"] = origin(df["image_id"])
-    return _metrics(df, scale, df["origin"].tolist())
+    src = df["source"] if "source" in df.columns else pd.Series(SOURCE, df.index)
+    df["origin"] = _origin(df["image_id"], src)
+    out = _metrics(df, scale, df["origin"].tolist())
+    if src.nunique() > 1:
+        out["by_dataset"] = {
+            str(s): _metrics(df[src == s], scale, df.loc[src == s, "origin"].tolist())
+            for s in sorted(set(src))
+        }
+    return out
 
 
 def threshold_checks(
@@ -291,10 +347,26 @@ def build_final_report(
     thresholds: dict,
     val: dict[str, Any] | None,
     meta: dict[str, Any],
+    base_quality: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     red = crops.set_index("image_id")["red_frac"] if "red_frac" in crops.columns else None
     modes = {"crops": mode_metrics(crops, scale, red), "e2e": mode_metrics(e2e, scale, red)}
-    quality = {**G3_QUALITY, "reject_val": modes["e2e"]["reject_rate"]}
+    quality = {**(base_quality or G3_QUALITY), "reject_val": modes["e2e"]["reject_rate"]}
+    sources = sorted(set(crops["source"].astype(str))) if "source" in crops.columns else []
+    by_source: dict[str, Any] = {}
+    if len(sources) > 1:
+        for s in sources:
+            sub = {
+                "crops": mode_metrics(crops[crops["source"] == s], scale, red),
+                "e2e": mode_metrics(e2e[e2e["source"] == s], scale, red),
+            }
+            q = {**quality, "reject_val": sub["e2e"]["reject_rate"]}
+            by_source[s] = {
+                "modes": sub,
+                "thresholds": {
+                    m: threshold_checks(sub[m]["metrics"], scale, thresholds, q) for m in MODES
+                },
+            }
     return {
         "schema_version": 1,
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -308,6 +380,7 @@ def build_final_report(
             "crops": threshold_checks(modes["crops"]["metrics"], scale, thresholds, quality),
             "e2e": threshold_checks(modes["e2e"]["metrics"], scale, thresholds, quality),
         },
+        "by_source": by_source,
     }
 
 
@@ -416,6 +489,35 @@ def report_markdown(report: dict[str, Any]) -> str:
             f"| {_f(e.get('acc_within_1'))} |"
         )
 
+    if report.get("by_source"):
+        vds = val.get("by_dataset", {})
+        lines += ["", "## Por fuente", ""]
+        lines += [
+            "| fuente | modo | n | MAE | exacta | ±1 | sesgo | ECE | cobertura 90% | rechazo "
+            "| low_confidence | m3 | m4 |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        for s, b in report["by_source"].items():
+            v = vds.get(s, {})
+            lines.append(
+                f"| {s} | val | {v.get('n', 0)} | {_f(v.get('mae'))} | {_f(v.get('accuracy'))} "
+                f"| {_f(v.get('acc_within_1'))} | {_f(v.get('bias'), -3)} | {_f(v.get('ece'))} "
+                f"| {_f(v.get('coverage_90'))} | — | — | — | — |"
+            )
+            for mode in MODES:
+                mm = b["modes"][mode]
+                m = mm["metrics"] or {}
+                th = (b["thresholds"].get(mode) or {}) if b.get("thresholds") else {}
+                ok = {st: ("sí" if r["passed"] else "**no**") for st, r in (th or {}).items()}
+                lines.append(
+                    f"| {s} | {MODE_NAMES[mode]} | {m.get('n', 0)} | {_f(m.get('mae'))} "
+                    f"| {_f(m.get('accuracy'))} | {_f(m.get('acc_within_1'))} "
+                    f"| {_f(m.get('bias'), -3)} | {_f(m.get('ece'))} | {_f(m.get('coverage_90'))} "
+                    f"| {_pct(mm['reject_rate'])} | {_pct(mm['low_confidence_rate'])} "
+                    f"| {ok.get('m3', 'n/d')} | {ok.get('m4', 'n/d')} |"
+                )
+        lines.append("")
+
     lines += ["", "## GS pintadas vs. no pintadas (recortes)", ""]
     paint = crops.get("paint")
     if paint is None:
@@ -506,7 +608,9 @@ def main(argv: list[str] | None = None, pipe: Any = None) -> int:
     parser.add_argument(
         "--labels",
         type=Path,
-        help="CSV con el esquema de labels.csv (default: $BCS_DATA_DIR/holdout_labels_sdb_bcs.csv)",
+        nargs="+",
+        help="uno o más CSV con el esquema de labels.csv (default: $BCS_DATA_DIR/"
+        "holdout_labels_sdb_bcs.csv y, con el modelo zen, holdout_labels_zen_rgbd.csv)",
     )
     parser.add_argument("--limit", type=int, help="evaluar solo N imágenes (pruebas)")
     parser.add_argument("--task", default=TASK, help="carpeta en runs/ (default: G4)")
@@ -516,7 +620,13 @@ def main(argv: list[str] | None = None, pipe: Any = None) -> int:
         "--val-predictions",
         type=Path,
         help="predicciones de val de referencia (default: $BCS_ARTIFACTS_DIR/T11/"
-        "predictions_val.csv)",
+        "predictions_val.csv; con el modelo zen, T28/)",
+    )
+    parser.add_argument(
+        "--quality",
+        type=Path,
+        help="quality_metrics.json del filtro (reject_negatives); default: el de G3 o, con el "
+        "modelo zen, $BCS_ARTIFACTS_DIR/efficientnet_b0_zen/quality_metrics.json",
     )
     parser.add_argument("--thresholds", type=Path, default=THRESHOLDS)
     args = parser.parse_args(argv)
@@ -524,18 +634,33 @@ def main(argv: list[str] | None = None, pipe: Any = None) -> int:
         parser.error("--limit tiene que ser ≥ 1")
 
     data: Path = args.data_dir or data_dir()
-    labels_path: Path = args.labels or data / HOLDOUT_LABELS
-    val_path: Path = args.val_predictions or artifacts_dir() / "T11" / "predictions_val.csv"
+    from bcs.inference import model_pipeline, model_spec, model_version
+
+    zen = pipe is None and model_spec().name == "efficientnet_b0_zen"
+    holdouts = [data / HOLDOUT_LABELS, *([data / HOLDOUT_LABELS_ZEN] if zen else [])]
+    labels_paths: list[Path] = args.labels or holdouts
+    val_path: Path = args.val_predictions or (
+        artifacts_dir() / ("T28" if zen else "T11") / "predictions_val.csv"
+    )
+    quality_path: Path | None = args.quality or (
+        artifacts_dir() / "efficientnet_b0_zen" / "quality_metrics.json" if zen else None
+    )
+    base_quality = None
+    if quality_path is not None and quality_path.exists():
+        q = json.loads(quality_path.read_text())
+        base_quality = {
+            "reject_negatives": q.get("reject_negatives"),
+            "accept_rear": q.get("accept_rear"),
+            "note": q.get("note") or f"reject_negatives de {quality_path}",
+        }
     thresholds = yaml.safe_load(args.thresholds.read_text())
     try:
-        df = load_labels(labels_path, args.limit, data)
+        df = load_all_labels(labels_paths, args.limit, data)
     except FinalEvalError as e:
         print(f"etiquetas inválidas: {e}", file=sys.stderr)
         return 2
 
     if pipe is None:
-        from bcs.inference import model_pipeline, model_version
-
         pipe = model_pipeline()
         version = model_version()
     else:
@@ -551,14 +676,19 @@ def main(argv: list[str] | None = None, pipe: Any = None) -> int:
     meta = {
         "task": args.task,
         "model_version": version,
-        "labels": str(labels_path),
-        "is_holdout": labels_path.resolve() == (data / HOLDOUT_LABELS).resolve(),
-        "labels_sha256": sha256_file(labels_path),
+        "labels": ", ".join(str(p) for p in labels_paths),
+        "is_holdout": all(
+            p.resolve() in {h.resolve() for h in (data / HOLDOUT_LABELS, data / HOLDOUT_LABELS_ZEN)}
+            for p in labels_paths
+        ),
+        "labels_sha256": {str(p): sha256_file(p) for p in labels_paths},
         "n_labels": len(df),
         "limit": args.limit,
         "git_commit": _git_commit(),
     }
-    report = build_final_report(crops, e2e, scale, thresholds, val_reference(val_path, scale), meta)
+    report = build_final_report(
+        crops, e2e, scale, thresholds, val_reference(val_path, scale), meta, base_quality
+    )
 
     ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     run_dir = (args.runs_dir or runs_dir()) / args.task / ts
@@ -567,6 +697,7 @@ def main(argv: list[str] | None = None, pipe: Any = None) -> int:
         **meta,
         "data_dir": str(data),
         "val_predictions": str(val_path),
+        "quality": str(quality_path) if quality_path is not None else None,
         "thresholds_file": str(args.thresholds),
     }
     run_dir.mkdir(parents=True, exist_ok=True)

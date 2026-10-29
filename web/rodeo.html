@@ -139,7 +139,8 @@
         </div>
         <p class="dist-state" id="dist-state" aria-live="polite">Cargando distribución…</p>
         <p class="dist-note" id="dist-note">Solo animales evaluados: cada vaca cuenta una vez, en la barra más cercana al promedio de sus
-          evaluaciones válidas (las fotos rechazadas no cuentan). Eje: valores que usa el modelo, 3.25 a 4.25 de la escala 1–5.</p>
+          evaluaciones válidas (las fotos rechazadas no cuentan). Eje: valores que usa el modelo, 3.0 a 5.0 de la escala 1–5;
+          «≤ 3.00» agrupa también a las más flacas.</p>
       </section>
       <!-- Calculadora de pérdidas del rodeo (web/perdidas.js): suma la estimación de cada vaca con su último BCS. -->
       <section class="card dist" id="loss" aria-labelledby="loss-title" hidden>
@@ -201,7 +202,7 @@
           <span><i style="background:#2e6b3a"></i>OK</span>
           <span><i style="background:#8a5a12"></i>Confianza baja</span>
           <span><i style="background:#9e2a1f"></i>Rechazada</span>
-          <span><i style="background:#e6efdf;border:1px solid #769b56;border-radius:2px"></i>Rango validado</span>
+          <span><i style="background:#e6efdf;border:1px solid #769b56;border-radius:2px"></i>Rango del modelo (3.0–5.0)</span>
         </div>
       </div>
       <ul class="hist" id="hist"></ul>
@@ -222,8 +223,9 @@
 
   <script>
     "use strict";
-    // Rango validado por G0: el modelo solo vio BCS 3.25–4.25 (sdb_bcs), dentro de la escala 1–5.
-    const VALID_MIN = 3.25, VALID_MAX = 4.25;
+    // T28 (rama dev): el modelo de T25 vio BCS 3.0–5.0 (sdb_bcs + zen_rgbd), dentro de la escala 1–5.
+    // 3.0 es el piso de la grilla: agrupa todo lo que esté por debajo (se muestra "≤ 3.00").
+    const VALID_MIN = 3.0, VALID_MAX = 5.0;
     const SCALE_MIN = 1, SCALE_MAX = 5;
     const STATUS_TEXT = { ok: "OK", low_confidence: "Confianza baja", rejected: "Rechazada" };
     const STATUS_COLOR = { ok: "#2e6b3a", low_confidence: "#8a5a12", rejected: "#9e2a1f" };
@@ -231,6 +233,7 @@
     const api = (path) => fetch(path, { headers: { "X-App-Token": token } });
     const $ = (id) => document.getElementById(id);
     const fmt = (x) => Number(x).toFixed(2);
+    const fmtBcs = (x) => (Number(x) <= VALID_MIN + 1e-9 ? "≤ " : "") + fmt(x);
     const fmtDate = (iso) => iso ? new Date(iso).toLocaleString("es-UY", { dateStyle: "short", timeStyle: "short" }) : "—";
     const fmtShort = (iso) => iso ? new Date(iso).toLocaleString("es-UY",
       { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
@@ -252,7 +255,7 @@
     };
     const chip = (status) => h("span", "chip " + status, STATUS_TEXT[status] || status);
     const pct = (v) => (100 * (Math.min(SCALE_MAX, Math.max(SCALE_MIN, v)) - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)).toFixed(2) + "%";
-    // Escala 1–5 en miniatura: franja del rango validado y la marca del BCS.
+    // Escala 1–5 en miniatura: franja del rango del modelo y la marca del BCS.
     function miniScale(bcs) {
       const s = h("div", "scale mini");
       s.setAttribute("aria-hidden", "true");
@@ -285,8 +288,8 @@
     }
 
     // Mismas reglas que `low_confidence` (SPEC §2.2) sobre el último BCS válido: conf. < 0.5,
-    // intervalo de más de 4 pasos (paso 0.25 de la escala 1–5 validada en G0) o, desde G3, BCS en
-    // un extremo del rango validado (posible condición baja/alta).
+    // intervalo de más de 4 pasos (paso 0.25 de la escala 1–5) o, desde G3, BCS en un extremo del
+    // rango del modelo (posible condición baja/alta; T28: 3.0 y 5.0).
     const STEP = 0.25;
     function isLowConfidence(c) {
       if (c.last_status === "low_confidence") return true;
@@ -323,7 +326,7 @@
         info.append(h("div", "meta", `${fmtShort(c.last_at)} · ${c.n_evaluations} ${c.n_evaluations === 1 ? "evaluación" : "evaluaciones"}`));
         info.append(chip(c.last_status));  // estado de la última foto (rechazada se ve acá)
         const score = h("div", "score");
-        score.append(h("div", "v", c.bcs != null ? fmt(c.bcs) : "—"));
+        score.append(h("div", "v", c.bcs != null ? fmtBcs(c.bcs) : "—"));
         if (c.bcs != null) {
           const parts = [];
           if (c.interval) parts.push(`${fmt(c.interval[0])}–${fmt(c.interval[1])}`);
@@ -509,6 +512,8 @@
         return node;
       };
       const keys = Object.keys(dist.counts);
+      // El piso de la grilla agrupa a las más flacas (T04 §6): "≤ 3.00".
+      const label = (k) => (k === keys[0] && parseFloat(k) <= VALID_MIN + 1e-9 ? "≤ " : "") + k;
       const counts = keys.map((k) => dist.counts[k]);
       const max = Math.max(...counts);
       const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find((s) => max / s <= 4) || Math.ceil(max / 4);
@@ -533,7 +538,7 @@
       keys.forEach((k, i) => {
         const n = counts[i];
         const g = el("g", { class: "cat", tabindex: 0, role: "img",
-          "aria-label": `BCS ${k}: ${plural(n, "animal", "animales")}` });
+          "aria-label": `BCS ${label(k)}: ${plural(n, "animal", "animales")}` });
         el("rect", { class: "hit", x: L + band * i + 2, y: T - 8, width: band - 4, height: base - T + 30 }, g);
         const x0 = cx(i) - bw / 2;
         if (n > 0) {
@@ -544,20 +549,20 @@
           el("rect", { class: "zero", x: x0, y: base - 2, width: bw, height: 2 }, g);
         }
         el("text", { class: "val" + (n ? "" : " zero-val"), x: cx(i), y: (n ? y(n) : base) - 7, "text-anchor": "middle" }, g, n);
-        el("text", { class: "xlab", x: cx(i), y: base + 22, "text-anchor": "middle" }, g, k);
+        el("text", { class: "xlab", x: cx(i), y: base + 22, "text-anchor": "middle" }, g, label(k));
         cats.push(g);
       });
       el("line", { class: "axis", x1: L, x2: W - R, y1: base, y2: base });
 
       svg.setAttribute("aria-label", `Distribución de ${plural(dist.animals, "animal evaluado", "animales evaluados")}: ` +
-        keys.map((k, i) => `BCS ${k}, ${counts[i]}`).join("; ") + `. BCS promedio ${fmt(dist.mean_bcs)}.`);
+        keys.map((k, i) => `BCS ${label(k)}, ${counts[i]}`).join("; ") + `. BCS promedio ${fmt(dist.mean_bcs)}.`);
 
       const tip = $("dist-tip");
       const show = (i) => {
         distActive = i;
         cats.forEach((c, j) => c.classList.toggle("active", j === i));
         const n = counts[i];
-        tip.replaceChildren(h("strong", "", `BCS ${keys[i]}`), ` · ${plural(n, "animal", "animales")}`,
+        tip.replaceChildren(h("strong", "", `BCS ${label(keys[i])}`), ` · ${plural(n, "animal", "animales")}`,
           h("span", "", `${Math.round(100 * n / dist.animals)}% de los evaluados`),
           h("span", "", "BCS promedio de las evaluaciones de cada vaca"));
         tip.style.left = Math.min(Math.max(cx(i), 110), W - 110) + "px";
@@ -632,7 +637,7 @@
                          "stroke-linejoin": "round", "stroke-linecap": "round" });
       }
       for (const p of pts) {
-        const tip = `${fmtDate(p.created_at)} · ${STATUS_TEXT[p.status]}` + (p.bcs != null ? ` · BCS ${fmt(p.bcs)}` : "");
+        const tip = `${fmtDate(p.created_at)} · ${STATUS_TEXT[p.status]}` + (p.bcs != null ? ` · BCS ${fmtBcs(p.bcs)}` : "");
         let mark;
         if (p.bcs == null) {
           const cx = x(p), cy = H - B - 8;
@@ -735,7 +740,7 @@
         img.alt = "Foto del " + fmtDate(p.created_at);
         img.loading = "lazy";
         const info = h("div");
-        info.append(h("div", "v", p.bcs != null ? `BCS ${fmt(p.bcs)}` : "Sin BCS"));
+        info.append(h("div", "v", p.bcs != null ? `BCS ${fmtBcs(p.bcs)}` : "Sin BCS"));
         const meta = [fmtDate(p.created_at)];
         if (p.interval) meta.push(`intervalo ${fmt(p.interval[0])}–${fmt(p.interval[1])}`);
         if (p.confidence != null) meta.push(Math.round(p.confidence * 100) + "% conf.");
