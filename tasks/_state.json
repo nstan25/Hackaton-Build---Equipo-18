@@ -648,11 +648,12 @@
     },
     "T29": {
       "title": "Railway IaC (.railway/)",
-      "status": "despachado",
+      "status": "mergeado a main y dev; falta railway config apply (dev, luego production) y borrar railway.json",
       "branch": "railway-iac",
       "agent": "claude",
       "task_id": "task_eb01abd4296a",
-      "dispatch_id": "ctx_43d1a2b7c95f"
+      "dispatch_id": "ctx_43d1a2b7c95f",
+      "note": ".railway/railway.py (py, railway-sdk 0.7.0 en ~/bcs-shared/runs/T29/.venv-iac); plan 0/2/0 solo forma"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)",
