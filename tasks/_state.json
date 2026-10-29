@@ -615,7 +615,7 @@
     },
     "T25": {
       "title": "Reentrenamiento experimental en CPU (sdb+zen, 3.0–5.0)",
-      "status": "código mergeado a main (sin integrar); gate G5 abierto",
+      "status": "código en main; G5 resuelto opción 1 → integración en dev (T28)",
       "dispatch_id": "ctx_eeba4ffc562d",
       "branch": "T25-reentrenamiento-zen",
       "agent": "claude",
@@ -631,12 +631,24 @@
     },
     "T27": {
       "title": "Detección OOD: Mahalanobis vs. kNN",
-      "status": "worker_done verificado; gate G6 abierto (integrar/mergear código/archivar)",
+      "status": "G6 resuelto opción 1 → integración en dev (T28)",
       "branch": "ood-detection",
       "agent": "claude",
       "task_id": "task_d8ec7fe818c4",
       "dispatch_id": "ctx_4836f7004cc4",
       "note": "Mahalanobis 1 gaussiana gana (COCO AUROC 0,99 FPR95 3,7%; kNN 50%); zen real puntúa raro (42% con p99) → 2 niveles"
+    },
+    "T28": {
+      "title": "Integración en dev: modelo T25 + OOD T27",
+      "status": "despachado",
+      "branch": "integracion-zen-ood (desde dev)",
+      "agent": "claude"
+    },
+    "T29": {
+      "title": "Railway IaC (.railway/)",
+      "status": "despachado",
+      "branch": "railway-iac",
+      "agent": "claude"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)",
