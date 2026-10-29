@@ -170,6 +170,10 @@ class ConformalInterval:
     clase, calculado con los casos de calibración de esa clase, y la clase k entra si
     `1 - p_k ≤ q̂_k`. Garantiza cobertura ≥ 1 - α dentro de cada clase real, incluidas las puntas,
     donde el modelo encoge hacia el centro. Con `by_class=False`, un único q̂ (cobertura marginal).
+
+    `min_class_n` (T28): una clase con menos casos de calibración que eso usa el q̂ marginal en vez
+    del suyo. Sin esto, una clase con < 9 casos tiene q̂ = 1 (entra siempre) y el intervalo de
+    todas las fotos se estira hasta ella (las colas 3.0 y 4.5–5.0 de la grilla `dairy_zen`).
     """
 
     def __init__(
@@ -177,9 +181,11 @@ class ConformalInterval:
         grid: Sequence[float],
         thresholds: Sequence[float] | None = None,
         by_class: bool = True,
+        min_class_n: int | None = None,
     ) -> None:
         self.grid = tuple(float(v) for v in grid)
         self.by_class = by_class
+        self.min_class_n = min_class_n
         # q̂_k por clase (en el modo marginal, el mismo valor repetido)
         self.thresholds = np.ones(len(self.grid)) if thresholds is None else np.asarray(thresholds)
         self.alpha = 0.1
@@ -189,7 +195,13 @@ class ConformalInterval:
         y_idx = np.asarray(y, dtype=int)
         scores = 1.0 - p[np.arange(len(p)), y_idx]
         if self.by_class:
-            q = [_conformal_quantile(scores[y_idx == k], alpha) for k in range(len(self.grid))]
+            marginal = _conformal_quantile(scores, alpha)
+            q = [
+                marginal
+                if self.min_class_n is not None and (y_idx == k).sum() < self.min_class_n
+                else _conformal_quantile(scores[y_idx == k], alpha)
+                for k in range(len(self.grid))
+            ]
             self.thresholds = np.asarray(q)
         else:
             self.thresholds = np.full(len(self.grid), _conformal_quantile(scores, alpha))
@@ -219,12 +231,13 @@ class CalibratedRegression:
         degree: int = DEFAULT_DEGREE,
         alpha: float = 0.1,
         by_class: bool = True,
+        min_class_n: int | None = None,
     ) -> None:
         self.grid = tuple(float(v) for v in grid)
         self.alpha = alpha
         self.dist = ResidualDistribution(self.grid, degree)
         self.calibrator = TemperatureScaling()
-        self.conformal = ConformalInterval(self.grid, by_class=by_class)
+        self.conformal = ConformalInterval(self.grid, by_class=by_class, min_class_n=min_class_n)
         self.info: dict[str, Any] = {}
 
     def fit(
@@ -263,6 +276,7 @@ class CalibratedRegression:
             "temperature": self.calibrator.temperature,
             "conformal_by_class": self.conformal.by_class,
             "conformal_thresholds": self.conformal.thresholds.tolist(),
+            "conformal_min_class_n": self.conformal.min_class_n,
             "info": self.info,
         }
 
@@ -273,7 +287,9 @@ class CalibratedRegression:
         obj = cls(d["grid"], dist.degree, float(d["alpha"]), by_class)
         obj.dist = dist
         obj.calibrator = TemperatureScaling(float(d["temperature"]))
-        obj.conformal = ConformalInterval(obj.grid, d["conformal_thresholds"], by_class)
+        obj.conformal = ConformalInterval(
+            obj.grid, d["conformal_thresholds"], by_class, d.get("conformal_min_class_n")
+        )
         obj.conformal.alpha = obj.alpha
         obj.info = dict(d.get("info") or {})
         return obj

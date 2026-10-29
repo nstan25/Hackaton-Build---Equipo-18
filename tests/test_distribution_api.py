@@ -57,6 +57,9 @@ def api(store: SqliteStore, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestCli
 
     monkeypatch.setenv("BCS_APP_TOKEN", TOKEN)
     monkeypatch.delenv("BCS_SCALE", raising=False)
+    # T28: el default de la rama dev es el modelo zen (dairy_zen); estos casos son sobre la grilla
+    # del modelo sdb. El default zen se prueba en tests/test_integracion_zen.py.
+    monkeypatch.setenv("BCS_MODEL", "sdb")
     with TestClient(create_app(store=store), headers={"X-App-Token": TOKEN}) as c:
         yield c
 

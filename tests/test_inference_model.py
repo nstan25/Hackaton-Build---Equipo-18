@@ -2,6 +2,9 @@
 
 La EfficientNet y el detector están en el repo (models/) y corren en CPU en segundos. CLIP (578 MB)
 no se baja en los tests: el filtro de calidad usa el `ClipQualityChecker` real con un puntaje fijo.
+
+T28: estos casos son del modelo de `main` (`BCS_MODEL=sdb`, `dairy_sdb`); el default de la rama
+`dev` (zen, 3.0–5.0, OOD) se prueba en `tests/test_integracion_zen.py`.
 """
 
 from __future__ import annotations
@@ -38,7 +41,7 @@ def _whole(image: Image.Image) -> Image.Image:
 
 @pytest.fixture(scope="module")
 def pipe() -> inference.Pipeline:
-    return replace(inference.model_pipeline(SCALE), quality=_clip(0.9), locate=_whole)
+    return replace(inference.model_pipeline(SCALE, model="sdb"), quality=_clip(0.9), locate=_whole)
 
 
 class FixedValue:
@@ -163,12 +166,12 @@ def test_calibration_in_repo_matches_model_grid() -> None:
 
 
 def test_model_version_and_scale(pipe: inference.Pipeline) -> None:
-    version = inference.model_version()
+    version = inference.model_version("sdb")
     assert version.startswith("efficientnet_b0-") and "+cal-" in version and "+det-" in version
     assert pipe.scorer.model_version == version
     assert pipe.scale.name == "dairy_sdb"
     with pytest.raises(ValueError, match="dairy_sdb"):
-        inference.model_pipeline(load_scale("dairy_1_5"))
+        inference.model_pipeline(load_scale("dairy_1_5"), model="sdb")
 
 
 def test_predictor_switch(monkeypatch: pytest.MonkeyPatch) -> None:

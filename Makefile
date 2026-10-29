@@ -43,8 +43,10 @@ data-sample:
 labels:
 	$(RUN) python -m bcs.data.merge
 
-# G1: make eval usa la grilla del modelo (dairy_sdb) salvo que se pise BCS_SCALE.
-eval: export BCS_SCALE ?= dairy_sdb
+# G1: make eval usa la grilla del modelo salvo que se pise BCS_SCALE. T28 (rama dev): el modelo por
+# defecto es el de T25 (BCS_MODEL=zen) en dairy_zen (3.0–5.0); el de main sigue con
+# BCS_SCALE=dairy_sdb (p. ej. `make eval MODEL=efficientnet_b0 STAGE=m4 BCS_SCALE=dairy_sdb`).
+eval: export BCS_SCALE ?= dairy_zen
 eval:
 	@test -n "$(MODEL)" -a -n "$(STAGE)" || { echo "uso: make eval MODEL=<name> STAGE=<m2|m3|m4>" >&2; exit 2; }
 	$(RUN) python eval/evaluate.py --model $(MODEL) --stage $(STAGE) $(if $(PREDICTIONS),--predictions $(PREDICTIONS)) $(if $(QUALITY),--quality $(QUALITY)) $(if $(TASK),--task $(TASK))
@@ -57,7 +59,7 @@ train:
 	$(RUN) python scripts/compute/launch.py --model $(or $(MODEL),stub_uniform) --backend $(BACKEND) $(if $(FOLDS),--folds $(FOLDS)) $(if $(SMOKE),--smoke) $(if $(TASK),--task $(TASK))
 
 smoke-model:
-	BCS_PREDICTOR=model BCS_SCALE=dairy_sdb $(RUN) python scripts/smoke.py
+	BCS_PREDICTOR=model BCS_SCALE=$${BCS_SCALE:-dairy_zen} $(RUN) python scripts/smoke.py
 
 browser-model:
 	$(RUN) python tests/browser/run_browser.py --model
@@ -70,8 +72,10 @@ holdout:
 	$(call pending,el humano en GH)
 
 # G4: solo el humano (los agentes la tienen denegada en .claude/settings.json). Evalúa el modelo de
-# producción sobre test (holdout_labels_sdb_bcs.csv): recortes y punta a punta → runs/G4/<ts>/.
-eval-final: export BCS_SCALE ?= dairy_sdb
+# producción sobre test: recortes y punta a punta → runs/G4/<ts>/. T28 (rama dev): el modelo de
+# T25 (BCS_MODEL=zen, dairy_zen) sobre holdout_labels_sdb_bcs.csv + holdout_labels_zen_rgbd.csv,
+# con el reporte por fuente. El de main: `make eval-final BCS_MODEL=sdb BCS_SCALE=dairy_sdb`.
+eval-final: export BCS_SCALE ?= dairy_zen
 eval-final:
 	$(RUN) python eval/evaluate_final.py --task G4 $(if $(LIMIT),--limit $(LIMIT))
 

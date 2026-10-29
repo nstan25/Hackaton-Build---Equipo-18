@@ -3,6 +3,10 @@
 Lee las predicciones de val del modelo (formato en `bcs.eval.report`), calcula las métricas,
 escribe `runs/<task>/<ts>/{report.json,config.json,reliability.png,confusion.png}` y compara
 contra `eval/thresholds.yaml[STAGE]`. Exit 0 si pasa, 1 si no pasa, 2 si la entrada es inválida.
+
+T28: con más de una fuente, además informa las mismas métricas y chequeos **por fuente**
+(`report.json` → `by_source`; mismas métricas y umbrales, solo restringidos a las filas de esa
+fuente). El veredicto (exit code) sigue siendo el de todas las fuentes juntas.
 """
 
 from __future__ import annotations
@@ -87,9 +91,27 @@ def main(argv: list[str] | None = None) -> int:
             quality=quality,
             y_train=train_labels(),
         )
+        by_source = {
+            str(s): build_report(
+                df.loc[df["source"] == s],
+                scale,
+                model=args.model,
+                stage=args.stage,
+                task=task,
+                thresholds=thresholds,
+                quality=quality,
+                y_train=train_labels(),
+            )
+            for s in sorted(set(df["source"]))
+        }
     except EvalInputError as e:
         print(f"predicciones inválidas: {e}", file=sys.stderr)
         return 2
+    if len(by_source) > 1:
+        report["by_source"] = {
+            s: {"mean": r["mean"], "thresholds": r["thresholds"], "n": int(r["pooled"]["n"])}
+            for s, r in by_source.items()
+        }
 
     ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     run_dir = (args.runs_dir or runs_dir()) / task / ts
@@ -113,6 +135,13 @@ def main(argv: list[str] | None = None) -> int:
         mark = "ok  " if c["passed"] else "FAIL"
         value = "n/d" if c["value"] is None else f"{c['value']:.4f}"
         print(f"[{mark}] {c['key']}: {value} {c['op']} {c['threshold']}", file=sys.stderr)
+    for s, r in report.get("by_source", {}).items():
+        marks = ", ".join(
+            f"{c['key']} {'n/d' if c['value'] is None else format(c['value'], '.4f')}"
+            f"{'' if c['passed'] else ' FAIL'}"
+            for c in r["thresholds"]["checks"]
+        )
+        print(f"  [{s}, n={r['n']}] {marks}", file=sys.stderr)
     verdict = "PASA" if result["passed"] else "NO PASA"
     print(f"{args.stage} {verdict} · {paths['report']}", file=sys.stderr)
     return 0 if result["passed"] else 1

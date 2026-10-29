@@ -11,6 +11,10 @@
 
 Salidas: `$BCS_ARTIFACTS_DIR/T11/{predictions_val.csv, predictions_val_<variante>.csv,
 calibration.json}` y `runs/T11/<ts>/summary.md`.
+
+T28: `--scale dairy_zen --task T28 --predictions <val del modelo de T25>` recalibra el modelo nuevo
+en la grilla 3.0–5.0 con val de `sdb_bcs` + `zen_rgbd` (mismo procedimiento; el resumen agrega el
+desglose por fuente).
 """
 
 from __future__ import annotations
@@ -40,6 +44,9 @@ from bcs.scale import grid_key, load_scale
 TASK = "T11"
 K_FOLDS = 5
 CHOSEN = "ml_deg0_class"
+# T28: en dairy_zen las colas (3.0, 4.5–5.0) tienen 9–43 imágenes de val; con menos de 20 casos de
+# calibración, una clase usa el q̂ marginal (sin esto el intervalo cubre toda la grilla).
+MIN_CLASS_N = 20
 
 
 def variants(grid: tuple[float, ...]) -> dict[str, Callable[[], CalibratedRegression]]:
@@ -47,6 +54,9 @@ def variants(grid: tuple[float, ...]) -> dict[str, Callable[[], CalibratedRegres
         "t09_global_marginal": lambda: GlobalSigma(grid),
         "ml_deg0_marginal": lambda: CalibratedRegression(grid, 0, by_class=False),
         "ml_deg0_class": lambda: CalibratedRegression(grid, 0),
+        f"ml_deg0_class_min{MIN_CLASS_N}": lambda: CalibratedRegression(
+            grid, 0, min_class_n=MIN_CLASS_N
+        ),
         "ml_deg1_class": lambda: CalibratedRegression(grid, 1),
         "ml_deg2_class": lambda: CalibratedRegression(grid, 2),
     }
@@ -91,11 +101,17 @@ def summarize(
         {"conf": conf, "hit": hit, "cov": cov, "width": width, "bias_exp": expected - y, "y": y}
     )
     t["origin"] = origin(list(df["image_id"]))
+    t["source"] = df["source"].to_numpy(str)
     # valor predicho → clase de la grilla más cercana
     t["v_bin"] = [f"≈{grid_key(grid[i])}" for i in snap_index(df["value"].to_numpy(float), grid)]
     agg = {"n": ("cov", "size"), "conf": ("conf", "mean"), "hit_pm1": ("hit", "mean")}
     agg |= {"coverage": ("cov", "mean"), "width": ("width", "mean"), "bias": ("bias_exp", "mean")}
-    for name, col in (("by_class", "y"), ("by_origin", "origin"), ("by_value", "v_bin")):
+    for name, col in (
+        ("by_class", "y"),
+        ("by_origin", "origin"),
+        ("by_source", "source"),
+        ("by_value", "v_bin"),
+    ):
         out[name] = t.groupby(col).agg(**agg).round(4).to_dict(orient="index")  # type: ignore[call-overload]
     return out
 
@@ -115,7 +131,12 @@ def _table(rows: dict[Any, dict[str, Any]], label: str) -> list[str]:
 
 
 def write_summary(
-    path: Path, results: dict[str, dict[str, Any]], prod: dict[str, Any], n: int, n_groups: int
+    path: Path,
+    results: dict[str, dict[str, Any]],
+    prod: dict[str, Any],
+    n: int,
+    n_groups: int,
+    chosen: str = CHOSEN,
 ) -> None:
     lines = [
         f"# T11 · Distribución, calibración y conformal sobre T09 (val, n={n}, {n_groups} grupos)",
@@ -133,7 +154,7 @@ def write_summary(
         "|---|---|---|---|---|---|---|",
     ]
     for name, r in results.items():
-        mark = " **(elegida)**" if name == CHOSEN else ""
+        mark = " **(elegida)**" if name == chosen else ""
         lines.append(
             f"| {name}{mark} | {r['ece']:.4f} | {r['coverage_90']:.3f} | "
             f"{r['interval_width_steps']:.2f} | {r['nll']:.4f} | {r['mae']:.4f} | "
@@ -144,11 +165,12 @@ def write_summary(
         ece = ", ".join(f"{x:.3f}" for x in r["ece_folds"])
         cov = ", ".join(f"{x:.3f}" for x in r["coverage_folds"])
         lines.append(f"- {name}: ECE [{ece}] · cobertura [{cov}]")
-    for name in ("t09_global_marginal", CHOSEN):
+    for name in ("t09_global_marginal", chosen):
         r = results[name]
         lines += ["", f"## {name}: por clase real", "", *_table(r["by_class"], "clase")]
         lines += ["", f"## {name}: por valor predicho", "", *_table(r["by_value"], "valor")]
         lines += ["", f"## {name}: por origen", "", *_table(r["by_origin"], "origen")]
+        lines += ["", f"## {name}: por fuente", "", *_table(r["by_source"], "fuente")]
     lines += [
         "",
         "## Parámetros de producción (todo val)",
@@ -169,11 +191,16 @@ def main(argv: list[str] | None = None) -> int:
         default=artifacts_dir() / "T09" / "predictions_val.csv",
         help="predicciones de val de T09 (con la columna `value`)",
     )
-    parser.add_argument("--out", type=Path, default=artifacts_dir() / TASK)
+    parser.add_argument("--task", default=TASK, help="carpeta de salida (artefactos y runs)")
+    parser.add_argument("--out", type=Path, default=None, help="default: $BCS_ARTIFACTS_DIR/<task>")
     parser.add_argument("--runs-dir", type=Path, default=runs_dir())
+    parser.add_argument("--scale", default="dairy_sdb", help="grilla del modelo calibrado")
+    parser.add_argument("--chosen", default=CHOSEN, help="variante que va a calibration.json")
     args = parser.parse_args(argv)
+    chosen: str = args.chosen
+    args.out = args.out or artifacts_dir() / args.task
 
-    grid = load_scale("dairy_sdb").grid
+    grid = load_scale(args.scale).grid
     df = pd.read_csv(args.predictions, dtype={"image_id": str, "group_id": str})
     folds_in = set(df["fold"].astype(str)) if "fold" in df.columns else {"val"}
     if folds_in != {"val"}:
@@ -190,7 +217,7 @@ def main(argv: list[str] | None = None) -> int:
         probs, iv, folds = cross_fit(factory, v, y, grp, K_FOLDS)
         pred = predictions_frame(df, probs, iv, folds, grid)
         pred.to_csv(args.out / f"predictions_val_{name}.csv", index=False)
-        if name == CHOSEN:
+        if name == chosen:
             pred.to_csv(args.out / "predictions_val.csv", index=False)
         results[name] = summarize(df, probs, iv, folds, grid)
         r = results[name]
@@ -199,9 +226,9 @@ def main(argv: list[str] | None = None) -> int:
             f"ancho {r['interval_width_steps']:.2f} · NLL {r['nll']:.4f}"
         )
 
-    model = variants(grid)[CHOSEN]().fit(v, y, grp)
+    model = variants(grid)[chosen]().fit(v, y, grp)
     model.info |= {
-        "variant": CHOSEN,
+        "variant": chosen,
         "source_predictions": str(args.predictions),
         "fit_on": "val (todo)",
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -209,10 +236,10 @@ def main(argv: list[str] | None = None) -> int:
     model.save(args.out / "calibration.json")
 
     ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    run_dir = args.runs_dir / TASK / ts
+    run_dir = args.runs_dir / args.task / ts
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "crossfit.json").write_text(json.dumps(results, indent=2, default=str) + "\n")
-    write_summary(run_dir / "summary.md", results, model.to_dict(), len(df), len(set(grp)))
+    write_summary(run_dir / "summary.md", results, model.to_dict(), len(df), len(set(grp)), chosen)
     print(f"calibración en {args.out / 'calibration.json'} · resumen en {run_dir / 'summary.md'}")
     return 0
 

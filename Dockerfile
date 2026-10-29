@@ -4,7 +4,9 @@ FROM python:3.12-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /usr/local/bin/uv
 
-# BCS_PREDICTOR=model: el pipeline de producción de G3 (T12) sobre la grilla dairy_sdb (G1).
+# BCS_PREDICTOR=model: el pipeline de G3 (T12). T28 (rama dev): el modelo de T25 (BCS_MODEL=zen)
+# sobre la grilla dairy_zen (3.0–5.0) con detección OOD; BCS_MODEL=sdb BCS_SCALE=dairy_sdb vuelve al
+# de main (sus archivos también van en la imagen).
 # En runtime no se consulta el Hub.
 ENV UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
@@ -13,7 +15,8 @@ ENV UV_LINK_MODE=copy \
     BCS_DB_PATH=/data/bcs.sqlite \
     BCS_MEDIA_DIR=/data/media \
     BCS_PREDICTOR=model \
-    BCS_SCALE=dairy_sdb \
+    BCS_MODEL=zen \
+    BCS_SCALE=dairy_zen \
     BCS_ARTIFACTS_DIR=/app/artifacts \
     YOLO_CONFIG_DIR=/tmp/Ultralytics \
     YOLO_OFFLINE=1
@@ -39,6 +42,8 @@ ENV HF_HUB_OFFLINE=1
 # El código del equipo que usa el pipeline (transformación, detector, recorte) va tal cual.
 COPY train_cnn.py metrics.py prep_yolo.py prep_crops.py ./
 COPY models/bcs_efficientnet_b0.pt models/cow_det.pt models/calibration_efficientnet_b0.json models/
+# T28: modelo de T25 (16 MB), su calibración y el banco OOD (6,3 MB). Sin el .json de metadatos.
+COPY models/bcs_efficientnet_b0_zen.pt models/calibration_efficientnet_b0_zen.json models/ood_mahalanobis_zen.npz models/
 COPY src/ src/
 COPY config/ config/
 COPY web/ web/

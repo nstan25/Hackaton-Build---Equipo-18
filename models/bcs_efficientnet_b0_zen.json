@@ -1,0 +1,106 @@
+{
+  "arch": "efficientnet_b0",
+  "loss": "huber",
+  "size": [
+    224,
+    320
+  ],
+  "center": 3.75,
+  "scale": 0.25,
+  "letterbox": true,
+  "grid": [
+    3.0,
+    3.25,
+    3.5,
+    3.75,
+    4.0,
+    4.25,
+    4.5,
+    4.75,
+    5.0
+  ],
+  "variant": "A",
+  "epoch": 4,
+  "val": {
+    "mae_sdb_bcs": 0.17730280738151138,
+    "mae_zen_rgbd": 0.17356823693334528,
+    "score": 0.17543552215742833
+  },
+  "weights": "/home/hackaton/bcs-shared/artifacts/T25/bcs_efficientnet_b0_zen.pt",
+  "weights_sha256": "bd938c686697d7a3cbc573b109d064753587d74a26b00a444a7113f2c83312fe",
+  "init_weights": "models/bcs_efficientnet_b0.pt",
+  "init_sha256": "5a5b28d65b893860917764c4f2f90ea8295c5ea9c0e5a62fb16fe015ad3462d1",
+  "config": {
+    "seed": 42,
+    "scale": "dairy_zen",
+    "init_weights": "models/bcs_efficientnet_b0.pt",
+    "arch": "efficientnet_b0",
+    "size": [
+      224,
+      320
+    ],
+    "center": 3.75,
+    "step": 0.25,
+    "data": {
+      "sdb_max_per_group": 5,
+      "select_sdb_max_per_group": 5,
+      "source_mix": {
+        "sdb_bcs": 0.5,
+        "zen_rgbd": 0.5
+      },
+      "class_balance_power": {
+        "sdb_bcs": 1.0,
+        "zen_rgbd": 0.5
+      }
+    },
+    "variants": {
+      "A": {
+        "drop_dates": [
+          "2024-12-06"
+        ],
+        "date_weight": {}
+      },
+      "B": {
+        "drop_dates": [],
+        "date_weight": {
+          "2024-12-06": 0.25
+        }
+      }
+    },
+    "train": {
+      "epochs": 5,
+      "patience": 2,
+      "epoch_samples": 9600,
+      "batch_size": 32,
+      "lr": 0.0002,
+      "weight_decay": 0.0001,
+      "warmup_steps": 100,
+      "huber_delta": 1.0,
+      "num_workers": 3,
+      "torch_threads": 8,
+      "ckpt_every_steps": 100,
+      "val_batch_size": 64
+    },
+    "augment": {
+      "hflip": true,
+      "affine": {
+        "degrees": 7,
+        "translate": 0.04,
+        "scale": [
+          0.92,
+          1.08
+        ]
+      },
+      "color_jitter": {
+        "brightness": 0.25,
+        "contrast": 0.25,
+        "saturation": 0.4,
+        "hue": 0.08
+      },
+      "grayscale_p": 0.2
+    },
+    "coat": {
+      "threshold": 0.3
+    }
+  }
+}

@@ -5,6 +5,12 @@ No se reentrena. Arquitectura, transformación (224×320, normalización ImageNe
 `decode`), que se importa sin editarlo. TTA: promedio con el flip horizontal, como
 `bcs_pipeline.py`. Como la decodificación es lineal, promediar logits o valores da lo mismo.
 
+T28: un `.pt` con `letterbox: true` (el de T25, `models/bcs_efficientnet_b0_zen.pt`) se evalúa con
+la transformación con la que se entrenó (`eval_transform`: letterbox a 224×320 con el gris de la
+media, como `train_zen.make_transforms`) y se decodifica con su `center`/`scale`; el modelo viejo
+sigue estirando. `predict_views_features` devuelve además el pooling (1.280-d) de la vista sin
+flip, de la misma pasada, para el puntaje OOD.
+
 Distribución sobre la grilla (provisoria, T11 la refina): normal discretizada centrada en el valor
 continuo, con σ = RMSE de los residuos en las imágenes que recibe `fit()` (las de val si `df`
 trae la columna `split`). Las clases de las puntas se quedan con las colas.
@@ -73,6 +79,19 @@ def discretized_normal(mu: np.ndarray, sigma: float, grid: Sequence[float]) -> n
     return p / p.sum(axis=1, keepdims=True)
 
 
+def eval_transform(ckpt: dict[str, Any]) -> Any:
+    """La transformación de evaluación que pide el checkpoint: letterbox (T25) o la de
+    `train_cnn.EVAL_TF` (estira a 224×320)."""
+    if not ckpt.get("letterbox"):
+        return team_module("train_cnn").EVAL_TF
+    from torchvision import transforms as T
+
+    from bcs.models.train_zen import MEAN, STD, Letterbox
+
+    size = ckpt.get("size") or (224, 320)
+    return T.Compose([Letterbox(size), T.ToTensor(), T.Normalize(MEAN, STD)])
+
+
 def _resolve(path: str | Path) -> Path:
     p = Path(path).expanduser()
     return p if p.is_absolute() else REPO_ROOT / p
@@ -93,6 +112,7 @@ class EfficientNetScorer:
         self.sigma_info: dict[str, Any] = {"source": "config" if sigma is not None else "default"}
         self._model: Any = None
         self._ckpt: dict[str, Any] = {}
+        self._tf: Any = None
 
     @property
     def model_version(self) -> str:
@@ -111,24 +131,63 @@ class EfficientNetScorer:
             model.load_state_dict(ck["state_dict"])
             self._model = model.eval()
             self._ckpt = {k: v for k, v in ck.items() if k != "state_dict"} | {"loss": loss}
+            self._tf = eval_transform(self._ckpt)
         return self._model
 
-    def predict_views(self, images: Sequence[Image.Image]) -> np.ndarray:
-        """[n, 2]: valor continuo con la imagen tal cual y con el flip horizontal."""
+    @property
+    def checkpoint(self) -> dict[str, Any]:
+        """Metadatos del `.pt` (sin los pesos); carga el modelo si hace falta."""
+        self._load_model()
+        return self._ckpt
+
+    def _batch(self, images: Sequence[Image.Image]) -> Any:
+        import torch
+
+        return torch.stack([self._tf(im.convert("RGB")) for im in images])
+
+    def _decode(self, out: Any) -> Any:
+        ck = self._ckpt
+        if ck["loss"] == "huber" and "center" in ck:
+            return out.float().squeeze(1) * float(ck.get("scale", 0.25)) + float(ck["center"])
+        return team_module("train_cnn").decode(out, ck["loss"])
+
+    def predict_views_features(
+        self, images: Sequence[Image.Image], flip: bool = True
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """([n, 2] valor con la imagen tal cual y con el flip horizontal, [n, 1280] pooling global
+        de la vista sin flip, float32). El valor sin flip sale de la cabeza sobre ese pooling: es
+        el mismo `model(x)` (T27: dif. máx. 9e-16). Con `flip=False` no se corre la vista
+        espejada y su columna queda en NaN."""
         import torch
 
         model = self._load_model()
-        train_cnn = team_module("train_cnn")
-        out = []
+        out, feats = [], []
         with torch.inference_mode():
             for i in range(0, len(images), BATCH):
-                x = torch.stack(
-                    [train_cnn.EVAL_TF(im.convert("RGB")) for im in images[i : i + BATCH]]
+                x = self._batch(images[i : i + BATCH])
+                f = model.forward_head(model.forward_features(x), pre_logits=True)
+                plain = self._decode(model.get_classifier()(f))
+                mirror = (
+                    self._decode(model(torch.flip(x, dims=[3])))
+                    if flip
+                    else torch.full_like(plain, float("nan"))
                 )
-                plain = train_cnn.decode(model(x), self._ckpt["loss"])
-                flip = train_cnn.decode(model(torch.flip(x, dims=[3])), self._ckpt["loss"])
-                out.append(torch.stack([plain, flip], 1).numpy())
-        return np.concatenate(out).astype(float) if out else np.zeros((0, 2))
+                out.append(torch.stack([plain, mirror], 1).numpy())
+                feats.append(f.numpy().astype(np.float32))
+        if not out:
+            return np.zeros((0, 2)), np.zeros((0, 0), dtype=np.float32)
+        return np.concatenate(out).astype(float), np.concatenate(feats)
+
+    def predict_views(self, images: Sequence[Image.Image]) -> np.ndarray:
+        """[n, 2]: valor continuo con la imagen tal cual y con el flip horizontal."""
+        return self.predict_views_features(images)[0]
+
+    def predict_value_features(
+        self, images: Sequence[Image.Image]
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """BCS continuo con TTA y el pooling de la vista sin flip (una sola pasada)."""
+        views, feats = self.predict_views_features(images)
+        return views.mean(axis=1), feats
 
     def predict_value(self, images: Sequence[Image.Image]) -> np.ndarray:
         """BCS continuo (con TTA si `tta`)."""
@@ -136,14 +195,10 @@ class EfficientNetScorer:
             import torch
 
             model = self._load_model()
-            train_cnn = team_module("train_cnn")
             vals = []
             with torch.inference_mode():
                 for i in range(0, len(images), BATCH):
-                    x = torch.stack(
-                        [train_cnn.EVAL_TF(im.convert("RGB")) for im in images[i : i + BATCH]]
-                    )
-                    vals.append(train_cnn.decode(model(x), self._ckpt["loss"]).numpy())
+                    vals.append(self._decode(model(self._batch(images[i : i + BATCH]))).numpy())
             return np.concatenate(vals).astype(float) if vals else np.zeros(0)
         return self.predict_views(images).mean(axis=1)
 
