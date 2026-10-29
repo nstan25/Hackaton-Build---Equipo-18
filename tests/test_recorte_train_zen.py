@@ -112,8 +112,9 @@ def test_mix_has_both_frames_half_weight_each(setup: tuple[Path, dict[str, Any]]
     assert (zen.groupby("image_id").size() == 2).all()
     w = m["w"].to_numpy(dtype=float)
     assert np.isclose(w[(m["source"] == "zen_rgbd").to_numpy()].sum(), 0.5)
-    wf = zen.groupby("frame")["w"].sum()
-    assert np.isclose(wf["grupa"], wf["entera"])
+    wz = np.asarray(zen["w"], dtype=float)
+    is_grupa = np.asarray(zen["frame"]) == "grupa"
+    assert np.isclose(wz[is_grupa].sum(), wz[~is_grupa].sum())
     assert all("/crops/" not in p for p in zen.loc[zen["frame"] == "entera", "path"])
 
 
