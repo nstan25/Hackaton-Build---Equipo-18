@@ -1,0 +1,18 @@
+# T27 · detección OOD sobre embeddings de la EfficientNet-B0 de producción (experimento, no producción).
+# Lo leen scripts/ood/*.py. Artefactos en $BCS_ARTIFACTS_DIR/T27/, reporte en $BCS_RUNS_DIR/T27/.
+seed: 0
+bank:
+  per_group: 5            # frames de sdb_bcs train por group_id en el banco de referencia
+  sizes: [2000, 5000, null]   # submuestreos para kNN (null = todo el banco)
+knn_k: [1, 5, 10, 50]
+val_pipe_per_group: 2     # frames completos de sdb_bcs val por grupo que pasan por filtro + detector
+calib_frac: 0.5           # fracción de grupos de val para calibrar z-scores y umbrales
+degraded_n: 250           # frames de val por degradación
+coco:
+  cows: 150               # imágenes de COCO val2017 con vacas (licencias abiertas)
+  animals: 100            # caballos, ovejas, perros, etc. sin vacas
+  other: 150              # cualquier otra cosa sin animales
+  licenses: [4, 5, 6]     # CC BY 2.0, CC BY-SA 2.0, CC BY-ND 2.0
+tpr: 0.95
+thresholds: [0.95, 0.99]  # percentiles de val ID (calibración) para el umbral propuesto
+selective_fractions: [0.0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5]
