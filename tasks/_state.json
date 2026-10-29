@@ -642,13 +642,17 @@
       "title": "Integración en dev: modelo T25 + OOD T27",
       "status": "despachado",
       "branch": "integracion-zen-ood (desde dev)",
-      "agent": "claude"
+      "agent": "claude",
+      "task_id": "task_d6fbbb3146f4",
+      "dispatch_id": "ctx_cba44e314fa2"
     },
     "T29": {
       "title": "Railway IaC (.railway/)",
       "status": "despachado",
       "branch": "railway-iac",
-      "agent": "claude"
+      "agent": "claude",
+      "task_id": "task_eb01abd4296a",
+      "dispatch_id": "ctx_43d1a2b7c95f"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)",
