@@ -660,7 +660,9 @@
       "title": "Alinear recorte de inferencia con entrenamiento (zen punta a punta)",
       "status": "despachado",
       "branch": "recorte-detector (desde dev)",
-      "agent": "claude"
+      "agent": "claude",
+      "task_id": "task_964f9893c8de",
+      "dispatch_id": "ctx_a3f96bfb36e9"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)",
