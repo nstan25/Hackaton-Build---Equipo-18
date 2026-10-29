@@ -615,7 +615,7 @@
     },
     "T25": {
       "title": "Reentrenamiento experimental en CPU (sdb+zen, 3.0–5.0)",
-      "status": "worker_done verificado; gate G5 abierto (integrar/iterar/archivar)",
+      "status": "código mergeado a main (sin integrar); gate G5 abierto",
       "dispatch_id": "ctx_eeba4ffc562d",
       "branch": "T25-reentrenamiento-zen",
       "agent": "claude",

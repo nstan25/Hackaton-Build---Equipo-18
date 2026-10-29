@@ -1,7 +1,7 @@
 # Mails de solicitud de datasets de BCS (uso comercial)
 
-Borradores para pedir datos a los autores de los dos mejores candidatos con vacas flacas (ver
-`docs/investigacion/datasets-bcs.md` y `datasets-bcs-2.md`). Indican claramente que **ARGOS puede usarse
+Borradores para pedir datos a los autores de los mejores candidatos con vacas flacas (ver
+`docs/investigacion/datasets-bcs.md`, `datasets-bcs-2.md` y `datasets-bcs-3.md`). Indican claramente que **ARGOS puede usarse
 comercialmente**, para que el permiso que den cubra entrenar y servir el modelo en un producto.
 
 Antes de enviar, completá los datos entre corchetes. Los manda una persona del equipo (los agentes no
@@ -83,6 +83,54 @@ Kind regards,
 [Nombre Apellido]
 [Empresa / institución / equipo] – Uruguay
 [mail] · [teléfono, opcional]
+
+---
+
+## 3. Grecheneva et al. 2026 (Rusia, Universidad Timiriazev)
+
+**Para:** a.grecheneva@rgau-msha.ru
+
+**Subject:** Data request for commercial use – dairy cow BCS images from "Izvestiya TSKhA 2026(2):105–122"
+
+Dear Dr. Grecheneva,
+
+My name is [Nombre Apellido], and I am part of a team in Uruguay ([empresa / institución / equipo]) developing
+**ARGOS**, a product that estimates dairy cow Body Condition Score (BCS, 1–5 scale) from photographs, to help
+producers and veterinarians monitor their herds. ARGOS started as a hackathon prototype and **we intend to
+offer it as a commercial service**.
+
+We read your 2026 article in *Izvestiya of Timiryazev Agricultural Academy* (2026(2):105–122,
+DOI: 10.26897/0021-342X-2026-2-105-122) with great interest. Our current model was trained on public data covering
+only BCS 3.0–5.0, so it cannot yet recognise thin cows, which is the case that matters most for animal welfare.
+Your study of 983 cows, with a large number of animals in BCS 1 and 2, would be extremely valuable to us.
+
+We would like to ask whether you would be willing to share, **with permission to use it for training and
+evaluating a model that will be deployed in a commercial product**:
+1. the images or video frames selected by your algorithm (dorsal and lateral views), especially of cows with
+   BCS ≤ 2.75, with their BCS labels;
+2. the original BCS given by the expert with 0.25 steps, if available (not only the integer class), and whether
+   the distribution in Fig. 8 corresponds to the 983 cows of the study;
+3. a cow identifier and the recording date for each image, so that we can split training and test sets by animal;
+4. the breed, and whether the cows were scored by palpation or visually.
+
+We would not redistribute the data, we would cite your article and acknowledge your group in our documentation and
+any publication, and we are happy to sign a data-use or licensing agreement under the terms you consider
+appropriate, including discussing compensation or a research collaboration. We would also gladly share our
+results on your data with you.
+
+Please let us know whether this is possible and under which conditions. Thank you very much for your time.
+
+Kind regards,
+[Nombre Apellido]
+[Empresa / institución / equipo] – Uruguay
+[mail] · [teléfono, opcional]
+
+*Краткое содержание (resumen en ruso, opcional, ayuda a que lo lean):*
+Уважаемая д-р Греченева! Мы — команда из Уругвая, разрабатываем коммерческий сервис ARGOS для оценки упитанности
+(BCS) молочных коров по фотографиям. Просим рассмотреть возможность предоставить изображения из вашей статьи
+(Известия ТСХА, 2026, № 2) — особенно коров с BCS 1–2 — с оценками, идентификатором коровы и датой, для обучения и
+проверки модели в коммерческом продукте. Мы не будем распространять данные, сошлёмся на вашу работу и готовы
+подписать соглашение на ваших условиях.
 
 ---
 
