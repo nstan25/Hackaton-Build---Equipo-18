@@ -658,12 +658,12 @@
     },
     "T30": {
       "title": "Alinear recorte de inferencia con entrenamiento (zen punta a punta)",
-      "status": "reanudado 30/10 tras reinicio de VM (nuevo dispatch, mismo worktree)",
+      "status": "worker_done verificado (check/smoke OK); G integrado en rama recorte-detector (BCS_MODEL=zen_grupa); pendiente: decisión humana de mergear a dev; M en GPU por el humano",
       "branch": "recorte-detector (desde dev)",
       "agent": "claude",
       "task_id": "task_964f9893c8de",
       "dispatch_id": "ctx_cd927d805813",
-      "note": "G/last.pt ép.3 200/300; M sin arrancar; B: caja ampliada baja zen-uso 0,53→0,21 pero sdb 0,176→0,19"
+      "note": "uso real zen 0,528→0,187; sdb vs prod +0,007 [+0,004,+0,011], +0,018 en 4.00; Railway dev tiene BCS_MODEL=zen → cambiar a zen_grupa al deployar"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)",
