@@ -91,3 +91,19 @@ def test_paired_delta_same_rows_and_sign(ev: Any) -> None:
     d = ev.paired_delta(base, better)
     assert d["delta"] == pytest.approx(-(0.5 + 0.4 + 0.5) / 3)  # la fila rechazada no cuenta
     assert d["hi"] < 0 and d["animals"] == 2
+
+
+def test_eval_task_writes_own_preds_and_reads_t30(
+    ev: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T31: con otra tarea, lo nuevo va a su carpeta y lo de T30 (prod, dev, G) se lee de ahí."""
+    monkeypatch.setenv("BCS_ARTIFACTS_DIR", str(tmp_path))
+    monkeypatch.setenv("BCS_ZEN_EVAL_TASK", "T31")
+    t30 = tmp_path / "T30" / "preds"
+    t30.mkdir(parents=True)
+    (t30 / "uso__G.csv").write_text("x\n")
+    assert ev.preds_path("G", "uso") == t30 / "uso__G.csv"
+    assert ev.preds_path("M", "uso") == tmp_path / "T31" / "preds" / "uso__M.csv"
+    assert ev.feats_path("M", "uso") == tmp_path / "T31" / "preds" / "uso__M.npy"
+    monkeypatch.delenv("BCS_ZEN_EVAL_TASK")
+    assert ev.preds_path("M", "uso") == t30 / "uso__M.csv"  # default: T30, como antes

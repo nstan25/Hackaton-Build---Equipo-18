@@ -17,12 +17,16 @@ Vistas (lo que ve el modelo):
     uv run python scripts/zen_crops/evaluate.py predict --model dev --view uso
     uv run python scripts/zen_crops/evaluate.py report --models prod,dev,A
     uv run python scripts/zen_crops/evaluate.py source --models dev,A
+
+Con `--task T31` (o `BCS_ZEN_EVAL_TASK`) las predicciones nuevas y el reporte van a esa tarea; las
+que ya están en T30 (prod, dev, G) se leen de ahí. Los pesos de candidatos siguen en T30.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import time
@@ -36,7 +40,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import crops as zc  # noqa: E402
 
-from bcs.paths import REPO_ROOT, data_dir, runs_dir  # noqa: E402
+from bcs.paths import REPO_ROOT, artifacts_dir, data_dir, runs_dir  # noqa: E402
 
 GRID = tuple(3.0 + 0.25 * i for i in range(9))  # dairy_zen
 SDB_CLASSES = (3.25, 3.5, 3.75, 4.0, 4.25)
@@ -45,6 +49,10 @@ MODELS: dict[str, Path] = {
     "dev": REPO_ROOT / "models" / "bcs_efficientnet_b0_zen.pt",
 }
 _UP = re.compile(r"_up([0-9.]+)$")
+
+
+def eval_task() -> str:
+    return os.environ.get("BCS_ZEN_EVAL_TASK", zc.TASK)
 
 
 def model_path(name: str) -> Path:
@@ -56,12 +64,18 @@ def model_path(name: str) -> Path:
     return p
 
 
+def _preds(model: str, view: str, ext: str) -> Path:
+    own = artifacts_dir() / eval_task() / "preds" / f"{view}__{model}.{ext}"
+    base = zc.out_dir() / "preds" / own.name
+    return base if not own.exists() and base.exists() else own
+
+
 def preds_path(model: str, view: str) -> Path:
-    return zc.out_dir() / "preds" / f"{view}__{model}.csv"
+    return _preds(model, view, "csv")
 
 
 def feats_path(model: str, view: str) -> Path:
-    return zc.out_dir() / "preds" / f"{view}__{model}.npy"
+    return _preds(model, view, "npy")
 
 
 def view_rows(view: str) -> pd.DataFrame:
@@ -313,6 +327,7 @@ def framing_gap(model: str, a: str = "uso", b: str = "t04") -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="scripts/zen_crops/evaluate.py")
+    ap.add_argument("--task", help="tarea de salida (default: BCS_ZEN_EVAL_TASK o T30)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("predict")
     p.add_argument("--model", required=True)
@@ -326,18 +341,21 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("source")
     s.add_argument("--models", default="dev")
     a = ap.parse_args(argv)
+    if a.task:
+        os.environ["BCS_ZEN_EVAL_TASK"] = a.task
     if a.cmd == "predict":
         run_predict(a.model, a.view, a.force)
     elif a.cmd == "report":
         rep = report(a.models.split(","), a.views.split(","), a.base)
-        d = runs_dir() / zc.TASK
+        d = runs_dir() / eval_task()
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{a.name}.json").write_text(json.dumps(rep, indent=2))
         (d / f"{a.name}.md").write_text(tables_md(rep, a.base))
         print(tables_md(rep, a.base))
     elif a.cmd == "source":
         res = {m: {"probe": source_auc(m), "framing": framing_gap(m)} for m in a.models.split(",")}
-        d = runs_dir() / zc.TASK
+        d = runs_dir() / eval_task()
+        d.mkdir(parents=True, exist_ok=True)
         (d / "source_auc.json").write_text(json.dumps(res, indent=2))
         print(json.dumps(res, indent=2))
     return 0

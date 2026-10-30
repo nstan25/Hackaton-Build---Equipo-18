@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -124,3 +125,22 @@ def test_bad_frame_raises(setup: tuple[Path, dict[str, Any]]) -> None:
     cfg["variants"]["X"] = {"zen_frame": "otro"}
     with pytest.raises(ValueError, match="zen_frame"):
         variant_rows(train, cfg, "X")
+
+
+def test_export_name_and_dest_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """T31: exportar otra variante sin pisar la exportada ni escribir en la carpeta de la tarea."""
+    import torch
+
+    monkeypatch.setenv("BCS_ARTIFACTS_DIR", str(tmp_path))
+    cfg = load_config(config_dir() / "train_zen_grupa.yaml")
+    try:
+        train_zen.set_task(cfg)
+        (tmp_path / "T30" / "M").mkdir(parents=True)
+        torch.save({"state_dict": {}, "variant": "M"}, tmp_path / "T30" / "M" / "best.pt")
+        dest = train_zen.export(cfg, "M", "bcs_x_mix.pt", tmp_path / "T31")
+    finally:
+        train_zen.set_task({})
+    assert dest == tmp_path / "T31" / "bcs_x_mix.pt" and dest.exists()
+    meta = json.loads(dest.with_suffix(".json").read_text())
+    assert meta["variant"] == "M" and meta["weights"] == str(dest)
+    assert not (tmp_path / "T30" / cfg["export_name"]).exists()
