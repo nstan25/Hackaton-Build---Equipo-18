@@ -20,6 +20,11 @@ la vista sin flip con letterbox, igual que en `inference`). Nunca test ni holdou
   reporta qué parte de COCO y de los dibujos de T08 rechaza, y los candidatos alternativos (p99,9 y
   el máximo sin margen).
 
+T30 (`--section integration_grupa`): lo mismo para el modelo de grupa, con embeddings en
+`$BCS_ARTIFACTS_DIR/T30/emb/` (`build_sets.py --task T30` + `scripts/zen_crops/embed_grupa.py`); el
+banco y el val ID de zen son los recortes de grupa (lo que ve el modelo en uso real), según la
+sección (`bank_sets`, `val_sets`).
+
 Salidas: el artefacto (`integration.artifact`), `$BCS_RUNS_DIR/T28/ood/{results.json,tables.md}` y
 `$BCS_ARTIFACTS_DIR/efficientnet_b0_zen/quality_metrics.json` (filtro de m4 punta a punta: filtro
 básico + detector + OOD, sobre el set de rechazo de T08 y los frames de val).
@@ -56,6 +61,8 @@ DEGRADED = (
     "offcenter",
 )
 PIPE_SETS = ("pipe_val", "zen_raw", "reject", "coco", *(f"deg_{d}" for d in DEGRADED))
+BANK_SETS = {"sdb_bcs_train": "bank", "zen_rgbd_train": "bank_zen"}  # nombre en el banco → conjunto
+VAL_SETS = {"sdb_bcs": "val_sdb", "zen_rgbd": "val_zen"}  # fuente → conjunto de val ID
 COCO_KINDS = {"coco_cow": "cow", "coco_animal": "animal", "coco_other": "other"}
 
 
@@ -133,29 +140,33 @@ def _q(s: np.ndarray) -> dict[str, float]:
     }
 
 
-def run(cfg: dict[str, Any], write_artifact: bool = True) -> dict[str, Any]:
-    icfg = cfg["integration"]
+def run(
+    cfg: dict[str, Any], write_artifact: bool = True, section: str = "integration"
+) -> dict[str, Any]:
+    icfg = cfg[section]
+    task = str(icfg["task"])
     seed, frac = int(cfg["seed"]), float(cfg["calib_frac"])
     emb = artifacts_dir() / icfg["task"] / "emb"
     weights = REPO_ROOT / icfg["weights"]
     sha = sha256_file(weights)
 
-    bank_sdb, bank_zen = load_set(emb, "bank"), load_set(emb, "bank_zen")
+    # T30: los conjuntos del banco y de val ID salen de la sección (default: los de T28)
+    banks = {k: load_set(emb, n) for k, n in icfg.get("bank_sets", BANK_SETS).items()}
     gate = MahalanobisGate.fit(
-        np.concatenate([bank_sdb.feats, bank_zen.feats]),
+        np.concatenate([b.feats for b in banks.values()]),
         sha,
         {
-            "task": "T28",
+            "task": task,
             "weights": icfg["weights"],
-            "bank": {"sdb_bcs_train": len(bank_sdb.feats), "zen_rgbd_train": len(bank_zen.feats)},
+            "bank": {k: len(b.feats) for k, b in banks.items()},
             "bank_rule": f"sdb_bcs train ≤ {cfg['bank']['per_group']} frames por grupo + "
-            "zen_rgbd train (todo)",
+            + icfg.get("bank_rule_zen", "zen_rgbd train (todo)"),
             "embedding": "pooling 1280-d de la vista sin flip (letterbox 224×320)",
         },
     )
 
     # ID de val: recortes de las dos fuentes y frames de sdb por el pipeline
-    val = {"sdb_bcs": load_set(emb, "val_sdb"), "zen_rgbd": load_set(emb, "val_zen")}
+    val = {s: load_set(emb, n) for s, n in icfg.get("val_sets", VAL_SETS).items()}
     pipe_val = load_set(emb, "pipe_val")
     calib = {s: split_groups(v.meta["group_id"], frac, seed) for s, v in val.items()}
     calib_pipe = split_groups(pipe_val.meta["group_id"], frac, seed)
@@ -187,7 +198,9 @@ def run(cfg: dict[str, Any], write_artifact: bool = True) -> dict[str, Any]:
 
     t27 = _t27_results()
     results: dict[str, Any] = {
+        "task": task,
         "model_sha256": sha,
+        "weights": icfg["weights"],
         "bank": gate.info["bank"],
         "thresholds": {"warn": warn, "reject": reject, "reject_margin": margin},
         "id_scores": {
@@ -239,11 +252,11 @@ def run(cfg: dict[str, Any], write_artifact: bool = True) -> dict[str, Any]:
     }
     results["quality_metrics"] = quality_metrics(results)
 
-    out = runs_dir() / "T28" / "ood"
+    out = runs_dir() / task / "ood"
     out.mkdir(parents=True, exist_ok=True)
     (out / "results.json").write_text(json.dumps(results, indent=2, default=float) + "\n")
     (out / "tables.md").write_text(tables_md(results))
-    qdir = artifacts_dir() / "efficientnet_b0_zen"
+    qdir = artifacts_dir() / str(icfg.get("quality_dir", "efficientnet_b0_zen"))
     qdir.mkdir(parents=True, exist_ok=True)
     (qdir / "quality_metrics.json").write_text(
         json.dumps(results["quality_metrics"], indent=2) + "\n"
@@ -297,7 +310,8 @@ def _f(v: Any, nd: int = 3) -> str:
 def tables_md(r: dict[str, Any]) -> str:
     t = r["thresholds"]
     lines = [
-        "# T28 · detección OOD con el modelo de T25 (tablas generadas por `bcs.ood.fit_zen`)",
+        f"# {r.get('task', 'T28')} · detección OOD con `{r.get('weights', '')}` "
+        "(tablas generadas por `bcs.ood.fit_zen`)",
         "",
         f"Banco: {r['bank']}. Umbrales: **aviso {t['warn']:.1f}**, **rechazo {t['reject']:.1f}** "
         f"(máximo de las vacas de val × {t['reject_margin']:g}).",
@@ -358,8 +372,13 @@ def tables_md(r: dict[str, Any]) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m bcs.ood.fit_zen", description=__doc__)
     ap.add_argument("--dry-run", action="store_true", help="no escribe el artefacto en models/")
+    ap.add_argument(
+        "--section",
+        default="integration",
+        help="sección de config/ood.yaml (T30: integration_grupa)",
+    )
     args = ap.parse_args(argv)
-    run(load_cfg(), write_artifact=not args.dry_run)
+    run(load_cfg(), write_artifact=not args.dry_run, section=args.section)
     return 0
 
 

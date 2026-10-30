@@ -1,0 +1,50 @@
+# T30: fine-tuning con recortes de grupa en zen (los del detector de producción sobre la vaca sola).
+# Igual que config/train_zen.yaml (T25) salvo lo marcado con «T30». Lo lee
+# `python -m bcs.models.train_zen --config config/train_zen_grupa.yaml`; sale a $BCS_ARTIFACTS_DIR/T30/.
+task: T30                                    # T30
+export_name: bcs_efficientnet_b0_zen_grupa.pt  # T30
+seed: 42
+scale: dairy_zen
+# T30: arranca del modelo de dev (T25 A): ya tiene la cabeza en 3.0–5.0 y ordena zen; solo hay que
+# moverle el encuadre de zen. Desde el de producción habría que volver a aprender todo el rango.
+init_weights: models/bcs_efficientnet_b0_zen.pt
+arch: efficientnet_b0
+size: [224, 320]
+center: 3.75
+step: 0.25
+
+data:
+  sdb_max_per_group: 5
+  select_sdb_max_per_group: 5
+  source_mix: {sdb_bcs: 0.5, zen_rgbd: 0.5}
+  class_balance_power: {sdb_bcs: 1.0, zen_rgbd: 0.5}
+  # T30: recortes de `scripts/zen_crops/crops.py crops --name grupa --fallback half`
+  zen_crops: ~/bcs-shared/artifacts/T30/crops/grupa/manifest.csv
+  zen_frame: grupa                           # grupa | mix (grupa + vaca entera de T04, 50/50)
+
+variants:
+  G: {drop_dates: ["2024-12-06"], date_weight: {}}                    # solo grupa
+  M: {drop_dates: ["2024-12-06"], date_weight: {}, zen_frame: mix}    # grupa + entera
+
+train:
+  epochs: 3                                  # T30: arranca de un modelo ya ajustado
+  patience: 2
+  epoch_samples: 9600
+  batch_size: 32
+  lr: 1.0e-4                                 # T30: la mitad que T25 (fine-tuning de un fine-tuning)
+  weight_decay: 1.0e-4
+  warmup_steps: 100
+  huber_delta: 1.0
+  num_workers: 3
+  torch_threads: 8
+  ckpt_every_steps: 100
+  val_batch_size: 64
+
+augment:
+  hflip: true
+  affine: {degrees: 7, translate: 0.04, scale: [0.92, 1.08]}
+  color_jitter: {brightness: 0.25, contrast: 0.25, saturation: 0.4, hue: 0.08}
+  grayscale_p: 0.2
+
+coat:
+  threshold: 0.30

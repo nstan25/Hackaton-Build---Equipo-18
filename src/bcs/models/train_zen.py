@@ -19,6 +19,12 @@ reanudar a mitad de época sigue con las mismas muestras.
     python -m bcs.models.train_zen predict --model prod|A|B
     python -m bcs.models.train_zen report
     python -m bcs.models.train_zen export --model A|B
+
+T30: con `--config config/train_zen_grupa.yaml` (`task: T30`) todo sale a `$BCS_ARTIFACTS_DIR/T30/`
+y `data.zen_crops` cambia el encuadre de zen por los recortes del detector de producción sobre la
+vaca sola (`scripts/zen_crops/crops.py`): `zen_frame: grupa` (solo esos) o `mix` (cada imagen de
+zen train dos veces, grupa y vaca entera de T04, con la mitad del peso cada una). En val, zen
+usa los recortes del detector y descarta las filas sin detección (la app las rechaza).
 """
 
 from __future__ import annotations
@@ -51,10 +57,17 @@ MEAN, STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 PROD = "prod"
 CONTRAST_DATE = "2025-03-27"
 TAILS = (3.0, 4.5, 4.75, 5.0)
+ZEN_FRAMES = ("grupa", "mix")  # T30
 
 
 def load_config(path: Path | None = None) -> dict[str, Any]:
     return yaml.safe_load((path or config_dir() / "train_zen.yaml").read_text())
+
+
+def set_task(cfg: dict[str, Any]) -> None:
+    """T30: la carpeta de salida sale de `task` en el config (default T25)."""
+    global TASK
+    TASK = str(cfg.get("task", "T25"))
 
 
 def out_dir() -> Path:
@@ -112,7 +125,37 @@ def build_manifests(
     sdb = [_even_take(g, k) for _, g in train[train["source"] == "sdb_bcs"].groupby("group_id")]
     train = pd.concat([*sdb, train[train["source"] != "sdb_bcs"]]).drop(columns="frame")
     val = df.loc[df["split"] == "val"].copy()
+    if cfg["data"].get("zen_crops"):
+        train, val = apply_zen_crops(pd.DataFrame(train), pd.DataFrame(val), cfg)
     return pd.DataFrame(train).reset_index(drop=True), pd.DataFrame(val).reset_index(drop=True)
+
+
+def apply_zen_crops(
+    train: pd.DataFrame, val: pd.DataFrame, cfg: dict[str, Any]
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """T30: cambia la imagen de zen por el recorte de `data.zen_crops` (un `manifest.csv` con
+    `image_id, path, kind`; `kind` = `det` si salió del detector, otro valor si es el respaldo).
+
+    - train: el recorte (`frame = grupa`, con respaldo incluido) y además la fila original (vaca
+      entera de T04, `frame = entera`); `variant_rows` deja las dos solo con `zen_frame: mix`.
+    - val: solo el recorte y solo las filas con `kind == det` (sin detección la app rechaza)."""
+    man = pd.read_csv(Path(str(cfg["data"]["zen_crops"])).expanduser())
+    path = pd.Series(man["path"].to_numpy(), index=man["image_id"])
+    ids = man["image_id"].tolist()
+    det_ids = man.loc[man["kind"] == "det", "image_id"].tolist()
+
+    def swap(df: pd.DataFrame, only_det: bool) -> pd.DataFrame:
+        zen = df["source"] == "zen_rgbd"
+        ok = df["image_id"].isin(det_ids if only_det else ids)
+        out = df.loc[~zen | ok].copy()
+        z = out["source"] == "zen_rgbd"
+        out.loc[z, "path"] = out.loc[z, "image_id"].map(path)
+        out["frame"] = np.where(z, "grupa", "")
+        return out
+
+    whole = train.loc[(train["source"] == "zen_rgbd") & train["image_id"].isin(ids)]
+    tr = pd.concat([swap(train, only_det=False), whole.assign(frame="entera")], ignore_index=True)
+    return tr, swap(val, only_det=True)
 
 
 def selection_rows(val: pd.DataFrame, cfg: dict[str, Any]) -> pd.DataFrame:
@@ -132,6 +175,12 @@ def variant_rows(train: pd.DataFrame, cfg: dict[str, Any], variant: str) -> pd.D
     `source_mix`."""
     v = cfg["variants"][variant]
     df = train[~train["date"].isin(v.get("drop_dates") or [])].copy()
+    if "frame" in df.columns:  # T30: la vaca entera solo entra con `zen_frame: mix`
+        frame = str(v.get("zen_frame", cfg["data"].get("zen_frame", "grupa")))
+        if frame not in ZEN_FRAMES:
+            raise ValueError(f"zen_frame debe ser uno de {ZEN_FRAMES}, no {frame!r}")
+        if frame != "mix":
+            df = df.loc[df["frame"] != "entera"].copy()
     dw = v.get("date_weight") or {}
     w = np.array([float(dw.get(d, 1.0)) for d in df["date"]])
     out = np.zeros(len(df))
@@ -745,7 +794,7 @@ def export(cfg: dict[str, Any], model_name: str) -> Path:
     Nunca escribe en `models/`: producción sigue con su modelo."""
     src = out_dir() / model_name / "best.pt"
     ck = torch.load(src, map_location="cpu")
-    dest = out_dir() / EXPORT_NAME
+    dest = out_dir() / str(cfg.get("export_name", EXPORT_NAME))
     torch.save(ck, dest)
     meta = {k: v for k, v in ck.items() if k != "state_dict"} | {
         "weights": str(dest),
@@ -782,6 +831,7 @@ def main(argv: list[str] | None = None) -> int:
     rp.add_argument("--models", default="prod,A,B")
     args = ap.parse_args(argv)
     cfg = load_config(args.config)
+    set_task(cfg)
 
     if args.cmd == "manifest":
         print(json.dumps(write_manifests(cfg), indent=2))

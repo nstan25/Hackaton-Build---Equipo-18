@@ -44,7 +44,8 @@ labels:
 	$(RUN) python -m bcs.data.merge
 
 # G1: make eval usa la grilla del modelo salvo que se pise BCS_SCALE. T28 (rama dev): el modelo por
-# defecto es el de T25 (BCS_MODEL=zen) en dairy_zen (3.0–5.0); el de main sigue con
+# defecto es el de T25 (BCS_MODEL=zen) en dairy_zen (3.0–5.0); T30: ahora `zen_grupa` (misma
+# grilla); el de main sigue con
 # BCS_SCALE=dairy_sdb (p. ej. `make eval MODEL=efficientnet_b0 STAGE=m4 BCS_SCALE=dairy_sdb`).
 eval: export BCS_SCALE ?= dairy_zen
 eval:
