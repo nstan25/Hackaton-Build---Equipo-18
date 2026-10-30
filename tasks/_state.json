@@ -658,11 +658,11 @@
     },
     "T30": {
       "title": "Alinear recorte de inferencia con entrenamiento (zen punta a punta)",
-      "status": "PAUSADO a pedido del humano (30/10 00:35 UTC); reanudar con 'reanudá' al worker ctx_a3f96bfb36e9; ver ~/bcs-shared/runs/T30/PAUSA.md",
+      "status": "reanudado 30/10 tras reinicio de VM (nuevo dispatch, mismo worktree)",
       "branch": "recorte-detector (desde dev)",
       "agent": "claude",
       "task_id": "task_964f9893c8de",
-      "dispatch_id": "ctx_a3f96bfb36e9",
+      "dispatch_id": "ctx_cd927d805813",
       "note": "G/last.pt ép.3 200/300; M sin arrancar; B: caja ampliada baja zen-uso 0,53→0,21 pero sdb 0,176→0,19"
     }
   },
