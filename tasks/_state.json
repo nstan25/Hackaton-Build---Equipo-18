@@ -667,11 +667,12 @@
     },
     "T31": {
       "title": "Evaluar M (GPU) vs. G",
-      "status": "despachado",
+      "status": "verificado; M NO integrado (opción A del orquestador: calibración de M da low_confidence 25% sdb); herramientas mergeadas a dev",
       "branch": "evaluacion-m (desde dev)",
       "agent": "claude",
       "task_id": "task_15541652b952",
-      "dispatch_id": "ctx_4f365f175941"
+      "dispatch_id": "ctx_4f365f175941",
+      "note": "uso zen M−G +0,002 (empate); sdb −0,003; pesos M en artifacts/T30/M/"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)",
