@@ -680,9 +680,10 @@
     "url": "https://bcs-dev.up.railway.app",
     "railway_env": "dev (duplicado de production, serverless)",
     "token": "propio; ~/.config/bcs/dev_app_token (fuera del repo)",
-    "deployed_from": "main 1e52832",
-    "date": "2026-10-26",
+    "deployed_from": "dev e4a1203 (G zen_grupa default; T28+T30+T31)",
+    "date": "2026-10-30",
     "git_branch": "dev (GitHub). Sin auto-deploy: dev y production se deployan solo con railway up explícito a pedido del humano (29/10)",
-    "note": "G5/G6 se implementan en dev, no en main"
+    "note": "G5/G6 se implementan en dev, no en main",
+    "railway_vars": "BCS_SCALE=dairy_zen, BCS_MODEL=zen_grupa"
   }
 }
