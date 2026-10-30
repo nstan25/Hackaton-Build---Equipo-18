@@ -789,12 +789,17 @@ def render_tables(rep: dict[str, Any]) -> str:
 EXPORT_NAME = "bcs_efficientnet_b0_zen.pt"
 
 
-def export(cfg: dict[str, Any], model_name: str) -> Path:
+def export(
+    cfg: dict[str, Any], model_name: str, name: str | None = None, dest_dir: Path | None = None
+) -> Path:
     """Copia el `best.pt` elegido a `T25/bcs_efficientnet_b0_zen.pt` (+ `.json` con metadatos).
-    Nunca escribe en `models/`: producción sigue con su modelo."""
+    Nunca escribe en `models/`: producción sigue con su modelo. T31: `name`/`dest_dir` exportan
+    otra variante sin pisar la exportada (p. ej. M de T30 → `$BCS_ARTIFACTS_DIR/T31/`)."""
     src = out_dir() / model_name / "best.pt"
     ck = torch.load(src, map_location="cpu")
-    dest = out_dir() / str(cfg.get("export_name", EXPORT_NAME))
+    dest_dir = dest_dir or out_dir()
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / (name or str(cfg.get("export_name", EXPORT_NAME)))
     torch.save(ck, dest)
     meta = {k: v for k, v in ck.items() if k != "state_dict"} | {
         "weights": str(dest),
@@ -827,6 +832,8 @@ def main(argv: list[str] | None = None) -> int:
     pr.add_argument("--force", action="store_true", help="rehacer aunque ya existan")
     ex = sub.add_parser("export")
     ex.add_argument("--model", required=True, help="variante elegida (A o B)")
+    ex.add_argument("--name", default=None, help="nombre del .pt (default: export_name)")
+    ex.add_argument("--dest-dir", type=Path, default=None, help="default: la carpeta de la tarea")
     rp = sub.add_parser("report")
     rp.add_argument("--models", default="prod,A,B")
     args = ap.parse_args(argv)
@@ -856,7 +863,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "predict":
         run_predict(cfg, args.model, force=args.force)
     elif args.cmd == "export":
-        print(f"→ {export(cfg, args.model)}")
+        print(f"→ {export(cfg, args.model, args.name, args.dest_dir)}")
     elif args.cmd == "report":
         rep = build_report(cfg, args.models.split(","))
         dest = report_dir()
