@@ -1,0 +1,60 @@
+{
+  "kind": "calibrated_regression",
+  "grid": [
+    3.0,
+    3.25,
+    3.5,
+    3.75,
+    4.0,
+    4.25,
+    4.5,
+    4.75,
+    5.0
+  ],
+  "alpha": 0.1,
+  "distribution": {
+    "grid": [
+      3.0,
+      3.25,
+      3.5,
+      3.75,
+      4.0,
+      4.25,
+      4.5,
+      4.75,
+      5.0
+    ],
+    "degree": 0,
+    "center": 4.0,
+    "step": 0.25,
+    "mean_coef": [
+      0.06163136209557203
+    ],
+    "log_sigma_coef": [
+      -0.1732014122290905
+    ]
+  },
+  "temperature": 1.0154310513002027,
+  "conformal_by_class": true,
+  "conformal_thresholds": [
+    0.9945224452446699,
+    0.9316779572420733,
+    0.8324195360314911,
+    0.8257102059643068,
+    0.8320989357822224,
+    0.985791955091503,
+    0.87106477025181,
+    0.87106477025181,
+    0.87106477025181
+  ],
+  "conformal_min_class_n": 20,
+  "info": {
+    "n_fit": 4277,
+    "n_conformal": 4276,
+    "n_groups": 702,
+    "variant": "ml_deg0_class_min20",
+    "source_predictions": "/home/hackaton/bcs-shared/artifacts/T30/values_val_grupa.csv",
+    "fit_on": "val (todo)",
+    "created_at": "2026-10-30T17:22:57+00:00"
+  }
+}

@@ -3,6 +3,9 @@
 Default `BCS_MODEL=zen`: pesos `models/bcs_efficientnet_b0_zen.pt` con letterbox, grilla
 `dairy_zen` (3.0–5.0), calibración `models/calibration_efficientnet_b0_zen.json` y detección OOD
 `models/ood_mahalanobis_zen.npz`. El modelo de `main` sigue disponible con `BCS_MODEL=sdb`.
+
+T30: el default pasó a `zen_grupa` (`tests/test_integracion_grupa.py`); estos tests fijan
+`BCS_MODEL=zen`, que sigue disponible con los mismos artefactos.
 """
 
 from __future__ import annotations
@@ -39,19 +42,21 @@ WEB = REPO_ROOT / "web"
 
 @pytest.fixture
 def zen_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in (inference.MODEL_ENV, "BCS_SCALE", inference.OOD_ENV):
+    for name in ("BCS_SCALE", inference.OOD_ENV):
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv(inference.MODEL_ENV, "zen")
 
 
 @pytest.fixture(scope="module")
 def pipe() -> inference.Pipeline:
     with pytest.MonkeyPatch.context() as mp:
-        for name in (inference.MODEL_ENV, "BCS_SCALE", inference.OOD_ENV):
+        for name in ("BCS_SCALE", inference.OOD_ENV):
             mp.delenv(name, raising=False)
+        mp.setenv(inference.MODEL_ENV, "zen")
         return inference.model_pipeline()
 
 
-def test_default_model_is_zen(zen_env: None) -> None:
+def test_zen_model_spec(zen_env: None) -> None:
     spec = inference.model_spec()
     assert spec.name == "efficientnet_b0_zen" and spec.scale == "dairy_zen"
     assert spec.weights == inference.WEIGHTS_ZEN and spec.ood == inference.OOD_ZEN

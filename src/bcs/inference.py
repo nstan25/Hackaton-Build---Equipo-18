@@ -18,6 +18,10 @@ T28 (rama `dev`): `BCS_MODEL` elige el modelo (`MODELS`). `zen` (default) es el 
 antes de `decide_status`): aviso → `low_confidence` con `ISSUE_OOD_WARN`, rechazo → `rejected`
 con `ISSUE_NOT_COW_REAR`. `sdb` es el de producción (`main`), sin OOD, en `dairy_sdb`.
 
+T30: `zen_grupa` (nuevo default) es el de T25 ajustado con los recortes de zen que da el detector
+de producción sobre la vaca sola (grupa, como en sdb), con su calibración y su banco OOD
+(`models/*_zen_grupa.*`). Mismo pipeline y grilla; `zen` sigue disponible.
+
 `predict_raw` es lo mismo que `predict` pero devuelve también la foto decodificada, para que la API
 arme la miniatura sin decodificar la original otra vez (R3 de eval/review.md).
 """
@@ -74,6 +78,9 @@ CALIBRATION = REPO_ROOT / "models" / "calibration_efficientnet_b0.json"
 WEIGHTS_ZEN = REPO_ROOT / "models" / "bcs_efficientnet_b0_zen.pt"
 CALIBRATION_ZEN = REPO_ROOT / "models" / "calibration_efficientnet_b0_zen.json"
 OOD_ZEN = REPO_ROOT / "models" / "ood_mahalanobis_zen.npz"
+WEIGHTS_ZEN_GRUPA = REPO_ROOT / "models" / "bcs_efficientnet_b0_zen_grupa.pt"
+CALIBRATION_ZEN_GRUPA = REPO_ROOT / "models" / "calibration_efficientnet_b0_zen_grupa.json"
+OOD_ZEN_GRUPA = REPO_ROOT / "models" / "ood_mahalanobis_zen_grupa.npz"
 
 
 @dataclass(frozen=True)
@@ -88,8 +95,15 @@ class ModelSpec:
 MODELS: dict[str, ModelSpec] = {
     "sdb": ModelSpec("efficientnet_b0", WEIGHTS, CALIBRATION, "dairy_sdb"),
     "zen": ModelSpec("efficientnet_b0_zen", WEIGHTS_ZEN, CALIBRATION_ZEN, "dairy_zen", OOD_ZEN),
+    "zen_grupa": ModelSpec(
+        "efficientnet_b0_zen_grupa",
+        WEIGHTS_ZEN_GRUPA,
+        CALIBRATION_ZEN_GRUPA,
+        "dairy_zen",
+        OOD_ZEN_GRUPA,
+    ),
 }
-DEFAULT_MODEL = "zen"
+DEFAULT_MODEL = "zen_grupa"
 
 
 def model_spec(model: str | None = None) -> ModelSpec:
