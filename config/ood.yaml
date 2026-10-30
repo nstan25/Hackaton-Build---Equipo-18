@@ -25,3 +25,18 @@ integration:
   artifact: models/ood_mahalanobis_zen.npz
   warn_quantile: 0.99     # aviso: p99 de la mitad de calibración de val, por fuente; el mayor
   reject_margin: 1.25     # rechazo: máximo de todas las vacas reales de val × margen
+
+# T30 · lo mismo para el modelo de grupa: `python -m bcs.ood.fit_zen --section integration_grupa`.
+# Embeddings con `scripts/ood/build_sets.py --task T30 --weights <weights>` y
+# `scripts/zen_crops/embed_grupa.py --weights <weights>`. En zen, el banco y el val ID son los
+# recortes de grupa (vaca sola → detector de producción), lo que ve el modelo en uso real.
+integration_grupa:
+  task: T30
+  weights: models/bcs_efficientnet_b0_zen_grupa.pt
+  artifact: models/ood_mahalanobis_zen_grupa.npz
+  quality_dir: efficientnet_b0_zen_grupa
+  warn_quantile: 0.99
+  reject_margin: 1.25
+  bank_sets: {sdb_bcs_train: bank, zen_rgbd_train_grupa: bank_zen_grupa}
+  bank_rule_zen: "zen_rgbd train (todo, recorte de grupa)"
+  val_sets: {sdb_bcs: val_sdb, zen_rgbd: val_zen_grupa}
