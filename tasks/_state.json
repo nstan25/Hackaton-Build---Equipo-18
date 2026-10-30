@@ -669,7 +669,9 @@
       "title": "Evaluar M (GPU) vs. G",
       "status": "despachado",
       "branch": "evaluacion-m (desde dev)",
-      "agent": "claude"
+      "agent": "claude",
+      "task_id": "task_15541652b952",
+      "dispatch_id": "ctx_4f365f175941"
     }
   },
   "deployed": "main 607aa06+ (rediseño, explicación, gráfico)",
